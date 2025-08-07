@@ -536,7 +536,7 @@ export class Client extends GameShell {
         Client.nodeId = nodeid;
         Client.membersWorld = members;
 
-        if (lowmem) {
+        if (true) {
             Client.setLowMemory();
         } else {
             Client.setHighMemory();
