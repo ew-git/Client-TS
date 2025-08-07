@@ -59,6 +59,10 @@ export default abstract class ClientEntity extends ModelSource {
     routeRun: boolean[] = new TypedArray1d(10, false);
     seqDelayMove: number = 0;
     preanimRouteLength: number = 0;
+    lastMask: number = -1;
+    lastMaskCycle: number = -1;
+    lastFaceX: number = -1;
+    lastFaceZ: number = -1;
 
     abstract isVisible(): boolean;
 
