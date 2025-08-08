@@ -43,7 +43,7 @@ import { Int32Array2d, TypedArray1d, TypedArray3d, Int32Array3d, Uint8Array3d } 
 import { downloadUrl, sleep, arraycopy } from '#/util/JsUtil.js';
 
 import AnimFrame from '#/dash3d/AnimFrame.js';
-import { canvas2d } from '#/graphics/Canvas.js';
+import { canvas, canvas2d } from '#/graphics/Canvas.js';
 import { Colors } from '#/graphics/Colors.js';
 import Pix2D from '#/graphics/Pix2D.js';
 import Pix3D from '#/graphics/Pix3D.js';
@@ -67,6 +67,42 @@ import WordPack from '#/wordenc/WordPack.js';
 import Wave from '#/sound/Wave.js';
 import OnDemand from '#/io/OnDemand.js';
 import MobileKeyboard from '#/client/MobileKeyboard.ts';
+
+
+async function mouse(x: number, y: number, button = 0, delay = 100) {
+    console.log("Doing a click at" + x + "," + y);
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new MouseEvent('mousemove', {
+        'clientX': Math.round(x) + rect.left,
+        'clientY': Math.round(y) + rect.top
+    }));
+    await sleep(delay);
+    if (button > 0) {
+        canvas.dispatchEvent(new MouseEvent('mousedown', {
+            'clientX': Math.round(x) + rect.left,
+            'clientY': Math.round(y) + rect.top,
+            'button': button == 2 ? 2 : 0,
+            'buttons': button == 2 ? 2 : 1,
+            'which': button == 2 ? 3 : 1
+        }));
+        await sleep(delay);
+        canvas.dispatchEvent(new MouseEvent('mouseup', {
+            'clientX': Math.round(x) + rect.left,
+            'clientY': Math.round(y) + rect.top,
+            'button': button == 2 ? 2 : 0,
+            'buttons': 0,
+            'which': button == 2 ? 3 : 1
+        }));
+    }
+}
+
+// window.addEventListener('keydown', async (event) => {
+//     if (event.key === 'F1') {
+//         await mouse(100, 100, 1);
+//     }
+// });
+
+
 
 const enum Constants {
     CLIENT_VERSION = 244,
@@ -527,6 +563,11 @@ export class Client extends GameShell {
     constructor(nodeid: number, lowmem: boolean, members: boolean) {
         super();
 
+        window.addEventListener('keydown', async (event) => {
+            if (event.key === 'F1') {
+                this.onF1Pressed();
+            }
+        });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
             return;
         }
@@ -547,6 +588,26 @@ export class Client extends GameShell {
         }
 
         this.run();
+    }
+
+    async onF1Pressed() {
+        for (let index: number = -1; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npcs[this.npcIds[index]];
+            if (!entity || !entity.isVisible()) {
+                continue;
+            }
+            // npc
+            const npc: ClientNpc = entity as ClientNpc;
+            let offsetY: number = 0;
+            // this.projectFromEntity(entity, entity.height + 30);
+            this.projectFromEntity(entity, entity.height / 2);
+            let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY;
+            if (npcprojectinfo.match('Kebab seller')) {
+                await mouse(this.projectX, this.projectY + offsetY, 1);
+                break;
+            }
+        }
     }
 
     static setLowMemory(): void {
@@ -5235,7 +5296,9 @@ export class Client extends GameShell {
                     const npc: ClientNpc = entity as ClientNpc;
                     let offsetY: number = 0;
                     this.projectFromEntity(entity, entity.height + 30);
-                    this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npc.type?.name ?? null, Colors.WHITE);
+                    let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY;
+                    this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npcprojectinfo, Colors.WHITE);
+                    // this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npc.type?.name ?? null, Colors.WHITE);
                     offsetY -= 15;
                     if (npc.lastMask !== -1 && this.loopCycle - npc.lastMaskCycle < 30) {
                         if ((npc.lastMask & NpcUpdate.ANIM) === NpcUpdate.ANIM) {
