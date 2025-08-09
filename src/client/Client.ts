@@ -549,6 +549,10 @@ export class Client extends GameShell {
     protected lastTickFlag: boolean = false;
     private stopLoop: boolean = false;
     private f1interval: NodeJS.Timeout | undefined;
+    private playerMouseX: number = 270;
+    private playerMouseY: number = 170;
+    private mainScreenMaxX: number = 514;
+    private mainScreenMaxY: number = 335;
 
     // ----
 
@@ -5626,6 +5630,14 @@ export class Client extends GameShell {
             x,
             y,
             'Cutscene Destination: ' + this.cutsceneDstLocalTileX + ', ' + this.cutsceneDstLocalTileZ + ' ' + this.cutsceneDstHeight + '; ' + this.cutsceneRotateSpeed + ', ' + this.cutsceneRotateAcceleration,
+            Colors.YELLOW,
+            true
+        );
+        y += 13;
+        this.fontPlain11?.drawStringRight(
+            x,
+            y,
+            'Mouse location: ' + this.mouseX + ', ' + this.mouseY,
             Colors.YELLOW,
             true
         );
