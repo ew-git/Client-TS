@@ -547,6 +547,8 @@ export class Client extends GameShell {
     protected userTileMarkers: (Square | null)[] = new TypedArray1d(16, null);
     protected userTileMarkerIndex: number = 0;
     protected lastTickFlag: boolean = false;
+    private stopLoop: boolean = false;
+    private f1interval: NodeJS.Timeout | undefined;
 
     // ----
 
@@ -566,6 +568,11 @@ export class Client extends GameShell {
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
                 this.onF1Pressed();
+            }
+        });
+        window.addEventListener('keydown', async (event) => {
+            if (event.key === 'F2') {
+                this.stopLoop = true;
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -591,23 +598,56 @@ export class Client extends GameShell {
     }
 
     async onF1Pressed() {
-        for (let index: number = -1; index < this.npcCount; index++) {
-            let entity: ClientEntity | null = null;
-            entity = this.npcs[this.npcIds[index]];
-            if (!entity || !entity.isVisible()) {
-                continue;
+        this.stopLoop = false;
+        this.f1interval = setInterval(async () => {
+            // HP is skill index 3
+            // for (let s = 0; s < this.skillLevel.length; s++) {
+            //     const skillvalue = this.skillLevel[s];
+            //     this.addMessage(0, 'Skill number ' + s + ' has level ' + skillvalue + ' and baselevel ' + this.skillBaseLevel[s], '');
+            // }
+            if (this.skillLevel[3] < 5) {
+                this.addMessage(0, 'HP=' + this.skillLevel[3] + ' too low! Wait for regen.', '');
+                return;
             }
-            // npc
-            const npc: ClientNpc = entity as ClientNpc;
-            let offsetY: number = 0;
-            // this.projectFromEntity(entity, entity.height + 30);
-            this.projectFromEntity(entity, entity.height / 2);
-            let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY;
-            if (npcprojectinfo.match('Kebab seller')) {
-                await mouse(this.projectX, this.projectY + offsetY, 1);
-                break;
+            for (let index: number = -1; index < this.npcCount; index++) {
+                let entity: ClientEntity | null = null;
+                entity = this.npcs[this.npcIds[index]];
+                if (!entity || !entity.isVisible()) {
+                    continue;
+                }
+                // npc
+                const npc: ClientNpc = entity as ClientNpc;
+                // this.projectFromEntity(entity, entity.height + 30);
+                this.projectFromEntity(entity, entity.height / 2);
+                let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY;
+                if (npcprojectinfo.match('Man') && this.projectX > 5 && this.projectX < 300 && this.projectY > 5 && this.projectY < 300) {
+                    await mouse(this.projectX, this.projectY, 2);
+                    await sleep(100);
+                    if (this.menuSize > 0) {
+                        for (let i = 0; i < this.menuOption.length; i++) {
+                            const optiontext = this.menuOption[i];
+                            if (optiontext.startsWith('Pickpocket')) {
+                                this.useMenuOption(i);
+                                this.menuVisible = false;
+
+                                if (this.menuArea === 1) {
+                                    this.redrawSidebar = true;
+                                } else if (this.menuArea === 2) {
+                                    this.redrawChatback = true;
+                                }
+                                this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                                break;
+                            }
+                            // this.addMessage(0, 'Menu option ' + i + ' is ' + this.menuOption[i], '');
+                        }
+                    }
+                    break;
+                }
             }
+        if (this.stopLoop) {
+            clearInterval(this.f1interval);
         }
+        }, 2000);
     }
 
     static setLowMemory(): void {
@@ -1984,7 +2024,7 @@ export class Client extends GameShell {
             // timers when a different tab is active, or the window has been minimized.
             // afk logout has to still happen after 90s of no activity (if allowed).
             // https://developer.chrome.com/blog/timer-throttling-in-chrome-88/
-            if (performance.now() - this.idleCycles > 90_000) {
+            if (performance.now() - this.idleCycles > 90_000_0) {
                 // 4500 ticks * 20ms = 90000ms
                 this.idleTimeout = 250;
                 // 500 ticks * 20ms = 10000ms
