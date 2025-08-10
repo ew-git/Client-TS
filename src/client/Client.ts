@@ -600,10 +600,32 @@ export class Client extends GameShell {
 
         this.run();
     }
+    async handleRandoms() {
+        for (let index: number = 0; index < this.npcCount; index++) {
+                let entity: ClientEntity | null = null;
+                entity = this.npcs[this.npcIds[index]];
+                if (!entity || !entity.isVisible()) {
+                    continue;
+                }
+                const npc: ClientNpc = entity as ClientNpc;
+                let npcName: string = npc.type?.name + '';
+                this.projectFromEntity(entity, entity.height / 2);
+                if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                    await mouse(this.projectX, this.projectY, 1);
+                    await sleep(5000);
+                }
+                this.projectFromEntity(entity, entity.height / 2);
+                if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                    await mouse(this.projectX, this.projectY, 1);
+                    await sleep(5000);
+                }
+            }
+    }
 
     async onF1Pressed() {
         this.stopLoop = false;
         this.f1interval = setInterval(async () => {
+            await this.handleRandoms();
             // HP is skill index 3
             // for (let s = 0; s < this.skillLevel.length; s++) {
             //     const skillvalue = this.skillLevel[s];
@@ -611,41 +633,52 @@ export class Client extends GameShell {
             // }
             if (this.skillLevel[3] < 5) {
                 this.addMessage(0, 'HP=' + this.skillLevel[3] + ' too low! Wait for regen.', '');
+                await this.clickKebabInInventory();
                 return;
             }
-            for (let index: number = -1; index < this.npcCount; index++) {
+            // Find the closest 'Man' NPC to (playerMouseX, playerMouseY)
+            let closestDist = Number.POSITIVE_INFINITY;
+            let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
+
+            for (let index: number = 0; index < this.npcCount; index++) {
                 let entity: ClientEntity | null = null;
                 entity = this.npcs[this.npcIds[index]];
                 if (!entity || !entity.isVisible()) {
                     continue;
                 }
-                // npc
                 const npc: ClientNpc = entity as ClientNpc;
-                // this.projectFromEntity(entity, entity.height + 30);
                 this.projectFromEntity(entity, entity.height / 2);
                 let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY;
-                if (npcprojectinfo.match('Man') && this.projectX > 5 && this.projectX < 300 && this.projectY > 5 && this.projectY < 300) {
-                    await mouse(this.projectX, this.projectY, 2);
-                    await sleep(100);
-                    if (this.menuSize > 0) {
-                        for (let i = 0; i < this.menuOption.length; i++) {
-                            const optiontext = this.menuOption[i];
-                            if (optiontext.startsWith('Pickpocket')) {
-                                this.useMenuOption(i);
-                                this.menuVisible = false;
-
-                                if (this.menuArea === 1) {
-                                    this.redrawSidebar = true;
-                                } else if (this.menuArea === 2) {
-                                    this.redrawChatback = true;
-                                }
-                                this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
-                                break;
-                            }
-                            // this.addMessage(0, 'Menu option ' + i + ' is ' + this.menuOption[i], '');
-                        }
+                if (npcprojectinfo.match('Man') && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                    const dx = this.projectX - this.playerMouseX;
+                    const dy = this.projectY - this.playerMouseY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
                     }
-                    break;
+                }
+            }
+
+            if (closestNpc) {
+                await mouse(closestNpc.x, closestNpc.y, 2);
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Pickpocket')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                            break;
+                        }
+                        // this.addMessage(0, 'Menu option ' + i + ' is ' + this.menuOption[i], '');
+                    }
                 }
             }
         if (this.stopLoop) {
@@ -11861,5 +11894,49 @@ export class Client extends GameShell {
     getReportAbuseInterfaceId(): number {
         // custom: for report abuse input on mobile
         return this.reportAbuseInterfaceId;
+    }
+
+
+    /**
+     * Finds a Kebab (object id 1971) in the player's inventory and clicks it.
+     * Returns true if a kebab was found and clicked, false otherwise.
+     */
+    async clickKebabInInventory(): Promise<boolean> {
+        // Get the inventory component for the currently selected tab
+        const invId = this.tabInterfaceId[this.selectedTab];
+        if (invId === -1) {
+            this.addMessage?.(0, 'Inventory interface not available', '');
+            return false;
+        }
+        const inv = Component.types[invId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        // Kebab object id is 1971, but invSlotObjId is usually +1
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (inv.invSlotObjId[slot] === 1972) {
+                // Simulate clicking the inventory slot by triggering the correct menu action
+                // Find the correct menu option for this slot
+                for (let i = 0; i < this.menuSize; i++) {
+                    if (
+                        this.menuAction[i] >= 1000 &&
+                        this.menuParamA[i] === 1972 &&
+                        this.menuParamB[i] === slot &&
+                        this.menuParamC[i] === invId &&
+                        this.menuOption[i].toLowerCase().includes('eat')
+                    ) {
+                        this.useMenuOption(i);
+                        this.addMessage?.(0, 'Clicked Kebab in slot ' + slot, '');
+                        return true;
+                    }
+                }
+                // If no menu option found, just select the slot (fallback)
+                this.addMessage?.(0, 'Kebab found in slot ' + slot + ', but no eat option found', '');
+                return false;
+            }
+        }
+        this.addMessage?.(0, 'No Kebab found in inventory', '');
+        return false;
     }
 }
