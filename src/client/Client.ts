@@ -96,6 +96,14 @@ async function mouse(x: number, y: number, button = 0, delay = 100) {
     }
 }
 
+async function clickInv(i: number, j: number | null=null, button=1) {
+    if (j === null) {
+        j = Math.floor(i / 4);
+        i = i % 4;
+    }
+    await mouse(592 + i*40, 254 + j*35, button);
+}
+
 // window.addEventListener('keydown', async (event) => {
 //     if (event.key === 'F1') {
 //         await mouse(100, 100, 1);
@@ -640,7 +648,7 @@ export class Client extends GameShell {
             // }
             if (this.skillLevel[3] < 5) {
                 this.addMessage(0, 'HP=' + this.skillLevel[3] + ' too low! Wait for regen.', '');
-                // await this.clickKebabInInventory();
+                await this.clickKebabInInventory();
                 return;
             }
             // Find the closest 'Man' NPC to (playerMouseX, playerMouseY)
@@ -11909,51 +11917,21 @@ export class Client extends GameShell {
      * Returns true if a kebab was found and clicked, false otherwise.
      */
     async clickKebabInInventory(): Promise<boolean> {
-        // Try to get the inventory component from the current tab
-        let invId = this.tabInterfaceId[this.selectedTab];
-        let inv = (invId !== -1) ? Component.types[invId] : null;
-
-        // If not found or invalid, search all Component.types for a valid inventory
+        let inv = Component.types[this.inventoryComponentId];
         if (!inv || !inv.invSlotObjId) {
-            for (let i = 0; i < Component.types.length; i++) {
-                const candidate = Component.types[i];
-                if (candidate && candidate.invSlotObjId) {
-                    invId = i;
-                    inv = candidate;
-                    this.addMessage?.(0, `Found inventory component at index ${i} with id ${inv.id} type ${inv.type} layer ${inv.layer} objId ${inv.invSlotObjId}`, '');
-                    if (i > 10000) {
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (!inv || !inv.invSlotObjId) {
-            this.addMessage?.(0, 'Inventory data not available after full search', '');
+            this.addMessage?.(0, 'Inventory data not available', '');
             return false;
         }
 
         // Kebab object id is 1971, but invSlotObjId is usually +1
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (inv.invSlotObjId[slot] === 1972) {
-                // Simulate clicking the inventory slot by triggering the correct menu action
-                // Find the correct menu option for this slot
-                for (let i = 0; i < this.menuSize; i++) {
-                    if (
-                        this.menuAction[i] >= 1000 &&
-                        this.menuParamA[i] === 1972 &&
-                        this.menuParamB[i] === slot &&
-                        this.menuParamC[i] === invId &&
-                        this.menuOption[i].toLowerCase().includes('eat')
-                    ) {
-                        this.useMenuOption(i);
-                        this.addMessage?.(0, 'Clicked Kebab in slot ' + slot, '');
-                        return true;
-                    }
-                }
+                await clickInv(slot);
+                this.addMessage?.(0, 'Clicked Kebab in slot ' + slot, '');
+                return true;
                 // If no menu option found, just select the slot (fallback)
-                this.addMessage?.(0, 'Kebab found in slot ' + slot + ', but no eat option found', '');
-                return false;
+                // this.addMessage?.(0, 'Kebab found in slot ' + slot + ', but no eat option found', '');
+                // return false;
             }
         }
         this.addMessage?.(0, 'No Kebab found in inventory', '');
