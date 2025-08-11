@@ -101,7 +101,7 @@ async function clickInv(i: number, j: number | null=null, button=1) {
         j = Math.floor(i / 4);
         i = i % 4;
     }
-    await mouse(592 + i*40, 254 + j*35, button);
+    await mouse(592 + i*40, 232 + j*35, button);
 }
 
 // window.addEventListener('keydown', async (event) => {
