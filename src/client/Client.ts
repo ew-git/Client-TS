@@ -553,6 +553,8 @@ export class Client extends GameShell {
     private playerMouseY: number = 170;
     private mainScreenMaxX: number = 514;
     private mainScreenMaxY: number = 335;
+    private inventoryComponentId: number = 3214; // \Server\engine\data\symbols\component.sym
+    private bankComponentId: number = 5382;
 
     // ----
 
@@ -577,6 +579,11 @@ export class Client extends GameShell {
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F2') {
                 this.stopLoop = true;
+            }
+        });
+        window.addEventListener('keydown', async (event) => {
+            if (event.key === 'F3') {
+                this.clickKebabInInventory();
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -633,7 +640,7 @@ export class Client extends GameShell {
             // }
             if (this.skillLevel[3] < 5) {
                 this.addMessage(0, 'HP=' + this.skillLevel[3] + ' too low! Wait for regen.', '');
-                await this.clickKebabInInventory();
+                // await this.clickKebabInInventory();
                 return;
             }
             // Find the closest 'Man' NPC to (playerMouseX, playerMouseY)
@@ -11902,17 +11909,30 @@ export class Client extends GameShell {
      * Returns true if a kebab was found and clicked, false otherwise.
      */
     async clickKebabInInventory(): Promise<boolean> {
-        // Get the inventory component for the currently selected tab
-        const invId = this.tabInterfaceId[this.selectedTab];
-        if (invId === -1) {
-            this.addMessage?.(0, 'Inventory interface not available', '');
-            return false;
-        }
-        const inv = Component.types[invId];
+        // Try to get the inventory component from the current tab
+        let invId = this.tabInterfaceId[this.selectedTab];
+        let inv = (invId !== -1) ? Component.types[invId] : null;
+
+        // If not found or invalid, search all Component.types for a valid inventory
         if (!inv || !inv.invSlotObjId) {
-            this.addMessage?.(0, 'Inventory data not available', '');
+            for (let i = 0; i < Component.types.length; i++) {
+                const candidate = Component.types[i];
+                if (candidate && candidate.invSlotObjId) {
+                    invId = i;
+                    inv = candidate;
+                    this.addMessage?.(0, `Found inventory component at index ${i} with id ${inv.id} type ${inv.type} layer ${inv.layer} objId ${inv.invSlotObjId}`, '');
+                    if (i > 10000) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available after full search', '');
             return false;
         }
+
         // Kebab object id is 1971, but invSlotObjId is usually +1
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (inv.invSlotObjId[slot] === 1972) {
