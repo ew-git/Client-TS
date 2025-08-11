@@ -591,7 +591,7 @@ export class Client extends GameShell {
         });
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F3') {
-                this.clickKebabInInventory();
+                this.addMessage(0, 'selectedTab=' + this.selectedTab, '');
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -698,6 +698,7 @@ export class Client extends GameShell {
             }
         if (this.stopLoop) {
             clearInterval(this.f1interval);
+            return;
         }
         }, 2000);
     }
@@ -11926,6 +11927,9 @@ export class Client extends GameShell {
         // Kebab object id is 1971, but invSlotObjId is usually +1
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (inv.invSlotObjId[slot] === 1972) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
                 await clickInv(slot);
                 this.addMessage?.(0, 'Clicked Kebab in slot ' + slot, '');
                 return true;
