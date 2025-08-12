@@ -591,7 +591,24 @@ export class Client extends GameShell {
         });
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F3') {
-                this.addMessage(0, 'selectedTab=' + this.selectedTab, '');
+                // if (this.localPlayer != null) {
+                //     this.addMessage(0, `${this.localPlayer.routeTileX[0]}, ${this.localPlayer.routeTileZ[0]}`, '');
+                //     this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0],
+                //         this.localPlayer.routeTileX[0] + 1, this.localPlayer.routeTileZ[0] + 1,
+                //          0, 0, 0, 0, 0, 0, true);
+                // }
+                for (let index: number = 0; index < this.npcCount; index++) {
+                    let entity: ClientEntity | null = null;
+                    entity = this.npcs[this.npcIds[index]];
+                    if (!entity || !entity.isVisible()) {
+                        continue;
+                    }
+                    const npc: ClientNpc = entity as ClientNpc;
+                    let npcId: number | undefined = npc.type?.id;
+                    if (npcId == 325) {
+                        this.addMessage(0, `Found npcId=${npcId} with name=${npc.type?.name}`, '');
+                    }
+                }
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -11923,7 +11940,6 @@ export class Client extends GameShell {
             this.addMessage?.(0, 'Inventory data not available', '');
             return false;
         }
-
         // Kebab object id is 1971, but invSlotObjId is usually +1
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (inv.invSlotObjId[slot] === 1972) {
@@ -11933,9 +11949,6 @@ export class Client extends GameShell {
                 await clickInv(slot);
                 this.addMessage?.(0, 'Clicked Kebab in slot ' + slot, '');
                 return true;
-                // If no menu option found, just select the slot (fallback)
-                // this.addMessage?.(0, 'Kebab found in slot ' + slot + ', but no eat option found', '');
-                // return false;
             }
         }
         this.addMessage?.(0, 'No Kebab found in inventory', '');
