@@ -597,18 +597,20 @@ export class Client extends GameShell {
                 //         this.localPlayer.routeTileX[0] + 1, this.localPlayer.routeTileZ[0] + 1,
                 //          0, 0, 0, 0, 0, 0, true);
                 // }
-                for (let index: number = 0; index < this.npcCount; index++) {
-                    let entity: ClientEntity | null = null;
-                    entity = this.npcs[this.npcIds[index]];
-                    if (!entity || !entity.isVisible()) {
-                        continue;
-                    }
-                    const npc: ClientNpc = entity as ClientNpc;
-                    let npcId: number | undefined = npc.type?.id;
-                    if (npcId == 325) {
-                        this.addMessage(0, `Found npcId=${npcId} with name=${npc.type?.name}`, '');
-                    }
-                }
+                // for (let index: number = 0; index < this.npcCount; index++) {
+                //     let entity: ClientEntity | null = null;
+                //     entity = this.npcs[this.npcIds[index]];
+                //     if (!entity || !entity.isVisible()) {
+                //         continue;
+                //     }
+                //     const npc: ClientNpc = entity as ClientNpc;
+                //     let npcId: number | undefined = npc.type?.id;
+                //     if (npcId == 325) {
+                //         this.addMessage(0, `Found npcId=${npcId} with name=${npc.type?.name}`, '');
+                //     }
+                // }
+                // this.addMessage(0, `invCount=${this.invCount()}`, '');
+                if (this.localPlayer) await this.tryMove(this.localPlayer?.routeTileX[0], this.localPlayer?.routeTileZ[0], 49, 50, 0, 0, 0, 0, 0, 0, true);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -654,7 +656,7 @@ export class Client extends GameShell {
             }
     }
 
-    async onF1Pressed() {
+    async onF1Pressed_thieve() {
         this.stopLoop = false;
         this.f1interval = setInterval(async () => {
             await this.handleRandoms();
@@ -714,6 +716,82 @@ export class Client extends GameShell {
                 }
             }
         if (this.stopLoop) {
+            clearInterval(this.f1interval);
+            return;
+        }
+        }, 2000);
+    }
+    async onF1Pressed() {
+        this.stopLoop = false;
+        let routeindex = 0;
+        let route = [[53,49], [53, 55], [50, 60], [47, 64], [45, 69], [43, 74], [40, 79]];
+        this.f1interval = setInterval(async () => {
+            this.addMessage(0, `Checking randoms. routeindex is ${routeindex}`, '');
+            await this.handleRandoms();
+
+            // if inventory is full, drop all raw shrimps
+            if (this.invCount() == 28) {
+                await this.dropShrimps();
+                await sleep(10000);
+            }
+
+            // if idle, do complicated stuff
+            if (this.localPlayer?.primarySeqId == -1) {
+
+                // Find the closest 'Man' NPC to (playerMouseX, playerMouseY)
+                let closestDist = Number.POSITIVE_INFINITY;
+                let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
+
+                for (let index: number = 0; index < this.npcCount; index++) {
+                    let entity: ClientEntity | null = null;
+                    entity = this.npcs[this.npcIds[index]];
+                    if (!entity || !entity.isVisible()) {
+                        continue;
+                    }
+                    const npc: ClientNpc = entity as ClientNpc;
+                    let npcId: number | undefined = npc.type?.id;
+                    this.projectFromEntity(entity, entity.height / 2);
+                    if (npcId == 325 && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                        const dx = this.projectX - this.playerMouseX;
+                        const dy = this.projectY - this.playerMouseY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
+                        }
+                    }
+                }
+
+                if (closestNpc) {
+                    this.addMessage(0, `Found closest npc at ${closestNpc.x}, ${closestNpc.y}`, '');
+                    await mouse(closestNpc.x, closestNpc.y, 2);
+                    await sleep(100);
+                    if (this.menuSize > 0) {
+                        for (let i = 0; i < this.menuOption.length; i++) {
+                            const optiontext = this.menuOption[i];
+                            if (optiontext.startsWith('Net')) {
+                                this.useMenuOption(i);
+                                this.menuVisible = false;
+                                if (this.menuArea === 1) {
+                                    this.redrawSidebar = true;
+                                } else if (this.menuArea === 2) {
+                                    this.redrawChatback = true;
+                                }
+                                this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // There is no closestNpc, so need to walk around to find another
+                    routeindex = (routeindex + 1) % route.length;
+                    this.addMessage(0, `No closestNpc, trying to move to ${routeindex} with ${this.localPlayer.routeTileX[0]}, ${this.localPlayer.routeTileZ[0]}, ${route[routeindex][0]}, ${route[routeindex][1]}`, '');
+                    await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], route[routeindex][0], route[routeindex][1], 0, 0, 0, 0, 0, 0, true);
+                    await sleep(10000);
+                }
+            }
+
+            if (this.stopLoop) {
             clearInterval(this.f1interval);
             return;
         }
@@ -5672,25 +5750,27 @@ export class Client extends GameShell {
             this.fontBold12?.drawStringRight(x, y, 'tick', Colors.YELLOW, true);
         }
         y += 13;
+        this.fontPlain11?.drawStringRight(x, y, `primarySeqId=${this.localPlayer?.primarySeqId}`, Colors.YELLOW, true);
+        y += 13;
         this.fontPlain11?.drawStringRight(x, y, `Fps: ${this.fps}, ${this.deltime} ms`, Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, `Draw: ${this.ms.toFixed(1)}, Avg: ${this.msAvg.toFixed(1)}, Slow: ${this.slowestMS.toFixed(1)} ms`, Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, `Occluders: ${World3D.levelOccluderCount[World3D.topLevel]} Active: ${World3D.activeOccluderCount}`, Colors.YELLOW, true);
+        // y += 13;
+        // this.fontPlain11?.drawStringRight(x, y, `Draw: ${this.ms.toFixed(1)}, Avg: ${this.msAvg.toFixed(1)}, Slow: ${this.slowestMS.toFixed(1)} ms`, Colors.YELLOW, true);
+        // y += 13;
+        // this.fontPlain11?.drawStringRight(x, y, `Occluders: ${World3D.levelOccluderCount[World3D.topLevel]} Active: ${World3D.activeOccluderCount}`, Colors.YELLOW, true);
         y += 13;
         this.fontPlain11?.drawStringRight(x, y, 'Local Pos: ' + (this.localPlayer?.x ?? -1) + ', ' + (this.localPlayer?.z ?? -1) + ', ' + (this.localPlayer?.y ?? -1), Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, 'Camera Pos: ' + this.cameraX + ', ' + this.cameraZ + ', ' + this.cameraY, Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(x, y, 'Camera Angle: ' + this.cameraYaw + ', ' + this.cameraPitch, Colors.YELLOW, true);
-        y += 13;
-        this.fontPlain11?.drawStringRight(
-            x,
-            y,
-            'Cutscene Source: ' + this.cutsceneSrcLocalTileX + ', ' + this.cutsceneSrcLocalTileZ + ' ' + this.cutsceneSrcHeight + '; ' + this.cutsceneMoveSpeed + ', ' + this.cutsceneMoveAcceleration,
-            Colors.YELLOW,
-            true
-        );
+        // y += 13;
+        // this.fontPlain11?.drawStringRight(x, y, 'Camera Pos: ' + this.cameraX + ', ' + this.cameraZ + ', ' + this.cameraY, Colors.YELLOW, true);
+        // y += 13;
+        // this.fontPlain11?.drawStringRight(x, y, 'Camera Angle: ' + this.cameraYaw + ', ' + this.cameraPitch, Colors.YELLOW, true);
+        // y += 13;
+        // this.fontPlain11?.drawStringRight(
+        //     x,
+        //     y,
+        //     'Cutscene Source: ' + this.cutsceneSrcLocalTileX + ', ' + this.cutsceneSrcLocalTileZ + ' ' + this.cutsceneSrcHeight + '; ' + this.cutsceneMoveSpeed + ', ' + this.cutsceneMoveAcceleration,
+        //     Colors.YELLOW,
+        //     true
+        // );
         y += 13;
         this.fontPlain11?.drawStringRight(
             x,
@@ -5704,6 +5784,14 @@ export class Client extends GameShell {
             x,
             y,
             'Mouse location: ' + this.mouseX + ', ' + this.mouseY,
+            Colors.YELLOW,
+            true
+        );
+         y += 13;
+        this.fontPlain11?.drawStringRight(
+            x,
+            y,
+            'Player location: ' + this.localPlayer?.routeTileX[0] + ', ' + this.localPlayer?.routeTileZ[0],
             Colors.YELLOW,
             true
         );
@@ -11953,5 +12041,55 @@ export class Client extends GameShell {
         }
         this.addMessage?.(0, 'No Kebab found in inventory', '');
         return false;
+    }
+
+    invCount(): number {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return -1;
+        }
+        let cnt = 0;
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (inv.invSlotObjId[slot] != 0) {
+                cnt++;
+            }
+        }
+        return cnt;
+    }
+
+    async dropShrimps(): Promise<boolean> {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        // Raw shrimps object id is 317, anchovies 321, but invSlotObjId is usually +1
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (inv.invSlotObjId[slot] === 318 || inv.invSlotObjId[slot] === 322) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await clickInv(slot, null, 2);
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Drop')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
     }
 }
