@@ -51,7 +51,7 @@ fs.copyFileSync('src/3rdparty/bzip2-wasm/bzip2.wasm', 'out/bzip2.wasm');
 fs.copyFileSync('src/3rdparty/tinymidipcm/tinymidipcm.wasm', 'out/tinymidipcm.wasm');
 
 const args = process.argv.slice(2);
-const prod = args[0] !== 'dev';
+const prod = false // args[0] !== 'dev';
 
 const entrypoints = [
     'src/client/Client.ts',

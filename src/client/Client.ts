@@ -611,6 +611,7 @@ export class Client extends GameShell {
                 // }
                 // this.addMessage(0, `invCount=${this.invCount()}`, '');
                 if (this.localPlayer) await this.tryMove(this.localPlayer?.routeTileX[0], this.localPlayer?.routeTileZ[0], 49, 50, 0, 0, 0, 0, 0, 0, true);
+                console.log('Trying to log something');
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
