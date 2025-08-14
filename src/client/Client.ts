@@ -791,7 +791,11 @@ export class Client extends GameShell {
             let p = path[i];
             this.addMessage(0, `Trying to move to ${p[0] - this.sceneBaseTileX}, ${p[1] - this.sceneBaseTileZ}; ${i+1} / ${path.length}`, '');
             await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], p[0] - this.sceneBaseTileX, p[1] - this.sceneBaseTileZ, 0, 0, 0, 0, 0, 0, true)
-            await sleep(5000);
+            await sleep(500);
+            while (this.localPlayer?.routeLength !== 0) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+
         }
     }
 
@@ -5884,6 +5888,14 @@ export class Client extends GameShell {
             x,
             y,
             'Player location (base): ' + ( this.sceneBaseTileX) + ', ' + (this.sceneBaseTileX),
+            Colors.YELLOW,
+            true
+        );
+        y += 13;
+        this.fontPlain11?.drawStringRight(
+            x,
+            y,
+            'Player route length: ' + this.localPlayer?.routeLength,
             Colors.YELLOW,
             true
         );
