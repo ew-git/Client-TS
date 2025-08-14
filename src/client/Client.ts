@@ -610,8 +610,25 @@ export class Client extends GameShell {
                 //     }
                 // }
                 // this.addMessage(0, `invCount=${this.invCount()}`, '');
-                if (this.localPlayer) await this.tryMove(this.localPlayer?.routeTileX[0], this.localPlayer?.routeTileZ[0], 49, 50, 0, 0, 0, 0, 0, 0, true);
-                console.log('Trying to log something');
+                // if (this.localPlayer) await this.tryMove(this.localPlayer?.routeTileX[0], this.localPlayer?.routeTileZ[0], 49, 50, 0, 0, 0, 0, 0, 0, true);
+                // if (this.localPlayer) {
+                //     let p = this.localPlayer;
+                //     console.log({
+                //         routeTileX: p.routeTileX[0], routeTileZ: p.routeTileZ[0], minTileX: p.minTileX,
+                //         minTileZ: p.minTileZ,
+                //         maxTileX: p.maxTileX,
+                //         maxTileZ: p.maxTileZ, x: p.x, z: p.z,
+                //         baseX: this.baseX,
+                //         baseZ: this.baseZ,
+                //         sceneCenterZoneX: this.sceneCenterZoneX,
+                //         sceneCenterZoneZ: this.sceneCenterZoneZ,
+                //         sceneBaseTileX: this.sceneBaseTileX,
+                //         sceneBaseTileZ: this.sceneBaseTileZ
+                //     });
+                // } else {
+                //     console.log("localPlayer is null.")
+                // }
+                await this.walkToRange();
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -722,6 +739,62 @@ export class Client extends GameShell {
         }
         }, 2000);
     }
+
+    shrimpPath(fishing: boolean, gonorth: boolean) {
+        let fishingRoute = [[2997, 3153], [2997, 3157], [2997, 3161], [2993, 3164], [2991, 3169], [2989, 3173], [2987, 3177], [2986, 3181]];
+        let cookingRoute = [[2997, 3153], [2997, 3157], [2997, 3161], [2993, 3164], [2991, 3169], [2989, 3173], [2987, 3177], [2986, 3181], [2984, 3186], [2984, 3191], [2982, 3196], [2975, 3200], [2971, 3208], [2971, 3215], [2968, 3213], [2969, 3210]];
+        if (fishing) {
+            var route = fishingRoute;
+        } else {
+            var route = cookingRoute;
+        }
+        if (gonorth) {
+            return route;
+        } else {
+            return route.toReversed();
+        }
+    }
+
+    findNearestPointInPath(path: Array<Array<number>>) {
+        let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+        let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+        var closestDist = Number.POSITIVE_INFINITY;
+        var closestPoint: Array<number> = [];
+        var closestPointIndex = -1;
+        for (let i = 0; i < path.length; i++) {
+            let point = path[i];
+            let dx = point[0] - globalX;
+            let dz = point[1] - globalZ;
+            let dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestPoint = point;
+                closestPointIndex = i;
+            }
+        }
+        if (closestPointIndex == -1) {
+            this.addMessage(0, 'No closest point found in path', '');
+            return null;
+        } else {
+            return { point: closestPoint, index: closestPointIndex };
+        }
+    }
+
+    async walkToRange() {
+        let path = this.shrimpPath(false, true);
+        const result = this.findNearestPointInPath(path);
+        if (!result || !this.localPlayer) {
+            return;
+        }
+        const { point, index } = result;
+        for (let i = index; i < path.length; i++) {
+            let p = path[i];
+            this.addMessage(0, `Trying to move to ${p[0] - this.sceneBaseTileX}, ${p[1] - this.sceneBaseTileZ}; ${i+1} / ${path.length}`, '');
+            await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], p[0] - this.sceneBaseTileX, p[1] - this.sceneBaseTileZ, 0, 0, 0, 0, 0, 0, true)
+            await sleep(5000);
+        }
+    }
+
     async onF1Pressed() {
         this.stopLoop = false;
         let routeindex = 0;
@@ -5745,12 +5818,12 @@ export class Client extends GameShell {
         // all of this is basically custom code
         const x: number = 507;
         let y: number = 13;
-        if (this.lastTickFlag) {
-            this.fontPlain11?.drawStringRight(x, y, 'tock', Colors.YELLOW, true);
-        } else {
-            this.fontBold12?.drawStringRight(x, y, 'tick', Colors.YELLOW, true);
-        }
-        y += 13;
+        // if (this.lastTickFlag) {
+        //     this.fontPlain11?.drawStringRight(x, y, 'tock', Colors.YELLOW, true);
+        // } else {
+        //     this.fontBold12?.drawStringRight(x, y, 'tick', Colors.YELLOW, true);
+        // }
+        // y += 13;
         this.fontPlain11?.drawStringRight(x, y, `primarySeqId=${this.localPlayer?.primarySeqId}`, Colors.YELLOW, true);
         y += 13;
         this.fontPlain11?.drawStringRight(x, y, `Fps: ${this.fps}, ${this.deltime} ms`, Colors.YELLOW, true);
@@ -5772,14 +5845,14 @@ export class Client extends GameShell {
         //     Colors.YELLOW,
         //     true
         // );
-        y += 13;
-        this.fontPlain11?.drawStringRight(
-            x,
-            y,
-            'Cutscene Destination: ' + this.cutsceneDstLocalTileX + ', ' + this.cutsceneDstLocalTileZ + ' ' + this.cutsceneDstHeight + '; ' + this.cutsceneRotateSpeed + ', ' + this.cutsceneRotateAcceleration,
-            Colors.YELLOW,
-            true
-        );
+        // y += 13;
+        // this.fontPlain11?.drawStringRight(
+        //     x,
+        //     y,
+        //     'Cutscene Destination: ' + this.cutsceneDstLocalTileX + ', ' + this.cutsceneDstLocalTileZ + ' ' + this.cutsceneDstHeight + '; ' + this.cutsceneRotateSpeed + ', ' + this.cutsceneRotateAcceleration,
+        //     Colors.YELLOW,
+        //     true
+        // );
         y += 13;
         this.fontPlain11?.drawStringRight(
             x,
@@ -5788,11 +5861,29 @@ export class Client extends GameShell {
             Colors.YELLOW,
             true
         );
-         y += 13;
+        y += 13;
         this.fontPlain11?.drawStringRight(
             x,
             y,
-            'Player location: ' + this.localPlayer?.routeTileX[0] + ', ' + this.localPlayer?.routeTileZ[0],
+            'Player location (local): ' + this.localPlayer?.routeTileX[0] + ', ' + this.localPlayer?.routeTileZ[0],
+            Colors.YELLOW,
+            true
+        );
+        y += 13;
+        let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+        let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+        this.fontPlain11?.drawStringRight(
+            x,
+            y,
+            'Player location (global): ' + globalX + ', ' + globalZ,
+            Colors.YELLOW,
+            true
+        );
+        y += 13;
+        this.fontPlain11?.drawStringRight(
+            x,
+            y,
+            'Player location (base): ' + ( this.sceneBaseTileX) + ', ' + (this.sceneBaseTileX),
             Colors.YELLOW,
             true
         );
