@@ -629,6 +629,7 @@ export class Client extends GameShell {
                 //     console.log("localPlayer is null.")
                 // }
                 await this.walkToRange();
+                await this.useShrimpOnRange();
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -700,7 +701,7 @@ export class Client extends GameShell {
                 }
                 const npc: ClientNpc = entity as ClientNpc;
                 this.projectFromEntity(entity, entity.height / 2);
-                let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY;
+                let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
                 if (npcprojectinfo.match('Man') && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
                     const dx = this.projectX - this.playerMouseX;
                     const dy = this.projectY - this.playerMouseY;
@@ -779,9 +780,7 @@ export class Client extends GameShell {
             return { point: closestPoint, index: closestPointIndex };
         }
     }
-
-    async walkToRange() {
-        let path = this.shrimpPath(false, true);
+    async walkToEndofPath(path: number[][]) {
         const result = this.findNearestPointInPath(path);
         if (!result || !this.localPlayer) {
             return;
@@ -795,28 +794,88 @@ export class Client extends GameShell {
             while (this.localPlayer?.routeLength !== 0) {
                 await new Promise(resolve => setTimeout(resolve, 300));
             }
-
         }
+    }
+    async walkToRange() {
+        let path = this.shrimpPath(false, true);
+        await this.walkToEndofPath(path);
+    }
+
+    async useShrimpOnRange() {
+        // Search inventory for shrimp, right click, menu option "use"
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        // Raw shrimps object id is 317, anchovies 321, but invSlotObjId is usually +1
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (inv.invSlotObjId[slot] === 318 || inv.invSlotObjId[slot] === 322) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await clickInv(slot, null, 2);
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Use')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                        }
+                    }
+                }
+                await sleep(100);
+                this.projectFromGroundGlobal(2970, 3210, 0.1);
+                await mouse(this.projectX, this.projectY, 2); // right click and find use X with Range option in case of occlusion.
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.endsWith('Range')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                        }
+                    }
+                }
+                await sleep(600*4);
+            }
+        }
+
+        // Drop the cooked food
+        await this.dropItems([324, 316, 320])
+        return true;
     }
 
     async onF1Pressed() {
         this.stopLoop = false;
-        let routeindex = 0;
-        let route = [[53,49], [53, 55], [50, 60], [47, 64], [45, 69], [43, 74], [40, 79]];
-        this.f1interval = setInterval(async () => {
-            this.addMessage(0, `Checking randoms. routeindex is ${routeindex}`, '');
+        var justwalkedsouth = false;
+        let southToNorthFishingPath = this.shrimpPath(true, true);
+        let southToNorthPathIndex = 0;
+        while (!this.stopLoop) {
+            this.addMessage(0, `Checking randoms.`, '');
             await this.handleRandoms();
-
-            // if inventory is full, drop all raw shrimps
+            // if inventory is full, try to go to range and use shrimp on the range (which will drop at the end)
             if (this.invCount() == 28) {
-                await this.dropShrimps();
-                await sleep(10000);
+                await this.walkToRange();
+                await this.useShrimpOnRange();
+                justwalkedsouth = false;
+                await sleep(1000);
             }
-
             // if idle, do complicated stuff
             if (this.localPlayer?.primarySeqId == -1) {
 
-                // Find the closest 'Man' NPC to (playerMouseX, playerMouseY)
+                // Find the closest NPC to (playerMouseX, playerMouseY)
                 let closestDist = Number.POSITIVE_INFINITY;
                 let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
 
@@ -862,18 +921,29 @@ export class Client extends GameShell {
                     }
                 } else {
                     // There is no closestNpc, so need to walk around to find another
-                    routeindex = (routeindex + 1) % route.length;
-                    this.addMessage(0, `No closestNpc, trying to move to ${routeindex} with ${this.localPlayer.routeTileX[0]}, ${this.localPlayer.routeTileZ[0]}, ${route[routeindex][0]}, ${route[routeindex][1]}`, '');
-                    await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], route[routeindex][0], route[routeindex][1], 0, 0, 0, 0, 0, 0, true);
-                    await sleep(10000);
+                    // First, walk all the way south if we didn't just do that
+                    if (!justwalkedsouth) {
+                        await this.walkToEndofPath(this.shrimpPath(false, false));
+                        justwalkedsouth = true;
+                        await sleep(1000);
+                    } else {
+                        // We're going to step along the fishing path
+                        southToNorthPathIndex++;
+                        if (southToNorthPathIndex >= southToNorthFishingPath.length) {
+                            // We reached the end of the fishing path, so go all the way south again.
+                            southToNorthPathIndex = 0;
+                            justwalkedsouth = false;
+                        } else {
+                            // Walk to the next point (actually we are walking to the end of the truncated path)
+                            await this.walkToEndofPath(southToNorthFishingPath.slice(southToNorthPathIndex));
+                            await sleep(1000);
+                        }
+
+                    }
                 }
             }
-
-            if (this.stopLoop) {
-            clearInterval(this.f1interval);
-            return;
+            await sleep(2000);
         }
-        }, 2000);
     }
 
     static setLowMemory(): void {
@@ -5562,7 +5632,7 @@ export class Client extends GameShell {
                     const npc: ClientNpc = entity as ClientNpc;
                     let offsetY: number = 0;
                     this.projectFromEntity(entity, entity.height + 30);
-                    let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY;
+                    let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
                     this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npcprojectinfo, Colors.WHITE);
                     // this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npc.type?.name ?? null, Colors.WHITE);
                     offsetY -= 15;
@@ -5899,6 +5969,15 @@ export class Client extends GameShell {
             Colors.YELLOW,
             true
         );
+        // this.getHeightmapY(this.currentLevel, x, z)
+        // y += 13;
+        // this.fontPlain11?.drawStringRight(
+        //     x,
+        //     y,
+        //     'getHeightmapY: ' + this.getHeightmapY(this.currentLevel, x, z),
+        //     Colors.YELLOW,
+        //     true
+        // );
         if (Client.cameraEditor) {
             y += 13;
             this.fontPlain11?.drawStringRight(x, y, 'Instructions:', Colors.YELLOW, true);
@@ -5911,6 +5990,15 @@ export class Client extends GameShell {
             y += 13;
             this.fontPlain11?.drawStringRight(x, y, '- Ctrl to control Modifier', Colors.YELLOW, true);
         }
+        let rangeGlobalX = 2970;
+        let rangeHeightFloat = 0.1;
+        let rangeGlobalZ = 3210;
+        let rangeLocalX = (rangeGlobalX - this.sceneBaseTileX) * 128 + 64;
+        let rangeLocalZ = (rangeGlobalZ - this.sceneBaseTileZ) * 128 + 64;
+        let rangeHeightInt = Math.floor(rangeHeightFloat * 128);
+        this.projectFromGround(rangeLocalX, rangeHeightInt, rangeLocalZ);
+        this.fontPlain11?.drawStringCenter(this.projectX, this.projectY, 'range test', Colors.WHITE);
+
     };
     private debugDrawTileOverlay = (x: number, z: number, level: number, size: number, color: number, crossed: boolean): void => {
         const height: number = this.getHeightmapY(level, x, z);
@@ -12171,6 +12259,51 @@ export class Client extends GameShell {
         // Raw shrimps object id is 317, anchovies 321, but invSlotObjId is usually +1
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (inv.invSlotObjId[slot] === 318 || inv.invSlotObjId[slot] === 322) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await clickInv(slot, null, 2);
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Drop')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    projectFromGroundGlobal(x: number, z: number, height: number) {
+        let rangeGlobalX = x;
+        let rangeHeightFloat = height; // usually between 0 and 1
+        let rangeGlobalZ = z;
+        let rangeLocalX = (rangeGlobalX - this.sceneBaseTileX) * 128 + 64;
+        let rangeLocalZ = (rangeGlobalZ - this.sceneBaseTileZ) * 128 + 64;
+        let rangeHeightInt = Math.floor(rangeHeightFloat * 128);
+        this.projectFromGround(rangeLocalX, rangeHeightInt, rangeLocalZ);
+    }
+
+    async dropItems(ids: number[]): Promise<boolean> {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        // Drop all items whose invSlotObjId matches any id in ids (+1 offset)
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (ids.includes(inv.invSlotObjId[slot])) {
                 if (this.selectedTab != 3) {
                     await mouse(648, 185, 1, 100);
                 }
