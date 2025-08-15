@@ -870,10 +870,11 @@ export class Client extends GameShell {
                 await this.walkToRange();
                 await this.useShrimpOnRange();
                 justwalkedsouth = false;
+                southToNorthPathIndex = 0;
                 await sleep(1000);
             }
             // if idle, do complicated stuff
-            if (this.localPlayer?.primarySeqId == -1) {
+            if (this.localPlayer?.primarySeqId == -1 || (performance.now() - this.idleCycles) > 45_000_0) {
 
                 // Find the closest NPC to (playerMouseX, playerMouseY)
                 let closestDist = Number.POSITIVE_INFINITY;
@@ -925,17 +926,18 @@ export class Client extends GameShell {
                     if (!justwalkedsouth) {
                         await this.walkToEndofPath(this.shrimpPath(false, false));
                         justwalkedsouth = true;
+                        southToNorthPathIndex = 0;
                         await sleep(1000);
                     } else {
                         // We're going to step along the fishing path
                         southToNorthPathIndex++;
-                        if (southToNorthPathIndex >= southToNorthFishingPath.length) {
+                        if (southToNorthPathIndex > southToNorthFishingPath.length) {
                             // We reached the end of the fishing path, so go all the way south again.
                             southToNorthPathIndex = 0;
                             justwalkedsouth = false;
                         } else {
                             // Walk to the next point (actually we are walking to the end of the truncated path)
-                            await this.walkToEndofPath(southToNorthFishingPath.slice(southToNorthPathIndex));
+                            await this.walkToEndofPath(southToNorthFishingPath.slice(0, southToNorthPathIndex));
                             await sleep(1000);
                         }
 
@@ -5901,6 +5903,8 @@ export class Client extends GameShell {
         this.fontPlain11?.drawStringRight(x, y, `primarySeqId=${this.localPlayer?.primarySeqId}`, Colors.YELLOW, true);
         y += 13;
         this.fontPlain11?.drawStringRight(x, y, `Fps: ${this.fps}, ${this.deltime} ms`, Colors.YELLOW, true);
+        y += 13;
+        this.fontPlain11?.drawStringRight(x, y, `Idle time: ${performance.now() - this.idleCycles} ms`, Colors.YELLOW, true);
         // y += 13;
         // this.fontPlain11?.drawStringRight(x, y, `Draw: ${this.ms.toFixed(1)}, Avg: ${this.msAvg.toFixed(1)}, Slow: ${this.slowestMS.toFixed(1)} ms`, Colors.YELLOW, true);
         // y += 13;
@@ -5990,14 +5994,14 @@ export class Client extends GameShell {
             y += 13;
             this.fontPlain11?.drawStringRight(x, y, '- Ctrl to control Modifier', Colors.YELLOW, true);
         }
-        let rangeGlobalX = 2970;
-        let rangeHeightFloat = 0.1;
-        let rangeGlobalZ = 3210;
-        let rangeLocalX = (rangeGlobalX - this.sceneBaseTileX) * 128 + 64;
-        let rangeLocalZ = (rangeGlobalZ - this.sceneBaseTileZ) * 128 + 64;
-        let rangeHeightInt = Math.floor(rangeHeightFloat * 128);
-        this.projectFromGround(rangeLocalX, rangeHeightInt, rangeLocalZ);
-        this.fontPlain11?.drawStringCenter(this.projectX, this.projectY, 'range test', Colors.WHITE);
+        // let rangeGlobalX = 2970;
+        // let rangeHeightFloat = 0.1;
+        // let rangeGlobalZ = 3210;
+        // let rangeLocalX = (rangeGlobalX - this.sceneBaseTileX) * 128 + 64;
+        // let rangeLocalZ = (rangeGlobalZ - this.sceneBaseTileZ) * 128 + 64;
+        // let rangeHeightInt = Math.floor(rangeHeightFloat * 128);
+        // this.projectFromGround(rangeLocalX, rangeHeightInt, rangeLocalZ);
+        // this.fontPlain11?.drawStringCenter(this.projectX, this.projectY, 'range test', Colors.WHITE);
 
     };
     private debugDrawTileOverlay = (x: number, z: number, level: number, size: number, color: number, crossed: boolean): void => {
