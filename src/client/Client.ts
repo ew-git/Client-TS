@@ -628,8 +628,31 @@ export class Client extends GameShell {
                 // } else {
                 //     console.log("localPlayer is null.")
                 // }
-                await this.walkToRange();
-                await this.useShrimpOnRange();
+                // await this.walkToRange();
+                // await this.useShrimpOnRange();
+                // objStacks: (LinkList | null)[][][] = new TypedArray3d(CollisionConstants.LEVELS, CollisionConstants.SIZE, CollisionConstants.SIZE, null);
+                for (let x = 0; x < CollisionConstants.SIZE; x++) {
+                    for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                        let objs = this.objStacks[this.currentLevel][x][z];
+                        if (!objs) continue;
+                        console.log(`Checking for object stacks at ${this.currentLevel},${x},${z}`);
+                        for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                            const type: ObjType = ObjType.get(obj.index);
+                            console.log(`name=${type.name},id=${type.id}`);
+                        }
+
+                        // var sentinel = objs.head();
+                        // if (sentinel == null) continue;
+                        // console.log(`sentinel: ${sentinel}`);
+                        // var cur = sentinel.next;
+                        // console.log(`cur: ${cur}`);
+                        // while (cur !== sentinel && cur !== null) {
+                        //     console.log(`Found ground item at ${x},${z}: ${cur}`);
+                        //     // result.push({'id':cur['lL']+1, "count":cur['le']})
+                        //     if (cur) cur = cur.next;
+                        // }
+                    }
+                }
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -655,24 +678,88 @@ export class Client extends GameShell {
     }
     async handleRandoms() {
         for (let index: number = 0; index < this.npcCount; index++) {
-                let entity: ClientEntity | null = null;
-                entity = this.npcs[this.npcIds[index]];
-                if (!entity || !entity.isVisible()) {
-                    continue;
+            let entity: ClientEntity | null = null;
+            entity = this.npcs[this.npcIds[index]];
+            if (!entity || !entity.isVisible()) {
+                continue;
+            }
+            const npc: ClientNpc = entity as ClientNpc;
+            let npcName: string = npc.type?.name + '';
+            this.projectFromEntity(entity, entity.height / 2);
+            if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                await mouse(this.projectX, this.projectY, 1);
+                await sleep(5000);
+            }
+            this.projectFromEntity(entity, entity.height / 2);
+            if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                await mouse(this.projectX, this.projectY, 1);
+                await sleep(5000);
+            }
+        }
+    }
+
+    checkSmallFishingNet() {
+        return (this.countInvById(304) > 0); // 303 + 1
+    }
+
+    async pickupSmallFishingNet() {
+        // Search tiles for the fishing net
+        let targetid = 304;
+        var targetX = -1;
+        var targetZ = -1;
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let objs = this.objStacks[this.currentLevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    // console.log(`name=${type.name},id=${type.id}`);
+                    if (type.id == targetid) {
+                        targetX = x;
+                        targetZ = z;
+                    }
                 }
-                const npc: ClientNpc = entity as ClientNpc;
-                let npcName: string = npc.type?.name + '';
-                this.projectFromEntity(entity, entity.height / 2);
-                if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                    await mouse(this.projectX, this.projectY, 1);
-                    await sleep(5000);
-                }
-                this.projectFromEntity(entity, entity.height / 2);
-                if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                    await mouse(this.projectX, this.projectY, 1);
-                    await sleep(5000);
+                if (targetX != -1 || targetZ != -1) break;
+            }
+            if (targetX != -1 || targetZ != -1) break;
+        }
+        if (targetX == -1 || targetZ == -1 || !this.localPlayer) {
+            this.addMessage(0, 'Failed to find small fishing net', '');
+            return false;
+        }
+        // Move to that tile
+        await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], targetX, targetZ, 0, 0, 0, 0, 0, 0, true)
+        await sleep(500);
+        while (this.localPlayer?.routeLength !== 0) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        await sleep(1000);
+
+        // right click, take small fishing net
+        this.projectFromGround(targetX, 0, targetZ); // I think height of 0 is fine. May need to use project from entity on own player.
+        await mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
+        await sleep(100);
+        if (this.menuSize > 0) {
+            for (let i = 0; i < this.menuOption.length; i++) {
+                const optiontext = this.menuOption[i];
+                if (optiontext.startsWith('Take') && optiontext.endsWith('Small fishing net')) {
+                    this.useMenuOption(i);
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    } else if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
                 }
             }
+        }
+        await sleep(1000);
+        if (!this.checkSmallFishingNet()) {
+            this.addMessage(0, 'Failed to pick up small fishing net', '');
+            return false;
+        } else {
+            return true;
+        }
     }
 
     async onF1Pressed_thieve() {
@@ -12332,5 +12419,20 @@ export class Client extends GameShell {
             }
         }
         return true;
+    }
+
+    countInvById(id: number): number {
+        var cnt = 0;
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return 0;
+        }
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (id == inv.invSlotObjId[slot]) {
+                cnt++;
+            }
+        }
+        return cnt;
     }
 }
