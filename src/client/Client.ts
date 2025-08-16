@@ -631,28 +631,18 @@ export class Client extends GameShell {
                 // await this.walkToRange();
                 // await this.useShrimpOnRange();
                 // objStacks: (LinkList | null)[][][] = new TypedArray3d(CollisionConstants.LEVELS, CollisionConstants.SIZE, CollisionConstants.SIZE, null);
-                for (let x = 0; x < CollisionConstants.SIZE; x++) {
-                    for (let z = 0; z < CollisionConstants.SIZE; z++) {
-                        let objs = this.objStacks[this.currentLevel][x][z];
-                        if (!objs) continue;
-                        console.log(`Checking for object stacks at ${this.currentLevel},${x},${z}`);
-                        for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
-                            const type: ObjType = ObjType.get(obj.index);
-                            console.log(`name=${type.name},id=${type.id}`);
-                        }
-
-                        // var sentinel = objs.head();
-                        // if (sentinel == null) continue;
-                        // console.log(`sentinel: ${sentinel}`);
-                        // var cur = sentinel.next;
-                        // console.log(`cur: ${cur}`);
-                        // while (cur !== sentinel && cur !== null) {
-                        //     console.log(`Found ground item at ${x},${z}: ${cur}`);
-                        //     // result.push({'id':cur['lL']+1, "count":cur['le']})
-                        //     if (cur) cur = cur.next;
-                        // }
-                    }
-                }
+                // for (let x = 0; x < CollisionConstants.SIZE; x++) {
+                //     for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                //         let objs = this.objStacks[this.currentLevel][x][z];
+                //         if (!objs) continue;
+                //         console.log(`Checking for object stacks at ${this.currentLevel},${x},${z}`);
+                //         for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                //             const type: ObjType = ObjType.get(obj.index);
+                //             console.log(`name=${type.name},id=${type.id}`);
+                //         }
+                //     }
+                // }
+                await this.pickupSmallFishingNet();
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -698,13 +688,41 @@ export class Client extends GameShell {
         }
     }
 
+    async handleDangerousRandoms(path: number[][]) {
+        // If we detect a dangerous random, run all the way to the end of the given path.
+        var shouldrun = false;
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npcs[this.npcIds[index]];
+            if (!entity || !entity.isVisible()) {
+                continue;
+            }
+            const npc: ClientNpc = entity as ClientNpc;
+            if (!npc.type) continue;
+            let npcName: string = npc.type?.name + '';
+            if (npcName.match(/River.*troll|Shade|Swarm|Zombie|Rock.*Golem|Strange.*Plant|Tree.*spirit/i) ||
+                [403,404,405,406].includes(npc.type.id) // whirlpools, see \Server\content\pack\npc.pack
+            ) {
+                shouldrun = true;
+                break;
+            }
+        }
+        if (shouldrun) {
+            await sleep(100);
+            await this.walkToEndofPath(path);
+            await sleep(20000); // idk how long I need to wait
+            return shouldrun;
+        }
+        return shouldrun;
+    }
+
     checkSmallFishingNet() {
         return (this.countInvById(304) > 0); // 303 + 1
     }
 
     async pickupSmallFishingNet() {
         // Search tiles for the fishing net
-        let targetid = 304;
+        let targetid = 303; // for some reason the objtype has the actual id, not +1
         var targetX = -1;
         var targetZ = -1;
         for (let x = 0; x < CollisionConstants.SIZE; x++) {
@@ -713,8 +731,8 @@ export class Client extends GameShell {
                 if (!objs) continue;
                 for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
                     const type: ObjType = ObjType.get(obj.index);
-                    // console.log(`name=${type.name},id=${type.id}`);
-                    if (type.id == targetid) {
+                    console.log(`name=${type.name},id=${type.id} at ${x},${z}`);
+                    if (type.id == targetid || type.name?.startsWith('Small fishing net')) {
                         targetX = x;
                         targetZ = z;
                     }
@@ -737,6 +755,7 @@ export class Client extends GameShell {
 
         // right click, take small fishing net
         this.projectFromGround(targetX, 0, targetZ); // I think height of 0 is fine. May need to use project from entity on own player.
+        this.projectFromGroundGlobal(targetX + this.sceneBaseTileX, targetZ + this.sceneBaseTileZ, 0.01);
         await mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
         await sleep(100);
         if (this.menuSize > 0) {
@@ -950,8 +969,31 @@ export class Client extends GameShell {
         let southToNorthFishingPath = this.shrimpPath(true, true);
         let southToNorthPathIndex = 0;
         while (!this.stopLoop) {
-            this.addMessage(0, `Checking randoms.`, '');
+            // this.addMessage(0, `Checking randoms.`, '');
             await this.handleRandoms();
+            // Big fish may have tossed our fishing net
+            if (!this.checkSmallFishingNet()) {
+                let gotnet = await this.pickupSmallFishingNet();
+                if (!gotnet) {
+                    this.addMessage(0, 'Lost net and failed to pick it up. Stopping loop', '');
+                    this.stopLoop = true;
+                } else {
+                    // Walk all the way south to reset everything.
+                    await this.walkToEndofPath(this.shrimpPath(false, false));
+                    justwalkedsouth = true;
+                    southToNorthPathIndex = 0;
+                    await sleep(1000);
+                }
+            }
+            // Check dangerous randoms; run to range for safety, then run back
+            var rantorange = await this.handleDangerousRandoms(this.shrimpPath(false, true));
+            if (rantorange) {
+                // run back down
+                await this.walkToEndofPath(this.shrimpPath(false, false));
+                justwalkedsouth = true;
+                southToNorthPathIndex = 0;
+                await sleep(1000);
+            }
             // if inventory is full, try to go to range and use shrimp on the range (which will drop at the end)
             if (this.invCount() == 28) {
                 await this.walkToRange();
@@ -1027,7 +1069,6 @@ export class Client extends GameShell {
                             await this.walkToEndofPath(southToNorthFishingPath.slice(0, southToNorthPathIndex));
                             await sleep(1000);
                         }
-
                     }
                 }
             }
