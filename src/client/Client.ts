@@ -4612,10 +4612,10 @@ export class Client extends GameShell {
             }
 
             if (e.primarySeqFrame >= seq.frameCount) {
-                e.primarySeqFrame -= seq.replayoff;
+                e.primarySeqFrame -= seq.loops;
                 e.primarySeqLoop++;
 
-                if (e.primarySeqLoop >= seq.replaycount) {
+                if (e.primarySeqLoop >= seq.maxloops) {
                     e.primarySeqId = -1;
                 }
 
@@ -8896,7 +8896,7 @@ export class Client extends GameShell {
 
             const delay: number = buf.g1();
             if (player.primarySeqId === seqId && seqId !== -1) {
-                const restartMode = SeqType.types[seqId].restart_mode;
+                const restartMode = SeqType.types[seqId].duplicatebehavior;
 
                 if (restartMode == RestartMode.RESET) {
                     player.primarySeqFrame = 0;
@@ -9221,7 +9221,7 @@ export class Client extends GameShell {
 
                 const delay: number = buf.g1();
                 if (npc.primarySeqId === seqId && seqId !== -1) {
-                    const restartMode = SeqType.types[seqId].restart_mode;
+                    const restartMode = SeqType.types[seqId].duplicatebehavior;
 
                     if (restartMode == RestartMode.RESET) {
                         npc.primarySeqFrame = 0;
@@ -11085,7 +11085,7 @@ export class Client extends GameShell {
                         child.seqFrame++;
 
                         if (child.seqFrame >= type.frameCount) {
-                            child.seqFrame -= type.replayoff;
+                            child.seqFrame -= type.loops;
 
                             if (child.seqFrame < 0 || child.seqFrame >= type.frameCount) {
                                 child.seqFrame = 0;
