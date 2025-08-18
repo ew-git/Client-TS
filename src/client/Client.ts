@@ -538,7 +538,7 @@ export class Client extends GameShell {
 
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
-                this.onF1Pressed_shrimpPortSarim();
+                this.onF1Pressed_tunaCatherby();
             }
         });
         window.addEventListener('keydown', async (event) => {
@@ -12084,6 +12084,10 @@ export class Client extends GameShell {
         return (this.countInvById(304) > 0); // 303 + 1
     }
 
+    checkHarpoon() {
+        return (this.countInvById(312) > 0); // 311 + 1
+    }
+
     async pickupSmallFishingNet() {
         // Search tiles for the fishing net
         let targetid = 303; // for some reason the objtype has the actual id, not +1
@@ -12139,6 +12143,67 @@ export class Client extends GameShell {
         await sleep(1000);
         if (!this.checkSmallFishingNet()) {
             this.addMessage(0, 'Failed to pick up small fishing net', '');
+            return false;
+        } else {
+            return true;
+        }
+    }
+    /**
+     * targetid is the actual id, not +1
+     */
+    async pickupId(targetid: number, targetname: string) {
+        var targetX = -1;
+        var targetZ = -1;
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let objs = this.objStacks[this.currentLevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    console.log(`name=${type.name},id=${type.id} at ${x},${z}`);
+                    if (type.id == targetid) {
+                        targetX = x;
+                        targetZ = z;
+                    }
+                }
+                if (targetX != -1 || targetZ != -1) break;
+            }
+            if (targetX != -1 || targetZ != -1) break;
+        }
+        if (targetX == -1 || targetZ == -1 || !this.localPlayer) {
+            this.addMessage(0, `Failed to find item id: ${targetid}`, '');
+            return false;
+        }
+        // Move to that tile
+        await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], targetX, targetZ, 0, 0, 0, 0, 0, 0, true)
+        await sleep(500);
+        while (this.localPlayer?.routeLength !== 0) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        await sleep(1000);
+
+        // right click, take small fishing net
+        this.projectFromGround(targetX, 0, targetZ); // I think height of 0 is fine. May need to use project from entity on own player.
+        this.projectFromGroundGlobal(targetX + this.sceneBaseTileX, targetZ + this.sceneBaseTileZ, 0.01);
+        await mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
+        await sleep(100);
+        if (this.menuSize > 0) {
+            for (let i = 0; i < this.menuOption.length; i++) {
+                const optiontext = this.menuOption[i];
+                if (optiontext.startsWith('Take') && optiontext.endsWith(targetname)) {
+                    this.useMenuOption(i);
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    } else if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
+                }
+            }
+        }
+        await sleep(1000);
+        if (this.countInvById(targetid + 1) == 0) {
+            this.addMessage(0, `Failed to pick up ${targetname}`, '');
             return false;
         } else {
             return true;
@@ -12456,6 +12521,142 @@ export class Client extends GameShell {
                         } else {
                             // Walk to the next point (actually we are walking to the end of the truncated path)
                             await this.walkToEndofPath(southToNorthFishingPath.slice(0, southToNorthPathIndex));
+                            await sleep(1000);
+                        }
+                    }
+                }
+            }
+            await sleep(2000);
+        }
+    }
+
+    manhattanDist(currentX: number, currentZ: number, targetX: number, targetZ: number): number {
+        const dx = currentX - targetX;
+        const dy = currentZ - targetZ;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        return dist;
+    }
+    async onF1Pressed_tunaCatherby() {
+        this.stopLoop = false;
+        var justwalkedeast = false;
+        let eastToWestFishingPath = this.catherbyPath(true, true);
+        let resetPath = this.catherbyPath(false, false);
+        let eastToWestPathIndex = 0;
+        let fishingSpotNPCID = 321;
+        while (!this.stopLoop) {
+            let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+            let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+            if (this.manhattanDist(globalX, globalZ, resetPath[0][0], resetPath[0][1]) > 200) {
+                console.log('Too far from intended position. Logging out.');
+                this.stopLoop = true;
+                await this.logout();
+            }
+            // Send a click to keep everything alive.
+            // This clicks on the inventory tab.
+            await mouse(648, 185, 1, 100);
+            // this.addMessage(0, `Checking randoms.`, '');
+            await this.handleRandoms();
+            // Big fish may have tossed our fishing net
+            if (!this.checkHarpoon()) {
+                let gotnet = await this.pickupId(311, 'Harpoon');
+                if (!gotnet) {
+                    this.addMessage(0, 'Lost net and failed to pick it up. Stopping loop', '');
+                    this.stopLoop = true;
+                } else {
+                    // Walk all the way south to reset everything.
+                    await this.walkToEndofPath(resetPath);
+                    justwalkedeast = true;
+                    eastToWestPathIndex = 0;
+                    await sleep(1000);
+                }
+            }
+            // Check dangerous randoms; run to bank for safety, then run back
+            var ranToBank = await this.handleDangerousRandoms(this.catherbyPath(false, true));
+            if (ranToBank) {
+                // run back down
+                await this.walkToEndofPath(resetPath);
+                justwalkedeast = true;
+                eastToWestPathIndex = 0;
+                await sleep(1000);
+            }
+            // if inventory is full, try to go to bank
+            if (this.invCount() == 28) {
+                await this.walkToEndofPath(this.catherbyPath(false, true));
+                await this.handleRandoms();
+                await this.depositAll(2809, 3442, [371, 359]);
+                await this.handleRandoms();
+                justwalkedeast = false;
+                eastToWestPathIndex = 0;
+                await sleep(1000);
+            }
+            // if idle, do complicated stuff
+            if (this.localPlayer?.primarySeqId == -1) {
+
+                // Find the closest NPC to (playerMouseX, playerMouseY)
+                let closestDist = Number.POSITIVE_INFINITY;
+                let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
+
+                for (let index: number = 0; index < this.npcCount; index++) {
+                    let entity: ClientEntity | null = null;
+                    entity = this.npcs[this.npcIds[index]];
+                    if (!entity || !entity.isVisible()) {
+                        continue;
+                    }
+                    const npc: ClientNpc = entity as ClientNpc;
+                    let npcId: number | undefined = npc.type?.id;
+                    this.projectFromEntity(entity, entity.height / 2);
+                    if (npcId == fishingSpotNPCID && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                        const dx = this.projectX - this.playerMouseX;
+                        const dy = this.projectY - this.playerMouseY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
+                        }
+                    }
+                }
+
+                if (closestNpc) {
+                    this.addMessage(0, `Found closest npc at ${closestNpc.x}, ${closestNpc.y}`, '');
+                    await mouse(closestNpc.x, closestNpc.y, 2);
+                    await sleep(100);
+                    // There are "net" harpoon spots and "cage" harpoon spots.
+                    // Because fishing spots may stack, then we need to check that the next
+                    // item in the menu is "Cage". The menu iterates from the bottom up.
+                    if (this.menuSize > 0) {
+                        for (let i = 0; i < this.menuOption.length; i++) {
+                            const optiontext = this.menuOption[i];
+                            if (optiontext.startsWith('Harpoon') && this.menuOption[i+1].startsWith('Cage')) {
+                                this.useMenuOption(i);
+                                this.menuVisible = false;
+                                if (this.menuArea === 1) {
+                                    this.redrawSidebar = true;
+                                } else if (this.menuArea === 2) {
+                                    this.redrawChatback = true;
+                                }
+                                this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // There is no closestNpc, so need to walk around to find another
+                    // First, walk all the way east if we didn't just do that
+                    if (!justwalkedeast) {
+                        await this.walkToEndofPath(resetPath);
+                        justwalkedeast = true;
+                        eastToWestPathIndex = 0;
+                        await sleep(1000);
+                    } else {
+                        // We're going to step along the fishing path
+                        eastToWestPathIndex++;
+                        if (eastToWestPathIndex > eastToWestFishingPath.length) {
+                            // We reached the end of the fishing path, so go all the way south again.
+                            eastToWestPathIndex = 0;
+                            justwalkedeast = false;
+                        } else {
+                            // Walk to the next point (actually we are walking to the end of the truncated path)
+                            await this.walkToEndofPath(eastToWestFishingPath.slice(0, eastToWestPathIndex));
                             await sleep(1000);
                         }
                     }
