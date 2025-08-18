@@ -600,7 +600,9 @@ export class Client extends GameShell {
                 //     }
                 // }
                 // await this.pickupSmallFishingNet();
-                await this.depositAll(2809, 3442, [371, 359])
+                // await this.depositAll(2809, 3442, [371, 359])
+                console.log(`Run energy: ${this.runenergy}`);
+                this.addMessage(0, `Run energy: ${this.runenergy}`, '');
                 // this.checkBankOpen();
             }
         });
@@ -12556,6 +12558,7 @@ export class Client extends GameShell {
             await mouse(648, 185, 1, 100);
             // this.addMessage(0, `Checking randoms.`, '');
             await this.handleRandoms();
+            await this.useLamp();
             // Big fish may have tossed our fishing net
             if (!this.checkHarpoon()) {
                 let gotnet = await this.pickupId(311, 'Harpoon');
@@ -12583,7 +12586,8 @@ export class Client extends GameShell {
             if (this.invCount() == 28) {
                 await this.walkToEndofPath(this.catherbyPath(false, true));
                 await this.handleRandoms();
-                await this.depositAll(2809, 3442, [371, 359]);
+                // await this.depositAll(2809, 3442, [371, 359]);
+                await this.depositAllExcept(2809, 3442, [311]); // deposit all except the harpoon
                 await this.handleRandoms();
                 justwalkedeast = false;
                 eastToWestPathIndex = 0;
@@ -12727,6 +12731,67 @@ export class Client extends GameShell {
         return true;
     }
 
+    /**
+     * Pass the actual ids, not +1
+    */
+    async depositAllExcept(bankX: number, bankZ: number, itemIds: number[]) {
+        this.projectFromGroundGlobal(bankX, bankZ, 0.1);
+        await mouse(this.projectX, this.projectY, 2);
+        await sleep(100);
+        if (this.menuSize > 0) {
+            for (let i = 0; i < this.menuOption.length; i++) {
+                const optiontext = this.menuOption[i];
+                if (optiontext.startsWith('Use-quickly')) {
+                    this.useMenuOption(i);
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    } else if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
+                }
+            }
+        }
+        await sleep(1000);
+        for (var _ = 0; _ < 10 && !this.checkBankOpen(); _++) await sleep(500);
+
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (const targetId of itemIds) {
+            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                if ((targetId + 1) != inv.invSlotObjId[slot]) {
+                    if (this.selectedTab != 3) {
+                        await mouse(648, 185, 1, 100);
+                    }
+                    await clickInv(slot, null, 2);
+                    await sleep(100);
+                    if (this.menuSize > 0) {
+                        for (let i = 0; i < this.menuOption.length; i++) {
+                            const optiontext = this.menuOption[i];
+                            if (optiontext.startsWith('Deposit All')) {
+                                this.useMenuOption(i);
+                                this.menuVisible = false;
+                                if (this.menuArea === 1) {
+                                    this.redrawSidebar = true;
+                                } else if (this.menuArea === 2) {
+                                    this.redrawChatback = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    await sleep(300);
+                }
+            }
+        }
+        return true;
+    }
+
     checkBankOpen() {
         let bank = Component.types[this.bankComponentId];
         if (!bank || !bank.invSlotObjId || bank.invSlotObjId[0] == 0) {
@@ -12736,6 +12801,29 @@ export class Client extends GameShell {
             // this.addMessage?.(0, `Bank data is available. First slot: ${bank.invSlotObjId[0]}`, '');
             return true;
         }
+    }
+
+    async useLamp(): Promise<boolean> {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        // (+1 offset)
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (inv.invSlotObjId[slot] == (2528 + 1)) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await clickInv(slot, null, 1);
+                await sleep(2000); // wait for interface to open
+                await mouse(261, 194, 1, 100); // thieving for now
+                await sleep(600);
+                await mouse(261, 256, 1, 100); // click confirm
+                await sleep(600);
+            }
+        }
+        return true;
     }
 }
 
