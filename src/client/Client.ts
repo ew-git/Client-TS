@@ -69,49 +69,6 @@ import OnDemand from '#/io/OnDemand.js';
 import MobileKeyboard from '#/client/MobileKeyboard.ts';
 
 
-async function mouse(x: number, y: number, button = 0, delay = 100) {
-    console.log("Doing a click at" + x + "," + y);
-    const rect = canvas.getBoundingClientRect();
-    canvas.dispatchEvent(new MouseEvent('mousemove', {
-        'clientX': Math.round(x) + rect.left,
-        'clientY': Math.round(y) + rect.top
-    }));
-    await sleep(delay);
-    if (button > 0) {
-        canvas.dispatchEvent(new MouseEvent('mousedown', {
-            'clientX': Math.round(x) + rect.left,
-            'clientY': Math.round(y) + rect.top,
-            'button': button == 2 ? 2 : 0,
-            'buttons': button == 2 ? 2 : 1,
-            'which': button == 2 ? 3 : 1
-        }));
-        await sleep(delay);
-        canvas.dispatchEvent(new MouseEvent('mouseup', {
-            'clientX': Math.round(x) + rect.left,
-            'clientY': Math.round(y) + rect.top,
-            'button': button == 2 ? 2 : 0,
-            'buttons': 0,
-            'which': button == 2 ? 3 : 1
-        }));
-    }
-}
-
-async function clickInv(i: number, j: number | null=null, button=1) {
-    if (j === null) {
-        j = Math.floor(i / 4);
-        i = i % 4;
-    }
-    await mouse(592 + i*40, 232 + j*35, button);
-}
-
-// window.addEventListener('keydown', async (event) => {
-//     if (event.key === 'F1') {
-//         await mouse(100, 100, 1);
-//     }
-// });
-
-
-
 const enum Constants {
     CLIENT_VERSION = 244,
     MAX_CHATS = 50,
@@ -581,7 +538,7 @@ export class Client extends GameShell {
 
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
-                this.onF1Pressed();
+                this.onF1Pressed_shrimpPortSarim();
             }
         });
         window.addEventListener('keydown', async (event) => {
@@ -642,7 +599,9 @@ export class Client extends GameShell {
                 //         }
                 //     }
                 // }
-                await this.pickupSmallFishingNet();
+                // await this.pickupSmallFishingNet();
+                await this.depositAll(2809, 3442, [371, 359])
+                // this.checkBankOpen();
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -665,415 +624,6 @@ export class Client extends GameShell {
         }
 
         this.run();
-    }
-    async handleRandoms() {
-        for (let index: number = 0; index < this.npcCount; index++) {
-            let entity: ClientEntity | null = null;
-            entity = this.npcs[this.npcIds[index]];
-            if (!entity || !entity.isVisible()) {
-                continue;
-            }
-            const npc: ClientNpc = entity as ClientNpc;
-            let npcName: string = npc.type?.name + '';
-            this.projectFromEntity(entity, entity.height / 2);
-            if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                await mouse(this.projectX, this.projectY, 1);
-                await sleep(5000);
-            }
-            this.projectFromEntity(entity, entity.height / 2);
-            if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                await mouse(this.projectX, this.projectY, 1);
-                await sleep(5000);
-            }
-        }
-    }
-
-    async handleDangerousRandoms(path: number[][]) {
-        // If we detect a dangerous random, run all the way to the end of the given path.
-        var shouldrun = false;
-        for (let index: number = 0; index < this.npcCount; index++) {
-            let entity: ClientEntity | null = null;
-            entity = this.npcs[this.npcIds[index]];
-            if (!entity || !entity.isVisible()) {
-                continue;
-            }
-            const npc: ClientNpc = entity as ClientNpc;
-            if (!npc.type) continue;
-            let npcName: string = npc.type?.name + '';
-            if (npcName.match(/River.*troll|Shade|Swarm|Zombie|Rock.*Golem|Strange.*Plant|Tree.*spirit/i) ||
-                [403,404,405,406].includes(npc.type.id) // whirlpools, see \Server\content\pack\npc.pack
-            ) {
-                shouldrun = true;
-                break;
-            }
-        }
-        if (shouldrun) {
-            await sleep(100);
-            await this.walkToEndofPath(path);
-            await sleep(20000); // idk how long I need to wait
-            return shouldrun;
-        }
-        return shouldrun;
-    }
-
-    checkSmallFishingNet() {
-        return (this.countInvById(304) > 0); // 303 + 1
-    }
-
-    async pickupSmallFishingNet() {
-        // Search tiles for the fishing net
-        let targetid = 303; // for some reason the objtype has the actual id, not +1
-        var targetX = -1;
-        var targetZ = -1;
-        for (let x = 0; x < CollisionConstants.SIZE; x++) {
-            for (let z = 0; z < CollisionConstants.SIZE; z++) {
-                let objs = this.objStacks[this.currentLevel][x][z];
-                if (!objs) continue;
-                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
-                    const type: ObjType = ObjType.get(obj.index);
-                    console.log(`name=${type.name},id=${type.id} at ${x},${z}`);
-                    if (type.id == targetid || type.name?.startsWith('Small fishing net')) {
-                        targetX = x;
-                        targetZ = z;
-                    }
-                }
-                if (targetX != -1 || targetZ != -1) break;
-            }
-            if (targetX != -1 || targetZ != -1) break;
-        }
-        if (targetX == -1 || targetZ == -1 || !this.localPlayer) {
-            this.addMessage(0, 'Failed to find small fishing net', '');
-            return false;
-        }
-        // Move to that tile
-        await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], targetX, targetZ, 0, 0, 0, 0, 0, 0, true)
-        await sleep(500);
-        while (this.localPlayer?.routeLength !== 0) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        await sleep(1000);
-
-        // right click, take small fishing net
-        this.projectFromGround(targetX, 0, targetZ); // I think height of 0 is fine. May need to use project from entity on own player.
-        this.projectFromGroundGlobal(targetX + this.sceneBaseTileX, targetZ + this.sceneBaseTileZ, 0.01);
-        await mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
-        await sleep(100);
-        if (this.menuSize > 0) {
-            for (let i = 0; i < this.menuOption.length; i++) {
-                const optiontext = this.menuOption[i];
-                if (optiontext.startsWith('Take') && optiontext.endsWith('Small fishing net')) {
-                    this.useMenuOption(i);
-                    this.menuVisible = false;
-                    if (this.menuArea === 1) {
-                        this.redrawSidebar = true;
-                    } else if (this.menuArea === 2) {
-                        this.redrawChatback = true;
-                    }
-                }
-            }
-        }
-        await sleep(1000);
-        if (!this.checkSmallFishingNet()) {
-            this.addMessage(0, 'Failed to pick up small fishing net', '');
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    async onF1Pressed_thieve() {
-        this.stopLoop = false;
-        this.f1interval = setInterval(async () => {
-            await this.handleRandoms();
-            // HP is skill index 3
-            // for (let s = 0; s < this.skillLevel.length; s++) {
-            //     const skillvalue = this.skillLevel[s];
-            //     this.addMessage(0, 'Skill number ' + s + ' has level ' + skillvalue + ' and baselevel ' + this.skillBaseLevel[s], '');
-            // }
-            if (this.skillLevel[3] < 5) {
-                this.addMessage(0, 'HP=' + this.skillLevel[3] + ' too low! Wait for regen.', '');
-                await this.clickKebabInInventory();
-                return;
-            }
-            // Find the closest 'Man' NPC to (playerMouseX, playerMouseY)
-            let closestDist = Number.POSITIVE_INFINITY;
-            let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
-
-            for (let index: number = 0; index < this.npcCount; index++) {
-                let entity: ClientEntity | null = null;
-                entity = this.npcs[this.npcIds[index]];
-                if (!entity || !entity.isVisible()) {
-                    continue;
-                }
-                const npc: ClientNpc = entity as ClientNpc;
-                this.projectFromEntity(entity, entity.height / 2);
-                let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
-                if (npcprojectinfo.match('Man') && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                    const dx = this.projectX - this.playerMouseX;
-                    const dy = this.projectY - this.playerMouseY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < closestDist) {
-                        closestDist = dist;
-                        closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
-                    }
-                }
-            }
-
-            if (closestNpc) {
-                await mouse(closestNpc.x, closestNpc.y, 2);
-                await sleep(100);
-                if (this.menuSize > 0) {
-                    for (let i = 0; i < this.menuOption.length; i++) {
-                        const optiontext = this.menuOption[i];
-                        if (optiontext.startsWith('Pickpocket')) {
-                            this.useMenuOption(i);
-                            this.menuVisible = false;
-                            if (this.menuArea === 1) {
-                                this.redrawSidebar = true;
-                            } else if (this.menuArea === 2) {
-                                this.redrawChatback = true;
-                            }
-                            this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
-                            break;
-                        }
-                        // this.addMessage(0, 'Menu option ' + i + ' is ' + this.menuOption[i], '');
-                    }
-                }
-            }
-        if (this.stopLoop) {
-            clearInterval(this.f1interval);
-            return;
-        }
-        }, 2000);
-    }
-
-    shrimpPath(fishing: boolean, gonorth: boolean) {
-        let fishingRoute = [[2997, 3153], [2997, 3157], [2997, 3161], [2993, 3164], [2991, 3169], [2989, 3173], [2987, 3177], [2986, 3181]];
-        let cookingRoute = [[2997, 3153], [2997, 3157], [2997, 3161], [2993, 3164], [2991, 3169], [2989, 3173], [2987, 3177], [2986, 3181], [2984, 3186], [2984, 3191], [2982, 3196], [2975, 3200], [2971, 3208], [2971, 3215], [2968, 3213], [2969, 3210]];
-        if (fishing) {
-            var route = fishingRoute;
-        } else {
-            var route = cookingRoute;
-        }
-        if (gonorth) {
-            return route;
-        } else {
-            return route.toReversed();
-        }
-    }
-
-    findNearestPointInPath(path: Array<Array<number>>) {
-        let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-        let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-        var closestDist = Number.POSITIVE_INFINITY;
-        var closestPoint: Array<number> = [];
-        var closestPointIndex = -1;
-        for (let i = 0; i < path.length; i++) {
-            let point = path[i];
-            let dx = point[0] - globalX;
-            let dz = point[1] - globalZ;
-            let dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist < closestDist) {
-                closestDist = dist;
-                closestPoint = point;
-                closestPointIndex = i;
-            }
-        }
-        if (closestPointIndex == -1) {
-            this.addMessage(0, 'No closest point found in path', '');
-            return null;
-        } else {
-            return { point: closestPoint, index: closestPointIndex };
-        }
-    }
-    async walkToEndofPath(path: number[][]) {
-        const result = this.findNearestPointInPath(path);
-        if (!result || !this.localPlayer) {
-            return;
-        }
-        const { point, index } = result;
-        for (let i = index; i < path.length; i++) {
-            let p = path[i];
-            this.addMessage(0, `Trying to move to ${p[0] - this.sceneBaseTileX}, ${p[1] - this.sceneBaseTileZ}; ${i+1} / ${path.length}`, '');
-            await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], p[0] - this.sceneBaseTileX, p[1] - this.sceneBaseTileZ, 0, 0, 0, 0, 0, 0, true)
-            await sleep(500);
-            while (this.localPlayer?.routeLength !== 0) {
-                await new Promise(resolve => setTimeout(resolve, 300));
-            }
-        }
-    }
-    async walkToRange() {
-        let path = this.shrimpPath(false, true);
-        await this.walkToEndofPath(path);
-    }
-
-    async useShrimpOnRange() {
-        // Search inventory for shrimp, right click, menu option "use"
-        let inv = Component.types[this.inventoryComponentId];
-        if (!inv || !inv.invSlotObjId) {
-            this.addMessage?.(0, 'Inventory data not available', '');
-            return false;
-        }
-        // Raw shrimps object id is 317, anchovies 321, but invSlotObjId is usually +1
-        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-            if (inv.invSlotObjId[slot] === 318 || inv.invSlotObjId[slot] === 322) {
-                if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
-                }
-                await clickInv(slot, null, 2);
-                await sleep(100);
-                if (this.menuSize > 0) {
-                    for (let i = 0; i < this.menuOption.length; i++) {
-                        const optiontext = this.menuOption[i];
-                        if (optiontext.startsWith('Use')) {
-                            this.useMenuOption(i);
-                            this.menuVisible = false;
-                            if (this.menuArea === 1) {
-                                this.redrawSidebar = true;
-                            } else if (this.menuArea === 2) {
-                                this.redrawChatback = true;
-                            }
-                        }
-                    }
-                }
-                await sleep(100);
-                this.projectFromGroundGlobal(2970, 3210, 0.1);
-                await mouse(this.projectX, this.projectY, 2); // right click and find use X with Range option in case of occlusion.
-                await sleep(100);
-                if (this.menuSize > 0) {
-                    for (let i = 0; i < this.menuOption.length; i++) {
-                        const optiontext = this.menuOption[i];
-                        if (optiontext.endsWith('Range')) {
-                            this.useMenuOption(i);
-                            this.menuVisible = false;
-                            if (this.menuArea === 1) {
-                                this.redrawSidebar = true;
-                            } else if (this.menuArea === 2) {
-                                this.redrawChatback = true;
-                            }
-                        }
-                    }
-                }
-                await sleep(600*4);
-            }
-        }
-
-        // Drop the cooked food
-        await this.dropItems([324, 316, 320])
-        return true;
-    }
-
-    async onF1Pressed() {
-        this.stopLoop = false;
-        var justwalkedsouth = false;
-        let southToNorthFishingPath = this.shrimpPath(true, true);
-        let southToNorthPathIndex = 0;
-        while (!this.stopLoop) {
-            // this.addMessage(0, `Checking randoms.`, '');
-            await this.handleRandoms();
-            // Big fish may have tossed our fishing net
-            if (!this.checkSmallFishingNet()) {
-                let gotnet = await this.pickupSmallFishingNet();
-                if (!gotnet) {
-                    this.addMessage(0, 'Lost net and failed to pick it up. Stopping loop', '');
-                    this.stopLoop = true;
-                } else {
-                    // Walk all the way south to reset everything.
-                    await this.walkToEndofPath(this.shrimpPath(false, false));
-                    justwalkedsouth = true;
-                    southToNorthPathIndex = 0;
-                    await sleep(1000);
-                }
-            }
-            // Check dangerous randoms; run to range for safety, then run back
-            var rantorange = await this.handleDangerousRandoms(this.shrimpPath(false, true));
-            if (rantorange) {
-                // run back down
-                await this.walkToEndofPath(this.shrimpPath(false, false));
-                justwalkedsouth = true;
-                southToNorthPathIndex = 0;
-                await sleep(1000);
-            }
-            // if inventory is full, try to go to range and use shrimp on the range (which will drop at the end)
-            if (this.invCount() == 28) {
-                await this.walkToRange();
-                await this.useShrimpOnRange();
-                justwalkedsouth = false;
-                southToNorthPathIndex = 0;
-                await sleep(1000);
-            }
-            // if idle, do complicated stuff
-            if (this.localPlayer?.primarySeqId == -1 || (performance.now() - this.idleCycles) > 45_000_0) {
-
-                // Find the closest NPC to (playerMouseX, playerMouseY)
-                let closestDist = Number.POSITIVE_INFINITY;
-                let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
-
-                for (let index: number = 0; index < this.npcCount; index++) {
-                    let entity: ClientEntity | null = null;
-                    entity = this.npcs[this.npcIds[index]];
-                    if (!entity || !entity.isVisible()) {
-                        continue;
-                    }
-                    const npc: ClientNpc = entity as ClientNpc;
-                    let npcId: number | undefined = npc.type?.id;
-                    this.projectFromEntity(entity, entity.height / 2);
-                    if (npcId == 325 && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                        const dx = this.projectX - this.playerMouseX;
-                        const dy = this.projectY - this.playerMouseY;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < closestDist) {
-                            closestDist = dist;
-                            closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
-                        }
-                    }
-                }
-
-                if (closestNpc) {
-                    this.addMessage(0, `Found closest npc at ${closestNpc.x}, ${closestNpc.y}`, '');
-                    await mouse(closestNpc.x, closestNpc.y, 2);
-                    await sleep(100);
-                    if (this.menuSize > 0) {
-                        for (let i = 0; i < this.menuOption.length; i++) {
-                            const optiontext = this.menuOption[i];
-                            if (optiontext.startsWith('Net')) {
-                                this.useMenuOption(i);
-                                this.menuVisible = false;
-                                if (this.menuArea === 1) {
-                                    this.redrawSidebar = true;
-                                } else if (this.menuArea === 2) {
-                                    this.redrawChatback = true;
-                                }
-                                this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
-                                break;
-                            }
-                        }
-                    }
-                } else {
-                    // There is no closestNpc, so need to walk around to find another
-                    // First, walk all the way south if we didn't just do that
-                    if (!justwalkedsouth) {
-                        await this.walkToEndofPath(this.shrimpPath(false, false));
-                        justwalkedsouth = true;
-                        southToNorthPathIndex = 0;
-                        await sleep(1000);
-                    } else {
-                        // We're going to step along the fishing path
-                        southToNorthPathIndex++;
-                        if (southToNorthPathIndex > southToNorthFishingPath.length) {
-                            // We reached the end of the fishing path, so go all the way south again.
-                            southToNorthPathIndex = 0;
-                            justwalkedsouth = false;
-                        } else {
-                            // Walk to the next point (actually we are walking to the end of the truncated path)
-                            await this.walkToEndofPath(southToNorthFishingPath.slice(0, southToNorthPathIndex));
-                            await sleep(1000);
-                        }
-                    }
-                }
-            }
-            await sleep(2000);
-        }
     }
 
     static setLowMemory(): void {
@@ -12476,4 +12026,551 @@ export class Client extends GameShell {
         }
         return cnt;
     }
+
+        async handleRandoms() {
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npcs[this.npcIds[index]];
+            if (!entity || !entity.isVisible()) {
+                continue;
+            }
+            const npc: ClientNpc = entity as ClientNpc;
+            let npcName: string = npc.type?.name + '';
+            this.projectFromEntity(entity, entity.height / 2);
+            if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                console.log(`${new Date().toLocaleTimeString()}: Detected random ${npcName}!`);
+                await mouse(this.projectX, this.projectY, 1);
+                await sleep(5000);
+            }
+            this.projectFromEntity(entity, entity.height / 2);
+            if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                console.log(`${new Date().toLocaleTimeString()}: Clicking random ${npcName} again!`);
+                await mouse(this.projectX, this.projectY, 1);
+                await sleep(5000);
+            }
+        }
+    }
+
+    async handleDangerousRandoms(path: number[][]) {
+        // If we detect a dangerous random, run all the way to the end of the given path.
+        var shouldrun = false;
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npcs[this.npcIds[index]];
+            if (!entity || !entity.isVisible()) {
+                continue;
+            }
+            const npc: ClientNpc = entity as ClientNpc;
+            if (!npc.type) continue;
+            let npcName: string = npc.type?.name + '';
+            if (npcName.match(/River.*troll|Shade|Swarm|Zombie|Rock.*Golem|Strange.*Plant|Tree.*spirit/i) ||
+                [403,404,405,406].includes(npc.type.id) // whirlpools, see \Server\content\pack\npc.pack
+            ) {
+                console.log(`${new Date().toLocaleTimeString()}: Detected dangerous random ${npcName}!`);
+                shouldrun = true;
+                break;
+            }
+        }
+        if (shouldrun) {
+            await sleep(100);
+            await this.walkToEndofPath(path);
+            await sleep(20000); // idk how long I need to wait
+            return shouldrun;
+        }
+        return shouldrun;
+    }
+
+    checkSmallFishingNet() {
+        return (this.countInvById(304) > 0); // 303 + 1
+    }
+
+    async pickupSmallFishingNet() {
+        // Search tiles for the fishing net
+        let targetid = 303; // for some reason the objtype has the actual id, not +1
+        var targetX = -1;
+        var targetZ = -1;
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let objs = this.objStacks[this.currentLevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    console.log(`name=${type.name},id=${type.id} at ${x},${z}`);
+                    if (type.id == targetid || type.name?.startsWith('Small fishing net')) {
+                        targetX = x;
+                        targetZ = z;
+                    }
+                }
+                if (targetX != -1 || targetZ != -1) break;
+            }
+            if (targetX != -1 || targetZ != -1) break;
+        }
+        if (targetX == -1 || targetZ == -1 || !this.localPlayer) {
+            this.addMessage(0, 'Failed to find small fishing net', '');
+            return false;
+        }
+        // Move to that tile
+        await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], targetX, targetZ, 0, 0, 0, 0, 0, 0, true)
+        await sleep(500);
+        while (this.localPlayer?.routeLength !== 0) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        await sleep(1000);
+
+        // right click, take small fishing net
+        this.projectFromGround(targetX, 0, targetZ); // I think height of 0 is fine. May need to use project from entity on own player.
+        this.projectFromGroundGlobal(targetX + this.sceneBaseTileX, targetZ + this.sceneBaseTileZ, 0.01);
+        await mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
+        await sleep(100);
+        if (this.menuSize > 0) {
+            for (let i = 0; i < this.menuOption.length; i++) {
+                const optiontext = this.menuOption[i];
+                if (optiontext.startsWith('Take') && optiontext.endsWith('Small fishing net')) {
+                    this.useMenuOption(i);
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    } else if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
+                }
+            }
+        }
+        await sleep(1000);
+        if (!this.checkSmallFishingNet()) {
+            this.addMessage(0, 'Failed to pick up small fishing net', '');
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    async onF1Pressed_thieve() {
+        this.stopLoop = false;
+        this.f1interval = setInterval(async () => {
+            await this.handleRandoms();
+            // HP is skill index 3
+            // for (let s = 0; s < this.skillLevel.length; s++) {
+            //     const skillvalue = this.skillLevel[s];
+            //     this.addMessage(0, 'Skill number ' + s + ' has level ' + skillvalue + ' and baselevel ' + this.skillBaseLevel[s], '');
+            // }
+            if (this.skillLevel[3] < 5) {
+                this.addMessage(0, 'HP=' + this.skillLevel[3] + ' too low! Wait for regen.', '');
+                await this.clickKebabInInventory();
+                return;
+            }
+            // Find the closest 'Man' NPC to (playerMouseX, playerMouseY)
+            let closestDist = Number.POSITIVE_INFINITY;
+            let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
+
+            for (let index: number = 0; index < this.npcCount; index++) {
+                let entity: ClientEntity | null = null;
+                entity = this.npcs[this.npcIds[index]];
+                if (!entity || !entity.isVisible()) {
+                    continue;
+                }
+                const npc: ClientNpc = entity as ClientNpc;
+                this.projectFromEntity(entity, entity.height / 2);
+                let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
+                if (npcprojectinfo.match('Man') && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                    const dx = this.projectX - this.playerMouseX;
+                    const dy = this.projectY - this.playerMouseY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
+                    }
+                }
+            }
+
+            if (closestNpc) {
+                await mouse(closestNpc.x, closestNpc.y, 2);
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Pickpocket')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                            break;
+                        }
+                        // this.addMessage(0, 'Menu option ' + i + ' is ' + this.menuOption[i], '');
+                    }
+                }
+            }
+        if (this.stopLoop) {
+            clearInterval(this.f1interval);
+            return;
+        }
+        }, 2000);
+    }
+
+    shrimpPath(fishing: boolean, gonorth: boolean) {
+        let fishingRoute = [[2997, 3153], [2997, 3157], [2997, 3161], [2993, 3164], [2991, 3169], [2989, 3173], [2987, 3177], [2986, 3181]];
+        let cookingRoute = [[2997, 3153], [2997, 3157], [2997, 3161], [2993, 3164], [2991, 3169], [2989, 3173], [2987, 3177], [2986, 3181], [2984, 3186], [2984, 3191], [2982, 3196], [2975, 3200], [2971, 3208], [2971, 3215], [2968, 3213], [2969, 3210]];
+        if (fishing) {
+            var route = fishingRoute;
+        } else {
+            var route = cookingRoute;
+        }
+        if (gonorth) {
+            return route;
+        } else {
+            return route.toReversed();
+        }
+    }
+
+    catherbyPath(fishing: boolean, gowest: boolean) {
+        // Starting at the eastmost fishing spot
+        let fishingRoute = [[2860, 3427], [2855, 3424], [2846, 3430], [2840, 3433], [2836, 3432]];
+        let bankingRoute = [[2860, 3427], [2855, 3424], [2846, 3430], [2840, 3433], [2836, 3432], [2825, 3436], [2809, 3436], [2809, 3441]];
+        // Bank booth is at 2809, 3442
+        if (fishing) {
+            var route = fishingRoute;
+        } else {
+            var route = bankingRoute;
+        }
+        if (gowest) {
+            return route;
+        } else {
+            return route.toReversed();
+        }
+    }
+
+    findNearestPointInPath(path: Array<Array<number>>) {
+        let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+        let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+        var closestDist = Number.POSITIVE_INFINITY;
+        var closestPoint: Array<number> = [];
+        var closestPointIndex = -1;
+        for (let i = 0; i < path.length; i++) {
+            let point = path[i];
+            let dx = point[0] - globalX;
+            let dz = point[1] - globalZ;
+            let dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestPoint = point;
+                closestPointIndex = i;
+            }
+        }
+        if (closestPointIndex == -1) {
+            this.addMessage(0, 'No closest point found in path', '');
+            return null;
+        } else {
+            return { point: closestPoint, index: closestPointIndex };
+        }
+    }
+    async walkToEndofPath(path: number[][]) {
+        const result = this.findNearestPointInPath(path);
+        if (!result || !this.localPlayer) {
+            return;
+        }
+        const { point, index } = result;
+        for (let i = index; i < path.length; i++) {
+            let p = path[i];
+            this.addMessage(0, `Trying to move to ${p[0] - this.sceneBaseTileX}, ${p[1] - this.sceneBaseTileZ}; ${i+1} / ${path.length}`, '');
+            await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], p[0] - this.sceneBaseTileX, p[1] - this.sceneBaseTileZ, 0, 0, 0, 0, 0, 0, true)
+            await sleep(500);
+            while (this.localPlayer?.routeLength !== 0) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+    }
+    async walkToRange() {
+        let path = this.shrimpPath(false, true);
+        await this.walkToEndofPath(path);
+    }
+
+    async useShrimpOnRange() {
+        // Search inventory for shrimp, right click, menu option "use"
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        // Raw shrimps object id is 317, anchovies 321, but invSlotObjId is usually +1
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            // we may trigger randoms while cooking, which takes a long time
+            await this.handleRandoms();
+            await this.handleDangerousRandoms(this.shrimpPath(false, false));
+            if (inv.invSlotObjId[slot] === 318 || inv.invSlotObjId[slot] === 322) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await clickInv(slot, null, 2);
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Use')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                        }
+                    }
+                }
+                await sleep(100);
+                this.projectFromGroundGlobal(2970, 3210, 0.1);
+                await mouse(this.projectX, this.projectY, 2); // right click and find "use X with Range" option in case of occlusion.
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.endsWith('Range')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                        }
+                    }
+                }
+                await sleep(600*4);
+            }
+        }
+
+        // Drop the cooked food
+        await this.dropItems([324, 316, 320])
+        return true;
+    }
+
+    async onF1Pressed_shrimpPortSarim() {
+        this.stopLoop = false;
+        var justwalkedsouth = false;
+        let southToNorthFishingPath = this.shrimpPath(true, true);
+        let southToNorthPathIndex = 0;
+        while (!this.stopLoop) {
+            // Send a click to keep everything alive.
+            // This clicks on the inventory tab.
+            await mouse(648, 185, 1, 100);
+            // this.addMessage(0, `Checking randoms.`, '');
+            await this.handleRandoms();
+            // Big fish may have tossed our fishing net
+            if (!this.checkSmallFishingNet()) {
+                let gotnet = await this.pickupSmallFishingNet();
+                if (!gotnet) {
+                    this.addMessage(0, 'Lost net and failed to pick it up. Stopping loop', '');
+                    this.stopLoop = true;
+                } else {
+                    // Walk all the way south to reset everything.
+                    await this.walkToEndofPath(this.shrimpPath(false, false));
+                    justwalkedsouth = true;
+                    southToNorthPathIndex = 0;
+                    await sleep(1000);
+                }
+            }
+            // Check dangerous randoms; run to range for safety, then run back
+            var rantorange = await this.handleDangerousRandoms(this.shrimpPath(false, true));
+            if (rantorange) {
+                // run back down
+                await this.walkToEndofPath(this.shrimpPath(false, false));
+                justwalkedsouth = true;
+                southToNorthPathIndex = 0;
+                await sleep(1000);
+            }
+            // if inventory is full, try to go to range and use shrimp on the range (which will drop at the end)
+            if (this.invCount() == 28) {
+                await this.walkToRange();
+                await this.handleRandoms();
+                await this.useShrimpOnRange();
+                await this.handleRandoms();
+                justwalkedsouth = false;
+                southToNorthPathIndex = 0;
+                await sleep(1000);
+            }
+            // if idle, do complicated stuff
+            if (this.localPlayer?.primarySeqId == -1) {
+
+                // Find the closest NPC to (playerMouseX, playerMouseY)
+                let closestDist = Number.POSITIVE_INFINITY;
+                let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
+
+                for (let index: number = 0; index < this.npcCount; index++) {
+                    let entity: ClientEntity | null = null;
+                    entity = this.npcs[this.npcIds[index]];
+                    if (!entity || !entity.isVisible()) {
+                        continue;
+                    }
+                    const npc: ClientNpc = entity as ClientNpc;
+                    let npcId: number | undefined = npc.type?.id;
+                    this.projectFromEntity(entity, entity.height / 2);
+                    if (npcId == 325 && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                        const dx = this.projectX - this.playerMouseX;
+                        const dy = this.projectY - this.playerMouseY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
+                        }
+                    }
+                }
+
+                if (closestNpc) {
+                    this.addMessage(0, `Found closest npc at ${closestNpc.x}, ${closestNpc.y}`, '');
+                    await mouse(closestNpc.x, closestNpc.y, 2);
+                    await sleep(100);
+                    if (this.menuSize > 0) {
+                        for (let i = 0; i < this.menuOption.length; i++) {
+                            const optiontext = this.menuOption[i];
+                            if (optiontext.startsWith('Net')) {
+                                this.useMenuOption(i);
+                                this.menuVisible = false;
+                                if (this.menuArea === 1) {
+                                    this.redrawSidebar = true;
+                                } else if (this.menuArea === 2) {
+                                    this.redrawChatback = true;
+                                }
+                                this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // There is no closestNpc, so need to walk around to find another
+                    // First, walk all the way south if we didn't just do that
+                    if (!justwalkedsouth) {
+                        await this.walkToEndofPath(this.shrimpPath(false, false));
+                        justwalkedsouth = true;
+                        southToNorthPathIndex = 0;
+                        await sleep(1000);
+                    } else {
+                        // We're going to step along the fishing path
+                        southToNorthPathIndex++;
+                        if (southToNorthPathIndex > southToNorthFishingPath.length) {
+                            // We reached the end of the fishing path, so go all the way south again.
+                            southToNorthPathIndex = 0;
+                            justwalkedsouth = false;
+                        } else {
+                            // Walk to the next point (actually we are walking to the end of the truncated path)
+                            await this.walkToEndofPath(southToNorthFishingPath.slice(0, southToNorthPathIndex));
+                            await sleep(1000);
+                        }
+                    }
+                }
+            }
+            await sleep(2000);
+        }
+    }
+
+    /**
+     * Pass the actual ids, not +1
+    */
+    async depositAll(bankX: number, bankZ: number, itemIds: number[]) {
+        this.projectFromGroundGlobal(bankX, bankZ, 0.1);
+        await mouse(this.projectX, this.projectY, 2);
+        await sleep(100);
+        if (this.menuSize > 0) {
+            for (let i = 0; i < this.menuOption.length; i++) {
+                const optiontext = this.menuOption[i];
+                if (optiontext.startsWith('Use-quickly')) {
+                    this.useMenuOption(i);
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    } else if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
+                }
+            }
+        }
+        await sleep(1000);
+        for (var _ = 0; _ < 10 && !this.checkBankOpen(); _++) await sleep(500);
+
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        // Drop all items whose invSlotObjId matches any id in ids (+1 offset)
+
+        for (const targetId of itemIds) {
+            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                if ((targetId + 1) == inv.invSlotObjId[slot]) {
+                    if (this.selectedTab != 3) {
+                        await mouse(648, 185, 1, 100);
+                    }
+                    await clickInv(slot, null, 2);
+                    await sleep(100);
+                    if (this.menuSize > 0) {
+                        for (let i = 0; i < this.menuOption.length; i++) {
+                            const optiontext = this.menuOption[i];
+                            if (optiontext.startsWith('Deposit All')) {
+                                this.useMenuOption(i);
+                                this.menuVisible = false;
+                                if (this.menuArea === 1) {
+                                    this.redrawSidebar = true;
+                                } else if (this.menuArea === 2) {
+                                    this.redrawChatback = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    await sleep(300);
+                }
+            }
+        }
+        return true;
+    }
+
+    checkBankOpen() {
+        let bank = Component.types[this.bankComponentId];
+        if (!bank || !bank.invSlotObjId || bank.invSlotObjId[0] == 0) {
+            this.addMessage?.(0, 'Bank data not available or bank is empty.', '');
+            return false;
+        } else {
+            // this.addMessage?.(0, `Bank data is available. First slot: ${bank.invSlotObjId[0]}`, '');
+            return true;
+        }
+    }
+}
+
+
+
+async function mouse(x: number, y: number, button = 0, delay = 100) {
+    console.log("Doing a click at" + x + "," + y);
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new MouseEvent('mousemove', {
+        'clientX': Math.round(x) + rect.left,
+        'clientY': Math.round(y) + rect.top
+    }));
+    await sleep(delay);
+    if (button > 0) {
+        canvas.dispatchEvent(new MouseEvent('mousedown', {
+            'clientX': Math.round(x) + rect.left,
+            'clientY': Math.round(y) + rect.top,
+            'button': button == 2 ? 2 : 0,
+            'buttons': button == 2 ? 2 : 1,
+            'which': button == 2 ? 3 : 1
+        }));
+        await sleep(delay);
+        canvas.dispatchEvent(new MouseEvent('mouseup', {
+            'clientX': Math.round(x) + rect.left,
+            'clientY': Math.round(y) + rect.top,
+            'button': button == 2 ? 2 : 0,
+            'buttons': 0,
+            'which': button == 2 ? 3 : 1
+        }));
+    }
+}
+
+async function clickInv(i: number, j: number | null=null, button=1) {
+    if (j === null) {
+        j = Math.floor(i / 4);
+        i = i % 4;
+    }
+    await mouse(592 + i*40, 232 + j*35, button);
 }
