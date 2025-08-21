@@ -540,7 +540,7 @@ export class Client extends GameShell {
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
                 // this.onF1Pressed_cookCatherby([359, 371]);
-                this.onF1Pressed_tunaCatherby();
+                this.onF1Pressed_pickGate();
             }
         });
         window.addEventListener('keydown', async (event) => {
@@ -12237,7 +12237,7 @@ export class Client extends GameShell {
         }
     }
 
-    async onF1Pressed_thieve() {
+    async onF1Pressed_thieve_old() {
         this.stopLoop = false;
         this.f1interval = setInterval(async () => {
             await this.handleRandoms();
@@ -13160,6 +13160,210 @@ export class Client extends GameShell {
             }
         }
         await sleep(100);
+    }
+
+    async onF1Pressed_thieveSilk() {
+        this.stopLoop = false;
+        let pathToStall = [[2661, 3296], [2661, 3306], [2662, 3316]];
+        let pathAway = pathToStall.toReversed();
+        let standX = 2662;
+        let standZ = 3315;
+        let silkId = 950; // no +1
+
+        while (!this.stopLoop) {
+            let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+            let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+            if (this.manhattanDist(globalX, globalZ, standX, standZ) > 50) {
+                console.log('Too far from intended position. Logging out.');
+                this.stopLoop = true;
+                await this.logout();
+                return;
+            }
+            // Send a click to keep everything alive.
+            await this.handleRunEnergyThrottled(5);
+            // This clicks on the inventory tab.
+            await mouse(648, 185, 1, 100);
+            // this.addMessage(0, `Checking randoms.`, '');
+            await this.handleRandoms();
+            await this.useLamp();
+            // Check dangerous randoms; run to bank for safety, then run back
+            var rantobank = await this.handleDangerousRandoms(pathAway);
+            if (rantobank) {
+                console.log('Ran to the escape');
+                await sleep(10000);
+                await this.walkToEndofPath(pathToStall);
+            }
+            console.log('Walking to end of pathtostall');
+            await this.walkToEndofPath(pathToStall);
+            await sleep(1500);
+            // Try steal
+            console.log('Trying to steal');
+            this.projectFromGroundGlobal(standX, standZ, 0.1);
+            await mouse(this.projectX, this.projectY, 2);
+            await sleep(100);
+            await this.useMenuStartsWith('Steal from');
+            await sleep(600);
+            // drop all silk
+            await this.dropItems([silkId + 1]);
+            // Run away if HP is low, then log out.
+            if (this.skillLevel[3] < 10) {
+                console.log('HP is less than 10! Running and logging!')
+                await mouse(711, 485, 1, 100); // run tab
+                await sleep(100);
+                await mouse(625, 265, 1, 100); // run on
+                await sleep(100);
+                await mouse(648, 185, 1, 100); // back to inventory
+                await this.walkToEndofPath(pathAway);
+                this.stopLoop = true;
+                await sleep(10000);
+                await this.logout();
+                return;
+            }
+            await sleep(1500);
+        }
+    }
+
+    async onF1Pressed_thieve_rogue() {
+        this.stopLoop = false;
+        let escapePath = [[3077, 3910], [3092, 3908], [3108, 3908]];
+        let foodId = 361; // no +1
+        while (!this.stopLoop) {
+            // Send a click to keep everything alive.
+            await this.handleRunEnergyThrottled(5);
+            // This clicks on the inventory tab.
+            await mouse(648, 185, 1, 100);
+            // this.addMessage(0, `Checking randoms.`, '');
+            await this.handleRandoms();
+            await this.useLamp();
+            await this.handleRandoms();
+            await this.handleDangerousRandoms(escapePath);
+            if (this.skillLevel[3] < 3) {
+                this.addMessage(0, 'HP=' + this.skillLevel[3] + ' too low! Wait for regen.', '');
+                let inv = Component.types[this.inventoryComponentId];
+                if (!inv || !inv.invSlotObjId) {
+                    this.addMessage?.(0, 'Inventory data not available', '');
+                    return false;
+                }
+                for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                    // we may trigger randoms while cooking, which takes a long time
+                    await this.handleRandoms();
+                    await this.handleDangerousRandoms(escapePath);
+                    if (foodId == inv.invSlotObjId[slot] - 1) {
+                        if (this.selectedTab != 3) {
+                            await mouse(648, 185, 1, 100);
+                        }
+                        await sleep(50);
+                        await clickInv(slot, null, 1);
+                        await sleep(200);
+                        break;
+                    }
+                }
+                await sleep(1000);
+                continue;
+            }
+            // Find the closest 'Man' NPC to (playerMouseX, playerMouseY)
+            let closestDist = Number.POSITIVE_INFINITY;
+            let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
+
+            for (let index: number = 0; index < this.npcCount; index++) {
+                let entity: ClientEntity | null = null;
+                entity = this.npcs[this.npcIds[index]];
+                if (!entity || !entity.isVisible()) {
+                    continue;
+                }
+                const npc: ClientNpc = entity as ClientNpc;
+                this.projectFromEntity(entity, entity.height / 2);
+                let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
+                if (npcprojectinfo.match('Rogue') && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                    const dx = this.projectX - this.playerMouseX;
+                    const dy = this.projectY - this.playerMouseY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
+                    }
+                }
+            }
+
+            if (closestNpc) {
+                await mouse(closestNpc.x, closestNpc.y, 2);
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Pickpocket')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                            break;
+                        }
+                        // this.addMessage(0, 'Menu option ' + i + ' is ' + this.menuOption[i], '');
+                    }
+                }
+            }
+            await sleep(2000);
+        }
+    }
+
+    async onF1Pressed_pickGate() {
+        this.stopLoop = false;
+        let westSideX = 2655;
+        let westSideZ = 9714;
+        let westEscapePath = [[2655, 9714], [2646, 9708], [2651, 9698]];
+        let eastSideX = 2656;
+        let eastSideZ = 9714;
+        let eastEscapePath = [[2656, 9714], [2672, 9710]];
+        var onWestSide = true;
+
+        while (!this.stopLoop) {
+            let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+            let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+            if (this.manhattanDist(globalX, globalZ, westSideX, westSideZ) > 100) {
+                console.log('Too far from intended position. Logging out.');
+                this.stopLoop = true;
+                await this.logout();
+                return;
+            }
+            // Send a click to keep everything alive.
+            await this.handleRunEnergyThrottled(5);
+            await this.handleRandoms();
+            await this.useLamp();
+            // Check dangerous randoms; run to bank for safety, then run back
+            if (onWestSide) {
+                console.log('Doing onWestSide');
+                await this.handleDangerousRandoms(westEscapePath);
+                await this.walkToEndofPath(westEscapePath.toReversed());
+                await sleep(200);
+                // try to pick
+                this.projectFromGroundGlobal(westSideX + 0.5, westSideZ, 0.2);
+                await mouse(this.projectX, this.projectY, 2);
+                await this.useMenuStartsWith('Pick Lock');
+                await sleep(1000);
+                if ((this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX > westSideX) {
+                    onWestSide = false;
+                    console.log('Switched onWestSide to false');
+                }
+            } else {
+                console.log('Doing NOT onWestSide');
+                await this.handleDangerousRandoms(eastEscapePath);
+                await this.walkToEndofPath(eastEscapePath.toReversed());
+                await sleep(200);
+                this.projectFromGroundGlobal(westSideX + 0.5, westSideZ, 0.2);
+                await mouse(this.projectX, this.projectY, 2);
+                await this.useMenuStartsWith('Open');
+                await sleep(1000);
+                if ((this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX <= westSideX) {
+                    onWestSide = true;
+                    console.log('Switched onWestSide to true');
+                }
+            }
+            await sleep(200);
+        }
     }
 }
 
