@@ -539,7 +539,8 @@ export class Client extends GameShell {
 
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
-                this.onF1Pressed_cookCatherby([359, 371]);
+                // this.onF1Pressed_cookCatherby([359, 371]);
+                this.onF1Pressed_tunaCatherby();
             }
         });
         window.addEventListener('keydown', async (event) => {
@@ -12035,7 +12036,7 @@ export class Client extends GameShell {
         return cnt;
     }
 
-        async handleRandoms() {
+    async handleRandoms() {
         for (let index: number = 0; index < this.npcCount; index++) {
             let entity: ClientEntity | null = null;
             entity = this.npcs[this.npcIds[index]];
@@ -12046,15 +12047,33 @@ export class Client extends GameShell {
             let npcName: string = npc.type?.name + '';
             this.projectFromEntity(entity, entity.height / 2);
             if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                console.log(`${new Date().toLocaleTimeString()}: Detected random ${npcName}!`);
+                console.log(`Detected random ${npcName}!`);
                 await mouse(this.projectX, this.projectY, 1);
-                await sleep(5000);
+                await sleep(2000);
             }
             this.projectFromEntity(entity, entity.height / 2);
             if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                console.log(`${new Date().toLocaleTimeString()}: Clicking random ${npcName} again!`);
+                console.log(`Clicking random ${npcName} again!`);
                 await mouse(this.projectX, this.projectY, 1);
-                await sleep(5000);
+                await sleep(2000);
+            }
+            if (npcName.match(/Strange.*Plant/i)) {
+                for (let i = 0; i < 60; i++) {
+                    if (entity == null || !entity.isVisible()) {
+                        console.log(`${npcName} is null or invisible! Stopping loop.`);
+                        break;
+                    }
+                    // try to right click pick
+                    this.projectFromEntity(entity, entity.height / 2);
+                    if (this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                        await mouse(this.projectX, this.projectY, 2);
+                        await sleep(200);
+                        this.useMenuStartsWith('Pick');
+                        console.log(`Tried to pick ${npcName}.`);
+                        await sleep(200);
+                    }
+                    await sleep(1000);
+                }
             }
         }
     }
@@ -12551,6 +12570,14 @@ export class Client extends GameShell {
         let resetPath = this.catherbyPath(false, false);
         let eastToWestPathIndex = 0;
         let fishingSpotNPCID = 321;
+        if (!this.checkHarpoon()) {
+            // walk to bank
+            await this.walkToEndofPath(this.catherbyPath(false, true));
+            await this.handleRandoms();
+            await this.depositAllExcept(2809, 3442, [311]); // deposit all except the harpoon
+            await this.withdraw1BankById(311); // actual id, not +1
+            await sleep(1000);
+        }
         while (!this.stopLoop) {
             let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
             let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
@@ -12694,22 +12721,28 @@ export class Client extends GameShell {
                 if (this.selectedTab != 3) {
                     await mouse(648, 185, 1, 100);
                 }
-                await clickInv(slot, null, 2);
-                await sleep(100);
-                if (this.menuSize > 0) {
-                    for (let i = 0; i < this.menuOption.length; i++) {
-                        const optiontext = this.menuOption[i];
-                        if (optiontext.startsWith('Use')) {
-                            this.useMenuOption(i);
-                            this.menuVisible = false;
-                            if (this.menuArea === 1) {
-                                this.redrawSidebar = true;
-                            } else if (this.menuArea === 2) {
-                                this.redrawChatback = true;
-                            }
-                        }
-                    }
-                }
+                await sleep(50);
+                await clickInv(slot, null, 1);
+                await sleep(200);
+                // var clickedUse = false;
+                // if (this.menuSize > 0) {
+                //     for (let i = 0; i < this.menuOption.length; i++) {
+                //         const optiontext = this.menuOption[i];
+                //         if (optiontext.startsWith('Use')) {
+                //             this.useMenuOption(i);
+                //             clickedUse = true;
+                //             this.menuVisible = false;
+                //             if (this.menuArea === 1) {
+                //                 this.redrawSidebar = true;
+                //             } else if (this.menuArea === 2) {
+                //                 this.redrawChatback = true;
+                //             }
+                //         }
+                //     }
+                // }
+                // if (!clickedUse) {
+                //     console.log(`Failed to click Use for slot ${slot}`);
+                // }
                 await sleep(100);
                 this.projectFromGroundGlobal(rangeX, rangeZ, 0.1);
                 await mouse(this.projectX, this.projectY, 2); // right click and find "use X with Range" option in case of occlusion.
@@ -12783,6 +12816,39 @@ export class Client extends GameShell {
         return false;
     }
 
+    async withdraw1BankById(id: number) {
+        let inv = Component.types[this.bankComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (id == (inv.invSlotObjId[slot] - 1)) {
+                await clickBank(slot, null, 2);
+                await sleep(200);
+                // click withdraw all
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Withdraw 1')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+                await sleep(300);
+                return true;
+            }
+        }
+        return false;
+    }
+
     async onF1Pressed_cookCatherby(ids: number[]) {
         // locs:
         // Bank spot: 2809, 3441
@@ -12797,13 +12863,9 @@ export class Client extends GameShell {
         let insideDoorZ = 3439;
         let rangeStandX = 2817;
         let rangeStandZ = 3443;
-        let rangeX = 2817;
+        let rangeX = 2817 + 1;
         let rangeZ = 3444;
-        const State = {
-            Banking: 1,
-            Cooking: 2,
-        } as const;
-        var state: number = State.Banking;
+        var state = 1 // 1 == banking, 2 == cooking
 
         while (!this.stopLoop) {
             let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
@@ -12821,9 +12883,10 @@ export class Client extends GameShell {
             await this.handleRandoms();
             await this.useLamp();
             // Check dangerous randoms; run to bank for safety, then run back
-            var ranToBank = await this.handleDangerousRandoms([[bankStandX, bankStandZ]]);
-
-            if (state == State.Banking) {
+            var rantobank = await this.handleDangerousRandoms([[bankStandX, bankStandZ]]);
+            if (rantobank) state = 1;
+            if (state == 1) {
+                this.addMessage(0, 'Started banking state', '');
                 await this.walkToEndofPath([[bankStandX, bankStandZ]]);
                 await this.depositAllExcept(bankX, bankZ, [0]);
                 await sleep(600);
@@ -12839,16 +12902,21 @@ export class Client extends GameShell {
                         await this.withdrawAllBankById(id + 1);
                     }
                 }
+                await sleep(1200);
                 if (this.invCount() < 28) {
                     console.log('Not enough items to cook. Logging out.');
                     this.stopLoop = true;
                     await this.logout();
                 }
                 await this.walkToEndofPath([[outsideDoorX, outsideDoorZ]]);
+                await sleep(600);
                 // TODO: check if door is closed, if so, open it
+                await this.tryOpenDoor(outsideDoorX, outsideDoorZ + 0.5);
                 await this.walkToEndofPath([[rangeStandX, rangeStandZ]]);
-                state = State.Cooking;
-            } else if (state == State.Cooking) {
+                state = 2;
+                this.addMessage(0, 'Finished banking state', '');
+            } else if (state == 2) {
+                this.addMessage(0, 'Started cooking state', '');
                 await this.walkToEndofPath([[rangeStandX, rangeStandZ]]);
                 // TODO: Using items on the range attempts to escape dangerous randoms by running to the
                 // bank, but the door might be closed, so this would fail.
@@ -12856,9 +12924,12 @@ export class Client extends GameShell {
                 await this.useItemsOnRange(rangeX, rangeZ, ids, [[bankStandX, bankStandZ]]);
                 await this.walkToEndofPath([[insideDoorX, insideDoorZ]]);
                 // TODO: check if door is closed, if so, open it
+                await this.tryOpenDoor(outsideDoorX, outsideDoorZ + 0.5);
                 await this.walkToEndofPath([[bankStandX, bankStandZ]]);
-                state = State.Banking;
+                state = 1;
+                this.addMessage(0, 'Finished cooking state', '');
             }
+            await sleep(2000);
         }
     }
 
@@ -13041,12 +13112,61 @@ export class Client extends GameShell {
             this.lastCheckRunTime = now;
         }
     }
+
+    async tryOpenDoor(globalX: number, globalZ: number) {
+        this.projectFromGroundGlobal(globalX, globalZ, 0.5);
+        await mouse(this.projectX, this.projectY, 2);
+        await sleep(100);
+        if (this.menuSize > 0) {
+            for (let i = 0; i < this.menuOption.length; i++) {
+                const optiontext = this.menuOption[i];
+                if (optiontext.startsWith('Open')) {
+                    this.useMenuOption(i);
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    } else if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
+                    this.addMessage(0, 'Opened door.', '');
+                    await sleep(600);
+                }
+            }
+        }
+        this.addMessage(0, 'Dont need to open door.', '');
+        this.menuVisible = false;
+        if (this.menuArea === 1) {
+            this.redrawSidebar = true;
+        } else if (this.menuArea === 2) {
+            this.redrawChatback = true;
+        }
+        await sleep(100);
+    }
+
+    async useMenuStartsWith(needle: string) {
+        await sleep(100);
+        if (this.menuSize > 0) {
+            for (let i = 0; i < this.menuOption.length; i++) {
+                const optiontext = this.menuOption[i];
+                if (optiontext.startsWith(needle)) {
+                    this.useMenuOption(i);
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    } else if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
+                }
+            }
+        }
+        await sleep(100);
+    }
 }
 
 
 
 async function mouse(x: number, y: number, button = 0, delay = 100) {
-    console.log("Doing a click at" + x + "," + y);
+    // console.log("Doing a click at" + x + "," + y);
     const rect = canvas.getBoundingClientRect();
     canvas.dispatchEvent(new MouseEvent('mousemove', {
         'clientX': Math.round(x) + rect.left,
