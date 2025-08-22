@@ -540,7 +540,7 @@ export class Client extends GameShell {
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
                 // this.onF1Pressed_cookCatherby([359, 371]);
-                this.onF1Pressed_pickGate();
+                this.onF1Pressed_thieveKnight();
             }
         });
         window.addEventListener('keydown', async (event) => {
@@ -12783,6 +12783,9 @@ export class Client extends GameShell {
         return cnt;
     }
 
+    /**
+     * Expects the +1 id
+     */
     async withdrawAllBankById(id: number) {
         let inv = Component.types[this.bankComponentId];
         if (!inv || !inv.invSlotObjId) {
@@ -12816,6 +12819,9 @@ export class Client extends GameShell {
         return false;
     }
 
+    /**
+     * Real ID, not + 1
+     */
     async withdraw1BankById(id: number) {
         let inv = Component.types[this.bankComponentId];
         if (!inv || !inv.invSlotObjId) {
@@ -12826,7 +12832,7 @@ export class Client extends GameShell {
             if (id == (inv.invSlotObjId[slot] - 1)) {
                 await clickBank(slot, null, 2);
                 await sleep(200);
-                // click withdraw all
+                // click withdraw 1
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
                         const optiontext = this.menuOption[i];
@@ -13363,6 +13369,119 @@ export class Client extends GameShell {
                 }
             }
             await sleep(200);
+        }
+    }
+
+    async onF1Pressed_thieveKnight() {
+        // Start in south ardy bank with full inv of food and 1 coin placeholder.
+        this.stopLoop = false;
+        let bankStandX = 2655;
+        let bankStandZ = 3286;
+        let bankX = 2656;
+        let bankZ = 3286;
+        let escapePath = [[bankStandX, bankStandZ], [2648, 3283], [2643, 3276], [2643, 3266]];
+        let foodId = 361; // no +1
+        let minHP = 4; // Eat food if hp < minHP
+        let npcNameNeedle = 'Knight';
+
+        while (!this.stopLoop) {
+            let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+            let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+            if (this.manhattanDist(globalX, globalZ, bankStandX, bankStandZ) > 100) {
+                console.log('Too far from intended position. Logging out.');
+                this.stopLoop = true;
+                await this.logout();
+                return;
+            }
+            // Send a click to keep everything alive.
+            await this.handleRunEnergyThrottled(5);
+            // This clicks on the inventory tab.
+            await mouse(648, 185, 1, 100);
+            // this.addMessage(0, `Checking randoms.`, '');
+            await this.handleRandoms();
+            await this.useLamp();
+            await this.handleDangerousRandoms(escapePath);
+            // If food is out, go to bank, deposit everything, withdraw 1 coin and all food.
+            if (this.countInvById(foodId + 1) == 0) {
+                console.log('Out of food, trying to bank');
+                await sleep(6000); // make sure we're not stunned
+                await this.walkToEndofPath(escapePath.toReversed());
+                await this.depositAllExcept(bankX, bankZ, [0]); // deposit all
+                await sleep(1000);
+                await this.withdraw1BankById(995); // Withdraw 1 coin as placeholder
+                await this.withdrawAllBankById(foodId + 1); // it expects +1 id
+                await sleep(1000);
+                await this.walkToEndofPath([[bankStandX - 1, bankStandZ]]); // move west to close bank
+                console.log('Done banking');
+            }
+            // If HP is low, eat.
+            if (this.skillLevel[3] < minHP) {
+                let inv = Component.types[this.inventoryComponentId];
+                if (!inv || !inv.invSlotObjId) {
+                    this.addMessage?.(0, 'Inventory data not available', '');
+                    return false;
+                }
+                for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                    // we may trigger randoms while cooking, which takes a long time
+                    await this.handleRandoms();
+                    await this.handleDangerousRandoms(escapePath);
+                    if (foodId == inv.invSlotObjId[slot] - 1) {
+                        if (this.selectedTab != 3) {
+                            await mouse(648, 185, 1, 100);
+                        }
+                        await sleep(50);
+                        await clickInv(slot, null, 1);
+                        await sleep(200);
+                        break;
+                    }
+                }
+                await sleep(1000);
+                continue;
+            }
+            // Find the closest target NPC to (playerMouseX, playerMouseY)
+            let closestDist = Number.POSITIVE_INFINITY;
+            let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
+
+            for (let index: number = 0; index < this.npcCount; index++) {
+                let entity: ClientEntity | null = null;
+                entity = this.npcs[this.npcIds[index]];
+                if (!entity || !entity.isVisible()) {
+                    continue;
+                }
+                const npc: ClientNpc = entity as ClientNpc;
+                this.projectFromEntity(entity, entity.height / 2);
+                let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
+                if (npcprojectinfo.match(npcNameNeedle) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                    const dx = this.projectX - this.playerMouseX;
+                    const dy = this.projectY - this.playerMouseY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
+                    }
+                }
+            }
+
+            if (closestNpc) {
+                await mouse(closestNpc.x, closestNpc.y, 2);
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Pickpocket')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            await sleep(2000);
         }
     }
 }
