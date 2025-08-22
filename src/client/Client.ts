@@ -521,6 +521,7 @@ export class Client extends GameShell {
     private inventoryComponentId: number = 3214; // \Server\engine\data\symbols\component.sym
     private bankComponentId: number = 5382;
     private lastCheckRunTime: number | null = null;
+    private lastCheckRelieveKnightTime: number | null = null;
 
     // ----
 
@@ -13372,6 +13373,16 @@ export class Client extends GameShell {
         }
     }
 
+    async relieveKnightPositionThrottled(minutes: number, moveToX: number, moveToZ: number) {
+        const now = Date.now();
+        if (!this.lastCheckRelieveKnightTime || now - this.lastCheckRelieveKnightTime >= minutes * 60 * 1000) {
+            console.log('Relieving knight position for 15 seconds');
+            await this.walkToEndofPath([[moveToX, moveToZ]]);
+            await sleep(15000);
+            this.lastCheckRelieveKnightTime = now;
+        }
+    }
+
     async onF1Pressed_thieveKnight() {
         // Start in south ardy bank with full inv of food and 1 coin placeholder.
         this.stopLoop = false;
@@ -13401,6 +13412,8 @@ export class Client extends GameShell {
             await this.handleRandoms();
             await this.useLamp();
             await this.handleDangerousRandoms(escapePath);
+            // We need to let the knight move around, so it doesn't despawn (~5 minutes in 1 spot)
+            await this.relieveKnightPositionThrottled(4, bankStandX, bankStandZ);
             // If food is out, go to bank, deposit everything, withdraw 1 coin and all food.
             if (this.countInvById(foodId + 1) == 0) {
                 console.log('Out of food, trying to bank');
