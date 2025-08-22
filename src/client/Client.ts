@@ -12047,15 +12047,23 @@ export class Client extends GameShell {
             const npc: ClientNpc = entity as ClientNpc;
             let npcName: string = npc.type?.name + '';
             this.projectFromEntity(entity, entity.height / 2);
-            if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+            if (npcName.match(/Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
                 console.log(`Detected random ${npcName}!`);
-                await mouse(this.projectX, this.projectY, 1);
+                await mouse(this.projectX, this.projectY, 2);
+                await sleep(200);
+                this.useMenuStartsWith('Talk-to');
+                console.log(`Tried to talk-to ${npcName}.`);
+                await sleep(200);
                 await sleep(2000);
             }
             this.projectFromEntity(entity, entity.height / 2);
-            if (npcName.match(/Strange.*Plant|Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+            if (npcName.match(/Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
                 console.log(`Clicking random ${npcName} again!`);
-                await mouse(this.projectX, this.projectY, 1);
+                await mouse(this.projectX, this.projectY, 2);
+                await sleep(200);
+                this.useMenuStartsWith('Talk-to');
+                console.log(`Tried to talk-to ${npcName}.`);
+                await sleep(200);
                 await sleep(2000);
             }
             if (npcName.match(/Strange.*Plant/i)) {
@@ -13377,6 +13385,7 @@ export class Client extends GameShell {
         const now = Date.now();
         if (!this.lastCheckRelieveKnightTime || now - this.lastCheckRelieveKnightTime >= minutes * 60 * 1000) {
             console.log('Relieving knight position for 15 seconds');
+            await sleep(6000); // Make sure we're not stunned.
             await this.walkToEndofPath([[moveToX, moveToZ]]);
             await sleep(15000);
             this.lastCheckRelieveKnightTime = now;
