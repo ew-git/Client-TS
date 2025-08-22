@@ -609,9 +609,12 @@ export class Client extends GameShell {
                 // this.addMessage(0, `Tuna count: ${this.countBankById(360)}`, '');
                 // this.addMessage(0, `Swordfish count: ${this.countBankById(372)}`, '');
                 // this.checkBankOpen();
-                let rangeX = 2817;
-                let rangeZ = 3444;
-                await this.useItemsOnRange(rangeX, rangeZ, [359, 371], [[rangeX, rangeZ]]);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        console.log(`optiontext is ${optiontext}`);
+                    }
+                }
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -12067,7 +12070,7 @@ export class Client extends GameShell {
                 await sleep(2000);
             }
             if (npcName.match(/Strange.*Plant/i)) {
-                for (let i = 0; i < 60; i++) {
+                for (let i = 0; i < 10; i++) {
                     if (entity == null || !entity.isVisible()) {
                         console.log(`${npcName} is null or invisible! Stopping loop.`);
                         break;
@@ -12077,12 +12080,13 @@ export class Client extends GameShell {
                     if (this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
                         await mouse(this.projectX, this.projectY, 2);
                         await sleep(200);
-                        this.useMenuStartsWith('Pick');
+                        this.useMenuStartsWith('Pick ');
                         console.log(`Tried to pick ${npcName}.`);
                         await sleep(200);
                     }
                     await sleep(1000);
                 }
+                console.log('Done trying strange plant. Hopefully dangerous random runs away.');
             }
         }
     }
@@ -12099,8 +12103,8 @@ export class Client extends GameShell {
             const npc: ClientNpc = entity as ClientNpc;
             if (!npc.type) continue;
             let npcName: string = npc.type?.name + '';
-            if (npcName.match(/River.*troll|Shade|Swarm|Zombie|Rock.*Golem|Strange.*Plant|Tree.*spirit/i) ||
-                [403,404,405,406].includes(npc.type.id) // whirlpools, see \Server\content\pack\npc.pack
+            if (npcName.match(/River.*troll|Shade|Swarm|Zombie|Rock.*Golem|Strange.*Plant|Tree.*spirit|Watchman/i) ||
+                [403,404,405,406,431].includes(npc.type.id) // whirlpools and watchman, see \Server\content\pack\npc.pack
             ) {
                 console.log(`${new Date().toLocaleTimeString()}: Detected dangerous random ${npcName}!`);
                 shouldrun = true;
@@ -13387,7 +13391,7 @@ export class Client extends GameShell {
             console.log('Relieving knight position for 15 seconds');
             await sleep(6000); // Make sure we're not stunned.
             await this.walkToEndofPath([[moveToX, moveToZ]]);
-            await sleep(15000);
+            await sleep(20000);
             this.lastCheckRelieveKnightTime = now;
         }
     }
