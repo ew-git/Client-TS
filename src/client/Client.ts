@@ -541,7 +541,7 @@ export class Client extends GameShell {
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
                 // this.onF1Pressed_cookCatherby([359, 371]);
-                this.onF1Pressed_thieveKnightNoRandoms();
+                this.onF1Pressed_tunaCatherby();
             }
         });
         window.addEventListener('keydown', async (event) => {
