@@ -12908,7 +12908,7 @@ export class Client extends GameShell {
                     await this.logout();
                 }
                 await this.walkToEndofPath([[outsideDoorX, outsideDoorZ]]);
-                await sleep(300);
+                await sleep(1200);
                 await this.tryOpenDoor(outsideDoorX, outsideDoorZ + 0.5);
                 await this.walkToEndofPath([[rangeStandX, rangeStandZ]]);
                 state = 2;
@@ -12919,6 +12919,7 @@ export class Client extends GameShell {
                 await sleep(1000); // Make sure we're stationary.
                 await this.useItemsOnRange(rangeX, rangeZ, ids);
                 await this.walkToEndofPath([[insideDoorX, insideDoorZ]]);
+                await sleep(1200);
                 await this.tryOpenDoor(outsideDoorX, outsideDoorZ + 0.5);
                 await this.walkToEndofPath([[bankStandX, bankStandZ]]);
                 state = 1;
