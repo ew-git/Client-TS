@@ -540,8 +540,8 @@ export class Client extends GameShell {
 
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
-                // this.onF1Pressed_cookCatherby([359, 371]);
-                this.onF1Pressed_tunaCatherby();
+                this.onF1Pressed_cookCatherby([359, 371]);
+                // this.onF1Pressed_tunaCatherby();
             }
         });
         window.addEventListener('keydown', async (event) => {
@@ -12721,46 +12721,26 @@ export class Client extends GameShell {
     /**
      * Item ids are NOT +1
      */
-    async useItemsOnRange(rangeX: number, rangeZ: number, itemIds: number[], escapePath: number[][]) {
+    async useItemsOnRange(rangeX: number, rangeZ: number, itemIds: number[]) {
         let inv = Component.types[this.inventoryComponentId];
         if (!inv || !inv.invSlotObjId) {
             this.addMessage?.(0, 'Inventory data not available', '');
             return false;
         }
+
+        let foundRangeOption = false;
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-            // we may trigger randoms while cooking, which takes a long time
-            await this.handleRandoms();
-            await this.handleDangerousRandoms(escapePath);
+            foundRangeOption = false;
             if (itemIds.includes(inv.invSlotObjId[slot] - 1)) {
                 if (this.selectedTab != 3) {
                     await mouse(648, 185, 1, 100);
                 }
-                await sleep(50);
+                await sleep(100);
                 await clickInv(slot, null, 1);
-                await sleep(200);
-                // var clickedUse = false;
-                // if (this.menuSize > 0) {
-                //     for (let i = 0; i < this.menuOption.length; i++) {
-                //         const optiontext = this.menuOption[i];
-                //         if (optiontext.startsWith('Use')) {
-                //             this.useMenuOption(i);
-                //             clickedUse = true;
-                //             this.menuVisible = false;
-                //             if (this.menuArea === 1) {
-                //                 this.redrawSidebar = true;
-                //             } else if (this.menuArea === 2) {
-                //                 this.redrawChatback = true;
-                //             }
-                //         }
-                //     }
-                // }
-                // if (!clickedUse) {
-                //     console.log(`Failed to click Use for slot ${slot}`);
-                // }
                 await sleep(100);
                 this.projectFromGroundGlobal(rangeX, rangeZ, 0.1);
                 await mouse(this.projectX, this.projectY, 2); // right click and find "use X with Range" option in case of occlusion.
-                await sleep(100);
+                await sleep(200);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
                         const optiontext = this.menuOption[i];
@@ -12772,10 +12752,17 @@ export class Client extends GameShell {
                             } else if (this.menuArea === 2) {
                                 this.redrawChatback = true;
                             }
+                            foundRangeOption = true;
                         }
                     }
                 }
-                await sleep(600*4);
+                if (foundRangeOption) {
+                    await sleep(600*4);
+                } else {
+                    // Somehow failed, so need to reset.
+                    await mouse(648, 185, 1, 100);
+                    await sleep(600);
+                }
             }
         }
         return true;
@@ -12885,7 +12872,7 @@ export class Client extends GameShell {
         let rangeStandZ = 3443;
         let rangeX = 2817 + 1;
         let rangeZ = 3444;
-        var state = 1 // 1 == banking, 2 == cooking
+        let state = 1; // 1 == banking, 2 == cooking
 
         while (!this.stopLoop) {
             let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
@@ -12897,14 +12884,6 @@ export class Client extends GameShell {
             }
             // Send a click to keep everything alive.
             await this.handleRunEnergyThrottled(5);
-            // This clicks on the inventory tab.
-            await mouse(648, 185, 1, 100);
-            // this.addMessage(0, `Checking randoms.`, '');
-            await this.handleRandoms();
-            await this.useLamp();
-            // Check dangerous randoms; run to bank for safety, then run back
-            var rantobank = await this.handleDangerousRandoms([[bankStandX, bankStandZ]]);
-            if (rantobank) state = 1;
             if (state == 1) {
                 this.addMessage(0, 'Started banking state', '');
                 await this.walkToEndofPath([[bankStandX, bankStandZ]]);
@@ -12923,14 +12902,13 @@ export class Client extends GameShell {
                     }
                 }
                 await sleep(1200);
-                if (this.invCount() < 28) {
+                if (this.invCount() == 0) {
                     console.log('Not enough items to cook. Logging out.');
                     this.stopLoop = true;
                     await this.logout();
                 }
                 await this.walkToEndofPath([[outsideDoorX, outsideDoorZ]]);
-                await sleep(600);
-                // TODO: check if door is closed, if so, open it
+                await sleep(300);
                 await this.tryOpenDoor(outsideDoorX, outsideDoorZ + 0.5);
                 await this.walkToEndofPath([[rangeStandX, rangeStandZ]]);
                 state = 2;
@@ -12938,18 +12916,15 @@ export class Client extends GameShell {
             } else if (state == 2) {
                 this.addMessage(0, 'Started cooking state', '');
                 await this.walkToEndofPath([[rangeStandX, rangeStandZ]]);
-                // TODO: Using items on the range attempts to escape dangerous randoms by running to the
-                // bank, but the door might be closed, so this would fail.
-                await sleep(2000); // Make sure we're stationary.
-                await this.useItemsOnRange(rangeX, rangeZ, ids, [[bankStandX, bankStandZ]]);
+                await sleep(1000); // Make sure we're stationary.
+                await this.useItemsOnRange(rangeX, rangeZ, ids);
                 await this.walkToEndofPath([[insideDoorX, insideDoorZ]]);
-                // TODO: check if door is closed, if so, open it
                 await this.tryOpenDoor(outsideDoorX, outsideDoorZ + 0.5);
                 await this.walkToEndofPath([[bankStandX, bankStandZ]]);
                 state = 1;
                 this.addMessage(0, 'Finished cooking state', '');
             }
-            await sleep(2000);
+            await sleep(1000);
         }
     }
 
