@@ -522,6 +522,18 @@ export class Client extends GameShell {
     private bankComponentId: number = 5382;
     private lastCheckRunTime: number | null = null;
     private lastCheckRelieveKnightTime: number | null = null;
+    private f1FunctionIndex: number = 0;
+    private f1Functions = [
+        {
+            'description': 'Cook in Tuna and Swordfish in Catherby',
+        },
+        {
+            'description': 'Fish in Tuna and Swordfish in Catherby',
+        },
+        {
+            'description': 'Thieve knights around the market in Ardougne. Uses Tuna as food.',
+        },
+    ]
 
     // ----
 
@@ -540,17 +552,31 @@ export class Client extends GameShell {
 
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
-                this.onF1Pressed_cookCatherby([359, 371]);
-                // this.onF1Pressed_tunaCatherby();
-            }
-        });
-        window.addEventListener('keydown', async (event) => {
-            if (event.key === 'F2') {
+                // TODO: figure out how to make these calls from a stored array of fns or something.
+                switch (this.f1FunctionIndex) {
+                    case 0:
+                        this.onF1Pressed_cookCatherby([359, 371]);
+                        break;
+                    case 1:
+                        this.onF1Pressed_tunaCatherby();
+                        break;
+                    case 2:
+                        this.onF1Pressed_thieveKnightNoRandoms();
+                        break;
+                    default:
+                        this.addMessage(0, `Invalid function index: ${this.f1FunctionIndex}`, '');
+                        break;
+                }
+            } else if (event.key === 'F2') {
                 this.stopLoop = true;
+            } else if (event.key === 'F3') {
+                // Cycle to next f1Function and add message explaining it.
+                this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
+                this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             }
         });
-        window.addEventListener('keydown', async (event) => {
-            if (event.key === 'F3') {
+        // window.addEventListener('keydown', async (event) => {
+        //     if (event.key === 'F3') {
                 // if (this.localPlayer != null) {
                 //     this.addMessage(0, `${this.localPlayer.routeTileX[0]}, ${this.localPlayer.routeTileZ[0]}`, '');
                 //     this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0],
@@ -609,14 +635,14 @@ export class Client extends GameShell {
                 // this.addMessage(0, `Tuna count: ${this.countBankById(360)}`, '');
                 // this.addMessage(0, `Swordfish count: ${this.countBankById(372)}`, '');
                 // this.checkBankOpen();
-                if (this.menuSize > 0) {
-                    for (let i = 0; i < this.menuOption.length; i++) {
-                        const optiontext = this.menuOption[i];
-                        console.log(`optiontext is ${optiontext}`);
-                    }
-                }
-            }
-        });
+        //         if (this.menuSize > 0) {
+        //             for (let i = 0; i < this.menuOption.length; i++) {
+        //                 const optiontext = this.menuOption[i];
+        //                 console.log(`optiontext is ${optiontext}`);
+        //             }
+        //         }
+        //     }
+        // });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
             return;
         }
@@ -13628,6 +13654,11 @@ export class Client extends GameShell {
             await sleep(2000);
         }
     }
+
+    private executeFunction(funcObj: { fn: Function; args: any[] }) {
+        funcObj.fn(...funcObj.args);
+        }
+
 }
 
 
