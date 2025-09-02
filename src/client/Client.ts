@@ -573,76 +573,11 @@ export class Client extends GameShell {
                 // Cycle to next f1Function and add message explaining it.
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
+            } else if (event.key === 'F6') {
+                // For testing functions
+                this.attackNearestChicken();
             }
         });
-        // window.addEventListener('keydown', async (event) => {
-        //     if (event.key === 'F3') {
-                // if (this.localPlayer != null) {
-                //     this.addMessage(0, `${this.localPlayer.routeTileX[0]}, ${this.localPlayer.routeTileZ[0]}`, '');
-                //     this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0],
-                //         this.localPlayer.routeTileX[0] + 1, this.localPlayer.routeTileZ[0] + 1,
-                //          0, 0, 0, 0, 0, 0, true);
-                // }
-                // for (let index: number = 0; index < this.npcCount; index++) {
-                //     let entity: ClientEntity | null = null;
-                //     entity = this.npcs[this.npcIds[index]];
-                //     if (!entity || !entity.isVisible()) {
-                //         continue;
-                //     }
-                //     const npc: ClientNpc = entity as ClientNpc;
-                //     let npcId: number | undefined = npc.type?.id;
-                //     if (npcId == 325) {
-                //         this.addMessage(0, `Found npcId=${npcId} with name=${npc.type?.name}`, '');
-                //     }
-                // }
-                // this.addMessage(0, `invCount=${this.invCount()}`, '');
-                // if (this.localPlayer) await this.tryMove(this.localPlayer?.routeTileX[0], this.localPlayer?.routeTileZ[0], 49, 50, 0, 0, 0, 0, 0, 0, true);
-                // if (this.localPlayer) {
-                //     let p = this.localPlayer;
-                //     console.log({
-                //         routeTileX: p.routeTileX[0], routeTileZ: p.routeTileZ[0], minTileX: p.minTileX,
-                //         minTileZ: p.minTileZ,
-                //         maxTileX: p.maxTileX,
-                //         maxTileZ: p.maxTileZ, x: p.x, z: p.z,
-                //         baseX: this.baseX,
-                //         baseZ: this.baseZ,
-                //         sceneCenterZoneX: this.sceneCenterZoneX,
-                //         sceneCenterZoneZ: this.sceneCenterZoneZ,
-                //         sceneBaseTileX: this.sceneBaseTileX,
-                //         sceneBaseTileZ: this.sceneBaseTileZ
-                //     });
-                // } else {
-                //     console.log("localPlayer is null.")
-                // }
-                // await this.walkToRange();
-                // await this.useShrimpOnRange();
-                // objStacks: (LinkList | null)[][][] = new TypedArray3d(CollisionConstants.LEVELS, CollisionConstants.SIZE, CollisionConstants.SIZE, null);
-                // for (let x = 0; x < CollisionConstants.SIZE; x++) {
-                //     for (let z = 0; z < CollisionConstants.SIZE; z++) {
-                //         let objs = this.objStacks[this.currentLevel][x][z];
-                //         if (!objs) continue;
-                //         console.log(`Checking for object stacks at ${this.currentLevel},${x},${z}`);
-                //         for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
-                //             const type: ObjType = ObjType.get(obj.index);
-                //             console.log(`name=${type.name},id=${type.id}`);
-                //         }
-                //     }
-                // }
-                // await this.pickupSmallFishingNet();
-                // await this.depositAll(2809, 3442, [371, 359])
-                // console.log(`Run energy: ${this.runenergy}`);
-                // this.addMessage(0, `Run energy: ${this.runenergy}`, '');
-                // this.addMessage(0, `Tuna count: ${this.countBankById(360)}`, '');
-                // this.addMessage(0, `Swordfish count: ${this.countBankById(372)}`, '');
-                // this.checkBankOpen();
-        //         if (this.menuSize > 0) {
-        //             for (let i = 0; i < this.menuOption.length; i++) {
-        //                 const optiontext = this.menuOption[i];
-        //                 console.log(`optiontext is ${optiontext}`);
-        //             }
-        //         }
-        //     }
-        // });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
             return;
         }
@@ -13516,7 +13451,7 @@ export class Client extends GameShell {
 
     getNearestNPC(needle: string) {
         let closestDist = Number.POSITIVE_INFINITY;
-        let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc } | null = null;
+        let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
 
         for (let index: number = 0; index < this.npcCount; index++) {
             let entity: ClientEntity | null = null;
@@ -13524,6 +13459,7 @@ export class Client extends GameShell {
             if (!entity || !entity.isVisible()) {
                 continue;
             }
+            let npcsi = this.npcIds[index];
             const npc: ClientNpc = entity as ClientNpc;
             let npcname: string = '' + npc.type?.name;
             if (npcname.match(needle) && this.localPlayer) {
@@ -13532,11 +13468,35 @@ export class Client extends GameShell {
                 const dist = Math.sqrt(dx * dx + dz * dz);
                 if (dist < closestDist) {
                     closestDist = dist;
-                    closestNpc = { x: npc.routeTileX[0], z: npc.routeTileZ[0], entity, npc };
+                    closestNpc = { x: npc.routeTileX[0], z: npc.routeTileZ[0], entity, npc, npcsIndex: npcsi };
                 }
             }
         }
         return closestNpc;
+    }
+
+    attackNearestChicken() {
+        console.log('Attempting to attack nearest Chicken');
+        let nearestChicken = this.getNearestNPC('Chicken');
+        if (nearestChicken && this.localPlayer) {
+            console.log('Has a nearest Chicken');
+            // use the 963 action here
+            let a = nearestChicken.npcsIndex;
+            const npc: ClientNpc | null = this.npcs[a];
+            if (npc && this.localPlayer) {
+                console.log('Before tryMove');
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], npc.routeTileX[0], npc.routeTileZ[0], 2, 1, 1, 0, 0, 0, false);
+                // this.crossX = this.mouseClickX;
+                // this.crossY = this.mouseClickY;
+                // this.crossMode = 2;
+                // this.crossCycle = 0;
+                console.log('Before this.out.p1isaac');
+                this.out.p1isaac(ClientProt.OPNPC4);
+                console.log('Before this.out.p2');
+                this.out.p2(a);
+            }
+        }
+        console.log('Finished attempting to attack nearest Chicken');
     }
 
     async onF1Pressed_thieveKnightNoRandoms() {
@@ -13654,10 +13614,6 @@ export class Client extends GameShell {
             await sleep(2000);
         }
     }
-
-    private executeFunction(funcObj: { fn: Function; args: any[] }) {
-        funcObj.fn(...funcObj.args);
-        }
 
 }
 
