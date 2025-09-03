@@ -521,18 +521,28 @@ export class Client extends GameShell {
     private inventoryComponentId: number = 3214; // \Server\engine\data\symbols\component.sym
     private bankComponentId: number = 5382;
     private lastCheckRunTime: number | null = null;
+    private lastClickInventoryTime: number | null = null;
     private lastCheckRelieveKnightTime: number | null = null;
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
-            'description': 'Cook in Tuna and Swordfish in Catherby',
+            'description': 'Cook Tuna and Swordfish in Catherby',
         },
         {
-            'description': 'Fish in Tuna and Swordfish in Catherby',
+            'description': 'Fish Tuna and Swordfish in Catherby',
         },
         {
             'description': 'Thieve knights around the market in Ardougne. Uses Tuna as food.',
         },
+        {
+            'description': 'Attack the nearest chicken. Ignores drops, food, and location.'
+        },
+        {
+            'description': 'Attack the nearest cow. Ignores drops, food, and location.'
+        },
+        {
+            'description': 'Attack the nearest cow. Eats Tuna when low HP. Ignores drops and location.'
+        }
     ]
 
     // ----
@@ -563,6 +573,15 @@ export class Client extends GameShell {
                     case 2:
                         this.onF1Pressed_thieveKnightNoRandoms();
                         break;
+                    case 3:
+                        this.onF1Pressed_attackNPC('Chicken');
+                        break;
+                    case 4:
+                        this.onF1Pressed_attackNPC('Cow');
+                        break;
+                    case 5:
+                        this.onF1Pressed_attackNPCEatTuna('Cow');
+                        break;
                     default:
                         this.addMessage(0, `Invalid function index: ${this.f1FunctionIndex}`, '');
                         break;
@@ -575,7 +594,7 @@ export class Client extends GameShell {
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
                 // For testing functions
-                this.attackNearestChicken();
+                console.log(`Result of anyNPCafterMe = ${this.anyNPCafterMe()}`);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -5287,7 +5306,7 @@ export class Client extends GameShell {
                     let offsetY: number = 0;
                     this.projectFromEntity(entity, entity.height + 30);
                     // let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
-                    let npcprojectinfo: string = `${npc.type?.name} ${npc.routeTileX[0]}, ${npc.routeTileZ[0]}, `;
+                    let npcprojectinfo: string = `${npc.type?.name} ${npc.routeTileX[0]}, ${npc.routeTileZ[0]}, targetid=${npc.targetId}`;
                     this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npcprojectinfo, Colors.WHITE);
                     // this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npc.type?.name ?? null, Colors.WHITE);
                     offsetY -= 15;
@@ -5623,6 +5642,14 @@ export class Client extends GameShell {
             x,
             y,
             'Player route length: ' + this.localPlayer?.routeLength,
+            Colors.YELLOW,
+            true
+        );
+        y += 13;
+        this.fontPlain11?.drawStringRight(
+            x,
+            y,
+            'Player pid: ' + this.localPid,
             Colors.YELLOW,
             true
         );
@@ -13070,6 +13097,14 @@ export class Client extends GameShell {
         }
     }
 
+    async clickInventoryThrottled(minutes: number) {
+        const now = Date.now();
+        if (!this.lastClickInventoryTime || now - this.lastClickInventoryTime >= minutes * 60 * 1000) {
+            await mouse(648, 185, 1, 100);
+            this.lastClickInventoryTime = now;
+        }
+    }
+
     async tryOpenDoor(globalX: number, globalZ: number) {
         this.projectFromGroundGlobal(globalX, globalZ, 0.5);
         await mouse(this.projectX, this.projectY, 2);
@@ -13475,28 +13510,46 @@ export class Client extends GameShell {
         return closestNpc;
     }
 
-    attackNearestChicken() {
-        console.log('Attempting to attack nearest Chicken');
-        let nearestChicken = this.getNearestNPC('Chicken');
-        if (nearestChicken && this.localPlayer) {
-            console.log('Has a nearest Chicken');
-            // use the 963 action here
-            let a = nearestChicken.npcsIndex;
+    attackNearestNPC(needle: string) {
+        let nearestNPC = this.getNearestNPC(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
             const npc: ClientNpc | null = this.npcs[a];
             if (npc && this.localPlayer) {
-                console.log('Before tryMove');
                 this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], npc.routeTileX[0], npc.routeTileZ[0], 2, 1, 1, 0, 0, 0, false);
-                // this.crossX = this.mouseClickX;
-                // this.crossY = this.mouseClickY;
-                // this.crossMode = 2;
-                // this.crossCycle = 0;
-                console.log('Before this.out.p1isaac');
-                this.out.p1isaac(ClientProt.OPNPC4);
-                console.log('Before this.out.p2');
+                let action = 542;
+                if (action === 963) {
+                    this.out.p1isaac(ClientProt.OPNPC4);
+                } else if (action === 6) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic2++;
+                    }
+
+                    if (Client.oplogic2 >= 124) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC2);
+                        this.out.p4(0);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC3);
+                } else if (action === 245) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic4++;
+                    }
+
+                    if (Client.oplogic4 >= 85) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC4);
+                        this.out.p2(39596);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC5);
+                } else if (action === 728) {
+                    this.out.p1isaac(ClientProt.OPNPC1);
+                } else if (action === 542) {
+                    this.out.p1isaac(ClientProt.OPNPC2);
+                }
                 this.out.p2(a);
             }
         }
-        console.log('Finished attempting to attack nearest Chicken');
     }
 
     async onF1Pressed_thieveKnightNoRandoms() {
@@ -13509,7 +13562,7 @@ export class Client extends GameShell {
         let pathToMarket = [[bankStandX, bankStandZ], [2644, 3286], [2658, 3289], [2662, 3297], [2661, 3308]];
         let pathToBank = pathToMarket.toReversed();
         let foodId = 361; // no +1
-        let minHP = 4; // Eat food if hp < minHP
+        let minHP = 10; // Eat food if hp < minHP
         let npcNameNeedle = 'Knight of Ardougne';
 
         while (!this.stopLoop) {
@@ -13615,6 +13668,77 @@ export class Client extends GameShell {
         }
     }
 
+    async onF1Pressed_attackNPC(needle: string) {
+        this.stopLoop = false;
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                this.attackNearestNPC(needle);
+            }
+            await sleep(700);
+        }
+    }
+
+    async onF1Pressed_attackNPCEatTuna(needle: string) {
+        this.stopLoop = false;
+        let minHP = 20;
+        let foodId = 361;
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                if (this.skillLevel[3] < minHP) {
+                    let inv = Component.types[this.inventoryComponentId];
+                    if (!inv || !inv.invSlotObjId) {
+                        this.addMessage?.(0, 'Inventory data not available', '');
+                        return false;
+                    }
+                    for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                        if (foodId == inv.invSlotObjId[slot] - 1) {
+                            if (this.selectedTab != 3) {
+                                await mouse(648, 185, 1, 100);
+                            }
+                            await sleep(50);
+                            await clickInv(slot, null, 1);
+                            await sleep(200);
+                            break;
+                        }
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                this.attackNearestNPC(needle);
+            }
+            await sleep(700);
+        }
+    }
+
+    afterMe(npc: ClientEntity) {
+        if (npc && this.localPlayer) {
+            if (npc.targetId - 32768 == this.localPid) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    anyNPCafterMe() {
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npcs[this.npcIds[index]];
+            if (!entity || !entity.isVisible()) {
+                continue;
+            }
+            const npc: ClientNpc = entity as ClientNpc;
+            if (this.afterMe(npc)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 
