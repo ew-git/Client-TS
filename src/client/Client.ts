@@ -542,6 +542,9 @@ export class Client extends GameShell {
         },
         {
             'description': 'Attack the nearest cow. Eats Tuna when low HP. Ignores drops and location.'
+        },
+        {
+            'description': 'Kills cows in Falador pen, tries to bury bones and pick up cow hides. Eats Tuna when low HP.'
         }
     ]
 
@@ -581,6 +584,9 @@ export class Client extends GameShell {
                         break;
                     case 5:
                         this.onF1Pressed_attackNPCEatTuna('Cow');
+                        break;
+                    case 6:
+                        this.onF1Pressed_killCowsFalador();
                         break;
                     default:
                         this.addMessage(0, `Invalid function index: ${this.f1FunctionIndex}`, '');
@@ -11934,6 +11940,10 @@ export class Client extends GameShell {
         return cnt;
     }
 
+    invFull(): boolean {
+        return this.invCount() == 28;
+    }
+
     async dropShrimps(): Promise<boolean> {
         let inv = Component.types[this.inventoryComponentId];
         if (!inv || !inv.invSlotObjId) {
@@ -12014,6 +12024,10 @@ export class Client extends GameShell {
         return true;
     }
 
+    /**
+     * Important change!
+     * Now expects the normal ID, and does +1 in the function
+     */
     countInvById(id: number): number {
         var cnt = 0;
         let inv = Component.types[this.inventoryComponentId];
@@ -12022,7 +12036,7 @@ export class Client extends GameShell {
             return 0;
         }
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-            if (id == inv.invSlotObjId[slot]) {
+            if (id == (inv.invSlotObjId[slot] - 1)) {
                 cnt++;
             }
         }
@@ -12231,7 +12245,71 @@ export class Client extends GameShell {
             }
         }
         await sleep(1000);
-        if (this.countInvById(targetid + 1) == 0) {
+        if (this.countInvById(targetid) == 0) {
+            this.addMessage(0, `Failed to pick up ${targetname}`, '');
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    async pickupNearestId(targetid: number, targetname: string) {
+        if (this.localPlayer == null) {
+            return false;
+        }
+        let playerX = this.localPlayer.routeTileX[0];
+        let playerZ = this.localPlayer.routeTileZ[0];
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestX = -1;
+        let closestZ = -1;
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let objs = this.objStacks[this.currentLevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    if (type.id == targetid) {
+                        let dist = this.manhattanDist(playerX, playerZ, x, z);
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closestX = x;
+                            closestZ = z;
+                        }
+                    }
+                }
+            }
+        }
+        if (closestX == -1 || closestZ == -1 || !this.localPlayer) {
+            return false;
+        }
+        // Move to the closest tile
+        await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], closestX, closestZ, 0, 0, 0, 0, 0, 0, true)
+        await sleep(700); // Don't delete this. Have to wait for routeLength to initially become > 0
+        while (this.localPlayer?.routeLength !== 0) {
+            await sleep(300);
+        }
+        await sleep(300);
+
+        this.projectFromGround(closestX, 0, closestZ); // I think height of 0 is fine. May need to use project from entity on own player.
+        this.projectFromGroundGlobal(closestX + this.sceneBaseTileX, closestZ + this.sceneBaseTileZ, 0.01);
+        await mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
+        await sleep(200);
+        if (this.menuSize > 0) {
+            for (let i = 0; i < this.menuOption.length; i++) {
+                const optiontext = this.menuOption[i];
+                if (optiontext.startsWith('Take') && optiontext.endsWith(targetname)) {
+                    this.useMenuOption(i);
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    } else if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
+                }
+            }
+        }
+        await sleep(700);
+        if (this.countInvById(targetid) == 0) {
             this.addMessage(0, `Failed to pick up ${targetname}`, '');
             return false;
         } else {
@@ -12826,6 +12904,42 @@ export class Client extends GameShell {
                     for (let i = 0; i < this.menuOption.length; i++) {
                         const optiontext = this.menuOption[i];
                         if (optiontext.startsWith('Withdraw 1 ')) { // space so don't withdraw 10
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+                await sleep(300);
+                return true;
+            }
+        }
+        return false;
+    }
+
+        /**
+     * Real ID, not + 1
+     */
+    async withdraw5BankById(id: number) {
+        let inv = Component.types[this.bankComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (id == (inv.invSlotObjId[slot] - 1)) {
+                await clickBank(slot, null, 2);
+                await sleep(200);
+                // click withdraw 5
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Withdraw 5')) {
                             this.useMenuOption(i);
                             this.menuVisible = false;
                             if (this.menuArea === 1) {
@@ -13510,7 +13624,7 @@ export class Client extends GameShell {
         return closestNpc;
     }
 
-    attackNearestNPC(needle: string) {
+    async attackNearestNPC(needle: string) {
         let nearestNPC = this.getNearestNPC(needle);
         if (nearestNPC && this.localPlayer) {
             let a = nearestNPC.npcsIndex;
@@ -13550,6 +13664,7 @@ export class Client extends GameShell {
                 this.out.p2(a);
             }
         }
+        await sleep(200);
     }
 
     async onF1Pressed_thieveKnightNoRandoms() {
@@ -13738,6 +13853,139 @@ export class Client extends GameShell {
             }
         }
         return false;
+    }
+
+    /**
+     * Item ids are NOT +1
+     */
+    async buryBones(itemIds: number[]) {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (itemIds.includes(inv.invSlotObjId[slot] - 1)) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await sleep(100);
+                await clickInv(slot, null, 1);
+                await sleep(1300);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Bounds are W, E, S, N
+     */
+    playerIsInBounds(bounds: number[]) {
+        let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+        let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+        return globalX >= bounds[0] && globalX <= bounds[1] && globalZ >= bounds[2] && globalZ <= bounds[3]
+    }
+
+    async onF1Pressed_killCowsFalador() {
+        this.stopLoop = false;
+        let minHP = 20;
+        let foodId = 361; // Tuna == 361
+        let bonesId = 526; // Bones == 526
+        let state = 'not banking';
+        let outsideCowToBankPath = [[3032, 3314], [3026, 3322], [3009, 3321], [3007, 3334], [3007, 3350], [3012, 3355]];
+        let bankToOutsideCowPath = outsideCowToBankPath.toReversed();
+        let cowPenBounds = [3021, 3043, 3297, 3313]; // W, E, S, N
+        let needle = 'Cow';
+        let insideGateP = [3032, 3313];
+        let bankX = 3012;
+        let bankZ = 3354;
+        let insideCowPenP = [3032, 3309];
+        
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                if (this.playerIsInBounds(cowPenBounds)) {
+                    await this.walkToEndofPath([insideGateP]);
+                    await sleep(2000);
+                    await this.tryOpenDoor(insideGateP[0], insideGateP[1] + 0.5);
+                }
+                await this.walkToEndofPath(outsideCowToBankPath);
+                await sleep(2000);
+                await this.depositAllExcept(bankX, bankZ, [0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw5BankById(foodId);
+                } else {
+                    // click bank then withdraw
+                    await this.openBank(bankX, bankZ);
+                    await this.withdraw5BankById(foodId);
+                }
+                await sleep(1200);
+                if (this.invCount() == 0) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(bankToOutsideCowPath);
+                await sleep(1200);
+                await this.tryOpenDoor(insideGateP[0], insideGateP[1] + 0.5);
+                await this.walkToEndofPath([insideCowPenP]);
+                state = 'not banking';
+                this.addMessage(0, 'Finished banking state', '');
+            }
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.skillLevel[3] < minHP) {
+                    let inv = Component.types[this.inventoryComponentId];
+                    if (!inv || !inv.invSlotObjId) {
+                        this.addMessage?.(0, 'Inventory data not available', '');
+                        return false;
+                    }
+                    for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                        if (foodId == inv.invSlotObjId[slot] - 1) {
+                            if (this.selectedTab != 3) {
+                                await mouse(648, 185, 1, 100);
+                            }
+                            await sleep(50);
+                            await clickInv(slot, null, 1);
+                            await sleep(200);
+                            break;
+                        }
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                } else if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'banking';
+                        this.addMessage(0, 'Entering banking state', '');
+                        continue;
+                    }
+                } else {
+                    await sleep(1300); // wait for NPC death animation.
+                    // Try to pick up any items on the ground.
+                    await this.pickupNearestId(1739, 'Cow hide');
+                    await sleep(600);
+                    await this.pickupNearestId(526, 'Bones');
+                    await sleep(1300);
+                }
+                await this.attackNearestNPC(needle);
+                // Wait until we're actually in combat until trying to loop again.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 20) {
+                    iter++;
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+            await sleep(700);
+        }
     }
 }
 
