@@ -545,6 +545,9 @@ export class Client extends GameShell {
         },
         {
             'description': 'Kills cows in Falador pen, tries to bury bones and pick up cow hides. Eats Tuna when low HP.'
+        },
+        {
+            'description': 'Kill imps in Falador and try to pick up and bank good items. Eats Tuna when low HP.'
         }
     ]
 
@@ -587,6 +590,9 @@ export class Client extends GameShell {
                         break;
                     case 6:
                         this.onF1Pressed_killCowsFalador();
+                        break;
+                    case 7:
+                        this.onF1Pressed_killImpsFalador();
                         break;
                     default:
                         this.addMessage(0, `Invalid function index: ${this.f1FunctionIndex}`, '');
@@ -14133,7 +14139,7 @@ export class Client extends GameShell {
                 }
                 await sleep(1400); // wait for NPC death animation.
                 // Try to pick up any items on the ground.
-                for (const item of pickupItems) {
+                for (const item of this.filterGroundItems(pickupItems)) {
                     await this.pickupNearestId(item.id, item.name);
                     await sleep(300);
                     if (this.invFull()) {
