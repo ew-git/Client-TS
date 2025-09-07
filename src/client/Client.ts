@@ -548,6 +548,9 @@ export class Client extends GameShell {
         },
         {
             'description': 'Kill imps in Falador and try to pick up and bank good items. Eats Tuna when low HP.'
+        },
+        {
+            'description': 'Climbs over the net in the Gnome Agility Course.'
         }
     ]
 
@@ -593,6 +596,9 @@ export class Client extends GameShell {
                         break;
                     case 7:
                         this.onF1Pressed_killImpsFalador();
+                        break;
+                    case 8:
+                        this.onF1Pressed_agilityGnomeNetOnly();
                         break;
                     default:
                         this.addMessage(0, `Invalid function index: ${this.f1FunctionIndex}`, '');
@@ -13755,7 +13761,7 @@ export class Client extends GameShell {
             // This clicks on the inventory tab.
             await mouse(648, 185, 1, 100);
             // If food is out, go to bank, deposit everything, withdraw 1 coin and all food.
-            if (this.countInvById(foodId + 1) == 0) {
+            if (this.countInvById(foodId) == 0) {
                 console.log('Out of food, trying to bank');
                 await sleep(6000); // make sure we're not stunned
                 await this.walkToEndofPath(pathToBank);
@@ -14160,6 +14166,62 @@ export class Client extends GameShell {
                 }
             }
             await sleep(700);
+        }
+    }
+
+    async onF1Pressed_agilityGnomeNetOnly() {
+        let startX = 2483;
+        let startZ = 3425;
+        this.stopLoop = false;
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            if (!this.localPlayer) break;
+            if (this.localPlayer.routeTileX[0] != startX - this.sceneBaseTileX || this.localPlayer.routeTileZ[0] != startZ - this.sceneBaseTileZ) {
+                this.addMessage(0, `Trying to move to ${startX - this.sceneBaseTileX}, ${startZ - this.sceneBaseTileZ}`, '');
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], startX - this.sceneBaseTileX, startZ - this.sceneBaseTileZ, 0, 0, 0, 0, 0, 0, true)
+                // Wait until we've started moving
+                for (let i = 0; i < 15; i++) {
+                    await sleep(100);
+                    if (this.localPlayer?.routeLength !== 0) {
+                        break;
+                    }
+                }
+                await sleep(200);
+                // Wait until we've stopped moving
+                while (this.localPlayer?.routeLength !== 0) {
+                    await sleep(200);
+                }
+            } else {
+                this.addMessage(0, `Already there, don't need to move to ${startX - this.sceneBaseTileX}, ${startZ - this.sceneBaseTileZ}`, '');
+                await sleep(200);
+            }
+
+            this.projectFromGroundGlobal(startX, startZ + 1, 1);
+            await mouse(this.projectX, this.projectY, 2);
+            await sleep(100);
+            if (this.menuSize > 0) {
+                for (let i = 0; i < this.menuOption.length; i++) {
+                    const optiontext = this.menuOption[i];
+                    if (optiontext.startsWith('Climb-over')) {
+                        this.useMenuOption(i);
+                        let action: number = this.menuAction[i];
+                        const a: number = this.menuParamA[i];
+                        const b: number = this.menuParamB[i];
+                        const c: number = this.menuParamC[i];
+                        // console.log(`Action: ${action}, Params: A=${a}, B=${b}, C=${c}`); // action some large number ending in 99. b and c are local coords.
+                        this.menuVisible = false;
+                        if (this.menuArea === 1) {
+                            this.redrawSidebar = true;
+                        } else if (this.menuArea === 2) {
+                            this.redrawChatback = true;
+                        }
+                        await sleep(500);
+                        break;
+                    }
+                }
+            }
+            await sleep(1200);
         }
     }
 }
