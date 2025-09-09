@@ -14203,7 +14203,7 @@ export class Client extends GameShell {
                 } else {
                     // click bank then withdraw
                     await this.openBank(bankX, bankZ);
-                    await this.withdraw5BankById(foodId);
+                    await this.withdraw1BankById(foodId);
                 }
                 await sleep(1200);
                 if (this.invCount() == 0) {
