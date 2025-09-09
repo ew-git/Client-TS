@@ -146,8 +146,8 @@ export class Client extends GameShell {
     private imageTitlebutton: Pix8 | null = null;
     private loginMessage0: string = '';
     private loginMessage1: string = '';
-    private username: string = '';
-    private password: string = '';
+    private username: string = 'player';
+    private password: string = 'player';
 
     // fonts
     private fontPlain11: PixFont | null = null;
@@ -527,32 +527,31 @@ export class Client extends GameShell {
     private f1Functions = [
         {
             'description': 'Cook Tuna and Swordfish in Catherby',
+            'fn': (obj: Client) => {obj.onF1Pressed_cookCatherby([359, 371]);}
         },
         {
             'description': 'Fish Tuna and Swordfish in Catherby',
+            'fn': (obj: Client) => {obj.onF1Pressed_tunaCatherby();}
         },
         {
             'description': 'Thieve knights around the market in Ardougne. Uses Tuna as food.',
+            'fn': (obj: Client) => {obj.onF1Pressed_thieveKnightNoRandoms();}
         },
         {
-            'description': 'Attack the nearest chicken. Ignores drops, food, and location.'
+            'description': 'Kills cows in Falador pen, tries to bury bones and pick up cow hides. Eats Tuna when low HP.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killCowsFalador();}
         },
         {
-            'description': 'Attack the nearest cow. Ignores drops, food, and location.'
+            'description': 'Climbs over the net in the Gnome Agility Course.',
+            'fn': (obj: Client) => {obj.onF1Pressed_agilityGnomeNetOnly();}
         },
         {
-            'description': 'Attack the nearest cow. Eats Tuna when low HP. Ignores drops and location.'
-        },
-        {
-            'description': 'Kills cows in Falador pen, tries to bury bones and pick up cow hides. Eats Tuna when low HP.'
-        },
-        {
-            'description': 'Kill imps in Falador and try to pick up and bank good items. Eats Tuna when low HP.'
-        },
-        {
-            'description': 'Climbs over the net in the Gnome Agility Course.'
+            'description': 'Kill Chaos Druids in ardy tower. Eats Tuna when low HP and tries to bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdy();}
         }
-    ]
+    ];
+    private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
+    private rareTableIds = [1623,1621,1619,1617,830,985,987,1452,1462, 1247, 2366, 1249];
 
     // ----
 
@@ -571,39 +570,7 @@ export class Client extends GameShell {
 
         window.addEventListener('keydown', async (event) => {
             if (event.key === 'F1') {
-                // TODO: figure out how to make these calls from a stored array of fns or something.
-                switch (this.f1FunctionIndex) {
-                    case 0:
-                        this.onF1Pressed_cookCatherby([359, 371]);
-                        break;
-                    case 1:
-                        this.onF1Pressed_tunaCatherby();
-                        break;
-                    case 2:
-                        this.onF1Pressed_thieveKnightNoRandoms();
-                        break;
-                    case 3:
-                        this.onF1Pressed_attackNPC('Chicken');
-                        break;
-                    case 4:
-                        this.onF1Pressed_attackNPC('Cow');
-                        break;
-                    case 5:
-                        this.onF1Pressed_attackNPCEatTuna('Cow');
-                        break;
-                    case 6:
-                        this.onF1Pressed_killCowsFalador();
-                        break;
-                    case 7:
-                        this.onF1Pressed_killImpsFalador();
-                        break;
-                    case 8:
-                        this.onF1Pressed_agilityGnomeNetOnly();
-                        break;
-                    default:
-                        this.addMessage(0, `Invalid function index: ${this.f1FunctionIndex}`, '');
-                        break;
-                }
+                this.f1Functions[this.f1FunctionIndex].fn(this);
             } else if (event.key === 'F2') {
                 this.stopLoop = true;
             } else if (event.key === 'F3') {
@@ -612,7 +579,7 @@ export class Client extends GameShell {
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
                 // For testing functions
-                console.log(`Result of anyNPCafterMe = ${this.anyNPCafterMe()}`);
+                console.log(await this.pickupNearestIdValidated(995));
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -1432,8 +1399,8 @@ export class Client extends GameShell {
             x = ((this.width / 2) | 0) + 80;
             if (this.mouseClickButton === 1 && this.mouseClickX >= x - 75 && this.mouseClickX <= x + 75 && this.mouseClickY >= y - 20 && this.mouseClickY <= y + 20) {
                 this.titleScreenState = 0;
-                this.username = '';
-                this.password = '';
+                this.username = 'player';
+                this.password = 'player';
             }
 
             // eslint-disable-next-line no-constant-condition
@@ -1754,8 +1721,8 @@ export class Client extends GameShell {
         this.stream = null;
         this.ingame = false;
         this.titleScreenState = 0;
-        this.username = '';
-        this.password = '';
+        this.username = 'player';
+        this.password = 'player';
 
         InputTracking.setDisabled();
         this.clearCache();
@@ -12043,13 +12010,13 @@ export class Client extends GameShell {
     countInvById(id: number): number {
         var cnt = 0;
         let inv = Component.types[this.inventoryComponentId];
-        if (!inv || !inv.invSlotObjId) {
+        if (!inv || !inv.invSlotObjId || !inv.invSlotObjCount) {
             this.addMessage?.(0, 'Inventory data not available', '');
             return 0;
         }
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (id == (inv.invSlotObjId[slot] - 1)) {
-                cnt++;
+                cnt = cnt + inv.invSlotObjCount[slot];
             }
         }
         return cnt;
@@ -12265,6 +12232,88 @@ export class Client extends GameShell {
         }
     }
 
+    async pickupNearestIdNoMouse(targetid: number) {
+        if (this.localPlayer == null) {
+            return false;
+        }
+        let playerX = this.localPlayer.routeTileX[0];
+        let playerZ = this.localPlayer.routeTileZ[0];
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestX = -1;
+        let closestZ = -1;
+        let closestObjIndex = -1;
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let objs = this.objStacks[this.currentLevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    if (type.id == targetid) {
+                        let dist = this.manhattanDist(playerX, playerZ, x, z);
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closestX = x;
+                            closestZ = z;
+                            closestObjIndex = obj.index;
+                        }
+                    }
+                }
+            }
+        }
+        if (closestX == -1 || closestZ == -1 || closestObjIndex == -1 || !this.localPlayer) {
+            return false;
+        }
+
+        let action = 99;
+        let a = closestObjIndex;
+        let b = closestX;
+        let c = closestZ;
+        console.log(`${action}, ${a}, Trying to move with the following: ${[this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], b, c]}`);
+        const success: boolean = this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], b, c, 2, 0, 0, 0, 0, 0, false);
+        if (!success) {
+            this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], b, c, 2, 1, 1, 0, 0, 0, false);
+        }
+
+        this.crossX = this.mouseClickX;
+        this.crossY = this.mouseClickY;
+        this.crossMode = 2;
+        this.crossCycle = 0;
+
+        if (action === 99) {
+            this.out.p1isaac(ClientProt.OPOBJ3);
+        } else if (action === 993) {
+            this.out.p1isaac(ClientProt.OPOBJ2);
+        } else if (action === 224) {
+            this.out.p1isaac(ClientProt.OPOBJ1);
+        } else if (action === 877) {
+            this.out.p1isaac(ClientProt.OPOBJ5);
+        } else if (action === 746) {
+            this.out.p1isaac(ClientProt.OPOBJ4);
+        }
+
+        this.out.p2(b + this.sceneBaseTileX);
+        this.out.p2(c + this.sceneBaseTileZ);
+        this.out.p2(a);
+        return true;
+    }
+
+    async pickupNearestIdValidated(targetid: number, waitseconds: number = 20) {
+        // Check we have at least one free inventory space
+        if (this.invFull()) {return false;}
+        // Count current number of objects in inventory (what if stackable?), save in variable
+        const originalCount = this.countInvById(targetid);
+        // Try pickup
+        let pickupAttempted = await this.pickupNearestIdNoMouse(targetid);
+        if (!pickupAttempted) {return false;}
+        // Wait until latest count of items is greater than saved variable, or X secs has passed and fail
+        for (let i = 0; i < waitseconds; i++) {
+            let currentCount = this.countInvById(targetid);
+            if (currentCount > originalCount) {return true;}
+            await sleep(1000);
+        }
+        return false;
+    }
+
     async pickupNearestId(targetid: number, targetname: string) {
         if (this.localPlayer == null) {
             return false;
@@ -12358,6 +12407,21 @@ export class Client extends GameShell {
             }
         }
         return items.filter(item => foundIds.has(item.id));
+    }
+
+    filterGroundItemsIds(items: number[]): number[] {
+        const foundIds = new Set<number>();
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let objs = this.objStacks[this.currentLevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    foundIds.add(type.id);
+                }
+            }
+        }
+        return items.filter(item => foundIds.has(item));
     }
 
     async onF1Pressed_thieve_old() {
@@ -13249,7 +13313,7 @@ export class Client extends GameShell {
     }
 
     async handleRunEnergy(): Promise<boolean> {
-        if (this.runenergy > 98) {
+        if (this.runenergy > 50) {
             // turn on run
             await mouse(711, 485, 1, 100); // run tab
             await sleep(200);
@@ -13314,6 +13378,38 @@ export class Client extends GameShell {
             this.redrawChatback = true;
         }
         await sleep(100);
+    }
+
+    async tryPickDoor(doorglobalX: number, doorglobalZ: number, walkedX: number, walkedZ: number) {
+        this.projectFromGroundGlobal(doorglobalX, doorglobalZ, 0.5);
+        await mouse(this.projectX, this.projectY, 2);
+        await sleep(100);
+        if (this.menuSize > 0) {
+            for (let i = 0; i < this.menuOption.length; i++) {
+                const optiontext = this.menuOption[i];
+                if (optiontext.startsWith('Pick Lock')) {
+                    this.useMenuOption(i);
+                    this.menuVisible = false;
+                    if (this.menuArea === 1) {
+                        this.redrawSidebar = true;
+                    } else if (this.menuArea === 2) {
+                        this.redrawChatback = true;
+                    }
+                    this.addMessage(0, 'Attempted to pick lock.', '');
+                    await sleep(600);
+                }
+            }
+        }
+
+        // Wait a while and then check if we moved to the correct location.
+        await sleep(2400);
+        let playerglobalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+        let playerglobalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+        if (playerglobalX == walkedX && playerglobalZ == walkedZ) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     async useMenuStartsWith(needle: string) {
@@ -14036,6 +14132,138 @@ export class Client extends GameShell {
                     }
                 }
                 await sleep(1300);
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'banking';
+                        this.addMessage(0, 'Entering banking state', '');
+                        continue;
+                    }
+                }
+                await this.attackNearestNPC(needle);
+                // Wait until we're actually in combat until trying to loop again.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 20) {
+                    iter++;
+                    await sleep(300);
+                }
+            }
+            await sleep(700);
+        }
+    
+    }
+    async onF1Pressed_killChaosDruidsArdy() {
+        this.stopLoop = false;
+        let minHP = 25;
+        let foodId = 361; // Tuna == 361
+        let bonesId = 526; // Bones == 526
+        let state = 'not banking';
+        let outsideCowToBankPath = [[2565, 3356], [2581, 3351], [2582, 3367], [2606, 3365], [2614, 3350], [2615, 3332]];
+        let bankToOutsideCowPath = outsideCowToBankPath.toReversed();
+        let cowPenBounds = [2560, 2564, 3355, 3358]; // W, E, S, N
+        let needle = 'Chaos druid';
+        let insideGateP = [2564, 3356];
+        let bankX = 2615;
+        let bankZ = 3331;
+        let insideCowPenP = insideGateP;
+        let pickupItems = [
+            526, // bones
+            563, // lawrune
+            556, // airrune
+            559, // bodyrune
+            557, // earthrune
+            558, // mindrune
+            561, // naturerune
+            995, // coins
+            227, // vial_water
+            231, // snape_grass
+            1594, // unholy_symbol_mould
+        ];
+        pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+        
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                if (this.playerIsInBounds(cowPenBounds)) {
+                    await this.walkToEndofPath([insideGateP]);
+                    await sleep(2000);
+                    await this.tryOpenDoor(insideGateP[0] + 0.5, insideGateP[1]);
+                }
+                await this.walkToEndofPath(outsideCowToBankPath);
+                await sleep(2000);
+                await this.depositAllExcept(bankX, bankZ, [0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw1BankById(foodId);
+                } else {
+                    // click bank then withdraw
+                    await this.openBank(bankX, bankZ);
+                    await this.withdraw5BankById(foodId);
+                }
+                await sleep(1200);
+                if (this.invCount() == 0) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(bankToOutsideCowPath);
+                await sleep(1200);
+                let gotinside = await this.tryPickDoor(insideGateP[0], insideGateP[1] + 0.5, insideGateP[0], insideGateP[1]);
+                for (let i = 0; i < 30; i++) {
+                    if (gotinside) {break;}
+                    else {
+                        gotinside = await this.tryPickDoor(insideGateP[0], insideGateP[1] + 0.5, insideGateP[0], insideGateP[1]);
+                    }
+                }
+                await this.walkToEndofPath([insideCowPenP]);
+                state = 'not banking';
+                this.addMessage(0, 'Finished banking state', '');
+            }
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.skillLevel[3] < minHP) {
+                    let inv = Component.types[this.inventoryComponentId];
+                    if (!inv || !inv.invSlotObjId) {
+                        this.addMessage?.(0, 'Inventory data not available', '');
+                        return false;
+                    }
+                    let foundFood = false;
+                    for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                        if (foodId == inv.invSlotObjId[slot] - 1) {
+                            if (this.selectedTab != 3) {
+                                await mouse(648, 185, 1, 100);
+                            }
+                            await sleep(50);
+                            await clickInv(slot, null, 1);
+                            await sleep(200);
+                            foundFood = true;
+                            break;
+                        }
+                    }
+                    if (!foundFood) {
+                        // out of food, need to bank
+                        state = 'banking';
+                        this.addMessage(0, 'Entering banking state', '');
+                        continue;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                for (const item of this.filterGroundItemsIds(pickupItems)) {
+                    await this.pickupNearestIdValidated(item);
+                    if (this.invFull()) {
+                        break;
+                    }
+                }
                 if (this.invFull()) {
                     // Handle full inventory, maybe bank.
                     if (this.countInvById(bonesId) > 0) {
