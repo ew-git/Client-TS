@@ -14103,6 +14103,16 @@ export class Client extends GameShell {
         let runeEssenceWorldObjId = 2491;
         let portalWorldObjId = 2492;
         let runeEssenceInvId = 1436;
+        let shopToBankPath = [
+            [3253, 3401],
+            [3253, 3398],
+            [3260, 3405],
+            [3262, 3414],
+            [3262, 3421],
+            [3261, 3426],
+            [3254, 3426],
+            [3254, 3420]
+        ];
 
         while (!this.stopLoop) {
             await this.handleRunEnergyThrottled(5);
@@ -14115,24 +14125,34 @@ export class Client extends GameShell {
                 await sleep(10000);
                 continue;
             }
-            this.projectFromGroundGlobal(nearestEssObj.x + this.sceneBaseTileX, nearestEssObj.z + this.sceneBaseTileZ, 0.5);
-            await mouse(this.projectX, this.projectY, 2);
-            await sleep(100);
-            if (this.menuSize > 0) {
-                for (let i = 0; i < this.menuOption.length; i++) {
-                    const optiontext = this.menuOption[i];
-                    if (optiontext.startsWith('Mine')) {
-                        // console.log(`${this.menuOption[i]} menu details: ${[this.menuAction[i], this.menuParamA[i], this.menuParamB[i], this.menuParamC[i]]}`);
-                        this.useMenuOption(i);
-                        this.menuVisible = false;
-                        if (this.menuArea === 1) {
-                            this.redrawSidebar = true;
-                        } else if (this.menuArea === 2) {
-                            this.redrawChatback = true;
-                        }
-                    }
-                }
-            }
+            // No mouse
+            let a = nearestEssObj.fullType;
+            let b = nearestEssObj.x;
+            let c = nearestEssObj.z;
+            this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            this.objSelected = 0;
+            this.spellSelected = 0;
+            this.redrawSidebar = true;
+
+            // With mouse
+            // this.projectFromGroundGlobal(nearestEssObj.x + this.sceneBaseTileX, nearestEssObj.z + this.sceneBaseTileZ, 0.5);
+            // await mouse(this.projectX, this.projectY, 2);
+            // await sleep(100);
+            // if (this.menuSize > 0) {
+            //     for (let i = 0; i < this.menuOption.length; i++) {
+            //         const optiontext = this.menuOption[i];
+            //         if (optiontext.startsWith('Mine')) {
+            //             // console.log(`${this.menuOption[i]} menu details: ${[this.menuAction[i], this.menuParamA[i], this.menuParamB[i], this.menuParamC[i]]}`);
+            //             this.useMenuOption(i);
+            //             this.menuVisible = false;
+            //             if (this.menuArea === 1) {
+            //                 this.redrawSidebar = true;
+            //             } else if (this.menuArea === 2) {
+            //                 this.redrawChatback = true;
+            //             }
+            //         }
+            //     }
+            // }
             await sleep(20000);
             if (this.invFull()) {continue;}
             await sleep(20000);
