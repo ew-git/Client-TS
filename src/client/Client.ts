@@ -548,6 +548,10 @@ export class Client extends GameShell {
         {
             'description': 'Kill Chaos Druids in ardy tower. Eats Tuna when low HP and tries to bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdy();}
+        },
+        {
+            'description': 'Mine and drop the nearest rune essence.',
+            'fn': (obj: Client) => {obj.onF1Pressed_mineAndDropRuneEssence();}
         }
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
@@ -579,7 +583,8 @@ export class Client extends GameShell {
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
                 // For testing functions
-                console.log(await this.pickupNearestIdValidated(995));
+                // console.log(await this.dropItems([1436]));
+                console.log(this.getNearestObject(2491));
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -11968,6 +11973,9 @@ export class Client extends GameShell {
         this.projectFromGround(rangeLocalX, rangeHeightInt, rangeLocalZ);
     }
 
+    /**
+     * No +1 on item ids.
+     */
     async dropItems(ids: number[]): Promise<boolean> {
         let inv = Component.types[this.inventoryComponentId];
         if (!inv || !inv.invSlotObjId) {
@@ -11976,7 +11984,7 @@ export class Client extends GameShell {
         }
         // Drop all items whose invSlotObjId matches any id in ids (+1 offset)
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-            if (ids.includes(inv.invSlotObjId[slot])) {
+            if (ids.includes(inv.invSlotObjId[slot] - 1)) {
                 if (this.selectedTab != 3) {
                     await mouse(648, 185, 1, 100);
                 }
@@ -11993,7 +12001,7 @@ export class Client extends GameShell {
                             } else if (this.menuArea === 2) {
                                 this.redrawChatback = true;
                             }
-                            this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
+                            await sleep(50);
                             break;
                         }
                     }
@@ -12579,183 +12587,6 @@ export class Client extends GameShell {
     async walkToRange() {
         let path = this.shrimpPath(false, true);
         await this.walkToEndofPath(path);
-    }
-
-    async useShrimpOnRange() {
-        // Search inventory for shrimp, right click, menu option "use"
-        let inv = Component.types[this.inventoryComponentId];
-        if (!inv || !inv.invSlotObjId) {
-            this.addMessage?.(0, 'Inventory data not available', '');
-            return false;
-        }
-        // Raw shrimps object id is 317, anchovies 321, but invSlotObjId is usually +1
-        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-            // we may trigger randoms while cooking, which takes a long time
-            await this.handleRandoms();
-            await this.handleDangerousRandoms(this.shrimpPath(false, false));
-            if (inv.invSlotObjId[slot] === 318 || inv.invSlotObjId[slot] === 322) {
-                if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
-                }
-                await clickInv(slot, null, 2);
-                await sleep(100);
-                if (this.menuSize > 0) {
-                    for (let i = 0; i < this.menuOption.length; i++) {
-                        const optiontext = this.menuOption[i];
-                        if (optiontext.startsWith('Use')) {
-                            this.useMenuOption(i);
-                            this.menuVisible = false;
-                            if (this.menuArea === 1) {
-                                this.redrawSidebar = true;
-                            } else if (this.menuArea === 2) {
-                                this.redrawChatback = true;
-                            }
-                        }
-                    }
-                }
-                await sleep(100);
-                this.projectFromGroundGlobal(2970, 3210, 0.1);
-                await mouse(this.projectX, this.projectY, 2); // right click and find "use X with Range" option in case of occlusion.
-                await sleep(100);
-                if (this.menuSize > 0) {
-                    for (let i = 0; i < this.menuOption.length; i++) {
-                        const optiontext = this.menuOption[i];
-                        if (optiontext.endsWith('Range')) {
-                            this.useMenuOption(i);
-                            this.menuVisible = false;
-                            if (this.menuArea === 1) {
-                                this.redrawSidebar = true;
-                            } else if (this.menuArea === 2) {
-                                this.redrawChatback = true;
-                            }
-                        }
-                    }
-                }
-                await sleep(600*4);
-            }
-        }
-
-        // Drop the cooked food
-        await this.dropItems([324, 316, 320])
-        return true;
-    }
-
-    async onF1Pressed_shrimpPortSarim() {
-        this.stopLoop = false;
-        var justwalkedsouth = false;
-        let southToNorthFishingPath = this.shrimpPath(true, true);
-        let southToNorthPathIndex = 0;
-        while (!this.stopLoop) {
-            // Send a click to keep everything alive.
-            // This clicks on the inventory tab.
-            await mouse(648, 185, 1, 100);
-            // this.addMessage(0, `Checking randoms.`, '');
-            await this.handleRandoms();
-            // Big fish may have tossed our fishing net
-            if (!this.checkSmallFishingNet()) {
-                let gotnet = await this.pickupSmallFishingNet();
-                if (!gotnet) {
-                    this.addMessage(0, 'Lost net and failed to pick it up. Stopping loop', '');
-                    this.stopLoop = true;
-                } else {
-                    // Walk all the way south to reset everything.
-                    await this.walkToEndofPath(this.shrimpPath(false, false));
-                    justwalkedsouth = true;
-                    southToNorthPathIndex = 0;
-                    await sleep(1000);
-                }
-            }
-            // Check dangerous randoms; run to range for safety, then run back
-            var rantorange = await this.handleDangerousRandoms(this.shrimpPath(false, true));
-            if (rantorange) {
-                // run back down
-                await this.walkToEndofPath(this.shrimpPath(false, false));
-                justwalkedsouth = true;
-                southToNorthPathIndex = 0;
-                await sleep(1000);
-            }
-            // if inventory is full, try to go to range and use shrimp on the range (which will drop at the end)
-            if (this.invCount() == 28) {
-                await this.walkToRange();
-                await this.handleRandoms();
-                await this.useShrimpOnRange();
-                await this.handleRandoms();
-                justwalkedsouth = false;
-                southToNorthPathIndex = 0;
-                await sleep(1000);
-            }
-            // if idle, do complicated stuff
-            if (this.localPlayer?.primarySeqId == -1) {
-
-                // Find the closest NPC to (playerMouseX, playerMouseY)
-                let closestDist = Number.POSITIVE_INFINITY;
-                let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
-
-                for (let index: number = 0; index < this.npcCount; index++) {
-                    let entity: ClientEntity | null = null;
-                    entity = this.npcs[this.npcIds[index]];
-                    if (!entity || !entity.isVisible()) {
-                        continue;
-                    }
-                    const npc: ClientNpc = entity as ClientNpc;
-                    let npcId: number | undefined = npc.type?.id;
-                    this.projectFromEntity(entity, entity.height / 2);
-                    if (npcId == 325 && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                        const dx = this.projectX - this.playerMouseX;
-                        const dy = this.projectY - this.playerMouseY;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < closestDist) {
-                            closestDist = dist;
-                            closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
-                        }
-                    }
-                }
-
-                if (closestNpc) {
-                    this.addMessage(0, `Found closest npc at ${closestNpc.x}, ${closestNpc.y}`, '');
-                    await mouse(closestNpc.x, closestNpc.y, 2);
-                    await sleep(100);
-                    if (this.menuSize > 0) {
-                        for (let i = 0; i < this.menuOption.length; i++) {
-                            const optiontext = this.menuOption[i];
-                            if (optiontext.startsWith('Net')) {
-                                this.useMenuOption(i);
-                                this.menuVisible = false;
-                                if (this.menuArea === 1) {
-                                    this.redrawSidebar = true;
-                                } else if (this.menuArea === 2) {
-                                    this.redrawChatback = true;
-                                }
-                                this.addMessage(0, 'Used menu option ' + i + ': ' + optiontext, '');
-                                break;
-                            }
-                        }
-                    }
-                } else {
-                    // There is no closestNpc, so need to walk around to find another
-                    // First, walk all the way south if we didn't just do that
-                    if (!justwalkedsouth) {
-                        await this.walkToEndofPath(this.shrimpPath(false, false));
-                        justwalkedsouth = true;
-                        southToNorthPathIndex = 0;
-                        await sleep(1000);
-                    } else {
-                        // We're going to step along the fishing path
-                        southToNorthPathIndex++;
-                        if (southToNorthPathIndex > southToNorthFishingPath.length) {
-                            // We reached the end of the fishing path, so go all the way south again.
-                            southToNorthPathIndex = 0;
-                            justwalkedsouth = false;
-                        } else {
-                            // Walk to the next point (actually we are walking to the end of the truncated path)
-                            await this.walkToEndofPath(southToNorthFishingPath.slice(0, southToNorthPathIndex));
-                            await sleep(1000);
-                        }
-                    }
-                }
-            }
-            await sleep(2000);
-        }
     }
 
     manhattanDist(currentX: number, currentZ: number, targetX: number, targetZ: number): number {
@@ -13431,67 +13262,6 @@ export class Client extends GameShell {
         await sleep(100);
     }
 
-    async onF1Pressed_thieveSilk() {
-        this.stopLoop = false;
-        let pathToStall = [[2661, 3296], [2661, 3306], [2662, 3316]];
-        let pathAway = pathToStall.toReversed();
-        let standX = 2662;
-        let standZ = 3315;
-        let silkId = 950; // no +1
-
-        while (!this.stopLoop) {
-            let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-            let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-            if (this.manhattanDist(globalX, globalZ, standX, standZ) > 50) {
-                console.log('Too far from intended position. Logging out.');
-                this.stopLoop = true;
-                await this.logout();
-                return;
-            }
-            // Send a click to keep everything alive.
-            await this.handleRunEnergyThrottled(5);
-            // This clicks on the inventory tab.
-            await mouse(648, 185, 1, 100);
-            // this.addMessage(0, `Checking randoms.`, '');
-            await this.handleRandoms();
-            await this.useLamp();
-            // Check dangerous randoms; run to bank for safety, then run back
-            var rantobank = await this.handleDangerousRandoms(pathAway);
-            if (rantobank) {
-                console.log('Ran to the escape');
-                await sleep(10000);
-                await this.walkToEndofPath(pathToStall);
-            }
-            console.log('Walking to end of pathtostall');
-            await this.walkToEndofPath(pathToStall);
-            await sleep(1500);
-            // Try steal
-            console.log('Trying to steal');
-            this.projectFromGroundGlobal(standX, standZ, 0.1);
-            await mouse(this.projectX, this.projectY, 2);
-            await sleep(100);
-            await this.useMenuStartsWith('Steal from');
-            await sleep(600);
-            // drop all silk
-            await this.dropItems([silkId + 1]);
-            // Run away if HP is low, then log out.
-            if (this.skillLevel[3] < 10) {
-                console.log('HP is less than 10! Running and logging!')
-                await mouse(711, 485, 1, 100); // run tab
-                await sleep(100);
-                await mouse(625, 265, 1, 100); // run on
-                await sleep(100);
-                await mouse(648, 185, 1, 100); // back to inventory
-                await this.walkToEndofPath(pathAway);
-                this.stopLoop = true;
-                await sleep(10000);
-                await this.logout();
-                return;
-            }
-            await sleep(1500);
-        }
-    }
-
     async onF1Pressed_thieve_rogue() {
         this.stopLoop = false;
         let escapePath = [[3077, 3910], [3092, 3908], [3108, 3908]];
@@ -14156,6 +13926,7 @@ export class Client extends GameShell {
         }
     
     }
+
     async onF1Pressed_killChaosDruidsArdy() {
         this.stopLoop = false;
         let minHP = 25;
@@ -14285,6 +14056,80 @@ export class Client extends GameShell {
                 }
             }
             await sleep(700);
+        }
+    }
+
+    getNearestObject(targetid: number) {
+        if (this.localPlayer == null) {
+            return null;
+        }
+        let playerX = this.localPlayer.routeTileX[0];
+        let playerZ = this.localPlayer.routeTileZ[0];
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestX = -1;
+        let closestZ = -1;
+        let s = this.scene;
+        if (!s) {return null;}
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let tile = s.getLocTypecode(this.currentLevel, x, z);
+                if (tile == 0) {
+                    continue;
+                }
+                let type = (tile >> 14) & 32767;
+                if (type == targetid) {
+                    let dist = this.manhattanDist(playerX, playerZ, x, z);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestX = x;
+                        closestZ = z;
+                    }
+                    console.log(`Found tile ${tile} at ${[this.currentLevel, x, z]} with type ${type}.`);
+                }
+            }
+        }
+        if (closestX == -1 || closestZ == -1 || !this.localPlayer) {
+            return null;
+        } else {
+            return {level: this.currentLevel, x: closestX, z: closestZ};
+        }
+    }
+
+
+    async onF1Pressed_mineAndDropRuneEssence() {
+        this.stopLoop = false;
+        let runeEssenceWorldObjId = 2491;
+        let portalWorldObjId = 2492;
+        let runeEssenceInvId = 1436;
+
+        while (!this.stopLoop) {
+            if (this.invFull()) {
+                // TODO: drop all rune essence
+                await this.dropItems([runeEssenceInvId]);
+            }
+            let nearestEssObj = this.getNearestObject(runeEssenceWorldObjId);
+            if (!nearestEssObj) {
+                await sleep(10000);
+                continue;
+            }
+            this.projectFromGroundGlobal(nearestEssObj.x + this.sceneBaseTileX, nearestEssObj.z + this.sceneBaseTileZ, 0.5);
+            await mouse(this.projectX, this.projectY, 2);
+            await sleep(100);
+            if (this.menuSize > 0) {
+                for (let i = 0; i < this.menuOption.length; i++) {
+                    const optiontext = this.menuOption[i];
+                    if (optiontext.startsWith('Mine')) {
+                        this.useMenuOption(i);
+                        this.menuVisible = false;
+                        if (this.menuArea === 1) {
+                            this.redrawSidebar = true;
+                        } else if (this.menuArea === 2) {
+                            this.redrawChatback = true;
+                        }
+                    }
+                }
+            }
+            await sleep(20000);
         }
     }
 
