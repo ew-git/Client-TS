@@ -14068,6 +14068,7 @@ export class Client extends GameShell {
         let closestDist = Number.POSITIVE_INFINITY;
         let closestX = -1;
         let closestZ = -1;
+        let closestFullType = -1;
         let s = this.scene;
         if (!s) {return null;}
         for (let x = 0; x < CollisionConstants.SIZE; x++) {
@@ -14083,15 +14084,16 @@ export class Client extends GameShell {
                         closestDist = dist;
                         closestX = x;
                         closestZ = z;
+                        closestFullType = tile;
                     }
-                    console.log(`Found tile ${tile} at ${[this.currentLevel, x, z]} with type ${type}.`);
+                    // console.log(`Found tile ${tile} at ${[this.currentLevel, x, z]} with type ${type}.`);
                 }
             }
         }
         if (closestX == -1 || closestZ == -1 || !this.localPlayer) {
             return null;
         } else {
-            return {level: this.currentLevel, x: closestX, z: closestZ};
+            return {level: this.currentLevel, x: closestX, z: closestZ, fullType: closestFullType};
         }
     }
 
@@ -14120,7 +14122,7 @@ export class Client extends GameShell {
                 for (let i = 0; i < this.menuOption.length; i++) {
                     const optiontext = this.menuOption[i];
                     if (optiontext.startsWith('Mine')) {
-                        console.log(`${this.menuOption[i]} menu details: ${[this.menuAction[i], this.menuParamA[i], this.menuParamB[i], this.menuParamC[i]]}`);
+                        // console.log(`${this.menuOption[i]} menu details: ${[this.menuAction[i], this.menuParamA[i], this.menuParamB[i], this.menuParamC[i]]}`);
                         this.useMenuOption(i);
                         this.menuVisible = false;
                         if (this.menuArea === 1) {
@@ -14131,6 +14133,8 @@ export class Client extends GameShell {
                     }
                 }
             }
+            await sleep(20000);
+            if (this.invFull()) {continue;}
             await sleep(20000);
         }
     }
