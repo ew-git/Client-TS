@@ -14103,8 +14103,9 @@ export class Client extends GameShell {
         let runeEssenceInvId = 1436;
 
         while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
             if (this.invFull()) {
-                // TODO: drop all rune essence
                 await this.dropItems([runeEssenceInvId]);
             }
             let nearestEssObj = this.getNearestObject(runeEssenceWorldObjId);
@@ -14119,6 +14120,7 @@ export class Client extends GameShell {
                 for (let i = 0; i < this.menuOption.length; i++) {
                     const optiontext = this.menuOption[i];
                     if (optiontext.startsWith('Mine')) {
+                        console.log(`${this.menuOption[i]} menu details: ${[this.menuAction[i], this.menuParamA[i], this.menuParamB[i], this.menuParamC[i]]}`);
                         this.useMenuOption(i);
                         this.menuVisible = false;
                         if (this.menuArea === 1) {
