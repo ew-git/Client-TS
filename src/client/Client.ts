@@ -552,6 +552,10 @@ export class Client extends GameShell {
         {
             'description': 'Mine and drop the nearest rune essence.',
             'fn': (obj: Client) => {obj.onF1Pressed_mineAndDropRuneEssence();}
+        },
+        {
+            'description': 'Craft air runes from Falador bank',
+            'fn': (obj: Client) => {obj.onF1Pressed_airRunecraft();}
         }
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
@@ -584,7 +588,11 @@ export class Client extends GameShell {
             } else if (event.key === 'F6') {
                 // For testing functions
                 // console.log(await this.dropItems([1436]));
-                console.log(this.getNearestObject(2491));
+                // console.log(this.getNearestObject(2491));
+                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                console.log('Distance to Aubury:');
+                console.log(this.manhattanDist(globalX, globalZ, 3253, 3401));
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -5598,6 +5606,14 @@ export class Client extends GameShell {
             x,
             y,
             'Mouse location: ' + this.mouseX + ', ' + this.mouseY,
+            Colors.YELLOW,
+            true
+        );
+        y += 13;
+        this.fontPlain11?.drawStringRight(
+            x,
+            y,
+            'Current level: ' + this.currentLevel,
             Colors.YELLOW,
             true
         );
@@ -12803,7 +12819,7 @@ export class Client extends GameShell {
     }
 
     /**
-     * Expects the +1 id
+     * Real ID, not + 1
      */
     async withdrawAllBankById(id: number) {
         let inv = Component.types[this.bankComponentId];
@@ -12812,7 +12828,7 @@ export class Client extends GameShell {
             return false;
         }
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-            if (id == inv.invSlotObjId[slot]) {
+            if (id == (inv.invSlotObjId[slot] - 1)) {
                 await clickBank(slot, null, 2);
                 await sleep(200);
                 // click withdraw all
@@ -12946,13 +12962,13 @@ export class Client extends GameShell {
                 if (this.checkBankOpen()) {
                     // withdraw immediately
                     for (const id of ids) {
-                        await this.withdrawAllBankById(id + 1);
+                        await this.withdrawAllBankById(id);
                     }
                 } else {
                     // click bank then withdraw
                     await this.openBank(bankX, bankZ);
                     for (const id of ids) {
-                        await this.withdrawAllBankById(id + 1);
+                        await this.withdrawAllBankById(id);
                     }
                 }
                 await sleep(1200);
@@ -13448,14 +13464,14 @@ export class Client extends GameShell {
             // We need to let the knight move around, so it doesn't despawn (~5 minutes in 1 spot)
             await this.relieveKnightPositionThrottled(4, bankStandX, bankStandZ);
             // If food is out, go to bank, deposit everything, withdraw 1 coin and all food.
-            if (this.countInvById(foodId + 1) == 0) {
+            if (this.countInvById(foodId) == 0) {
                 console.log('Out of food, trying to bank');
                 await sleep(6000); // make sure we're not stunned
                 await this.walkToEndofPath(escapePath.toReversed());
                 await this.depositAllExcept(bankX, bankZ, [0]); // deposit all
                 await sleep(1000);
                 await this.withdraw1BankById(995); // Withdraw 1 coin as placeholder
-                await this.withdrawAllBankById(foodId + 1); // it expects +1 id
+                await this.withdrawAllBankById(foodId); // it expects +1 id
                 await sleep(1000);
                 await this.walkToEndofPath([[bankStandX - 1, bankStandZ]]); // move west to close bank
                 console.log('Done banking');
@@ -13634,7 +13650,7 @@ export class Client extends GameShell {
                 await this.depositAllExcept(bankX, bankZ, [0]); // deposit all
                 await sleep(1000);
                 await this.withdraw1BankById(995); // Withdraw 1 coin as placeholder
-                await this.withdrawAllBankById(foodId + 1); // it expects +1 id
+                await this.withdrawAllBankById(foodId); // it expects +1 id
                 await sleep(1000);
                 console.log('Done banking');
                 await this.walkToEndofPath(pathToMarket); // go back to the Market
@@ -14097,6 +14113,64 @@ export class Client extends GameShell {
         }
     }
 
+    async findAndUseNearestNPC(npcNameNeedle: string, menuTextPrefix: string) {
+        if (!this.localPlayer) {
+            return;
+        }
+        // Find the closest target NPC to (playerMouseX, playerMouseY)
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
+
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npcs[this.npcIds[index]];
+            if (!entity || !entity.isVisible()) {
+                continue;
+            }
+            const npc: ClientNpc = entity as ClientNpc;
+            this.projectFromEntity(entity, entity.height / 2);
+            let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
+            if (npcprojectinfo.match(npcNameNeedle) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
+                const dx = this.projectX - this.playerMouseX;
+                const dy = this.projectY - this.playerMouseY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
+                }
+            }
+        }
+
+        if (closestNpc) {
+            await mouse(closestNpc.x, closestNpc.y, 2);
+            await sleep(100);
+            if (this.menuSize > 0) {
+                for (let i = 0; i < this.menuOption.length; i++) {
+                    const optiontext = this.menuOption[i];
+                    if (optiontext.startsWith(menuTextPrefix)) {
+                        this.useMenuOption(i);
+                        this.menuVisible = false;
+                        if (this.menuArea === 1) {
+                            this.redrawSidebar = true;
+                        } else if (this.menuArea === 2) {
+                            this.redrawChatback = true;
+                        }
+                        break;
+                    }
+                }
+            }
+        } else {
+            // No closest NPC, so try to move to the nearest by tile location
+            let closestLocalNPC = this.getNearestNPC(npcNameNeedle);
+            if (this.localPlayer == null || closestLocalNPC == null) return;
+            this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], closestLocalNPC.x, closestLocalNPC.z, 0, 0, 0, 0, 0, 0, true)
+            await sleep(700);
+            while (this.localPlayer?.routeLength !== 0) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+        await sleep(2000);
+    }
 
     async onF1Pressed_mineAndDropRuneEssence() {
         this.stopLoop = false;
@@ -14113,49 +14187,237 @@ export class Client extends GameShell {
             [3254, 3426],
             [3254, 3420]
         ];
+        let bankToShopPath = shopToBankPath.toReversed();
+        let bankX = 3254;
+        let bankZ = 3419;
+        let state = 'mining';
 
-        while (!this.stopLoop) {
-            await this.handleRunEnergyThrottled(5);
-            await this.clickInventoryThrottled(1);
-            if (this.invFull()) {
-                await this.dropItems([runeEssenceInvId]);
-            }
-            let nearestEssObj = this.getNearestObject(runeEssenceWorldObjId);
+        function mineNearestEssence(obj: Client) {
+            let nearestEssObj = obj.getNearestObject(runeEssenceWorldObjId);
             if (!nearestEssObj) {
-                await sleep(10000);
-                continue;
+                return false;
             }
-            // No mouse
             let a = nearestEssObj.fullType;
             let b = nearestEssObj.x;
             let c = nearestEssObj.z;
-            this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-            this.objSelected = 0;
-            this.spellSelected = 0;
-            this.redrawSidebar = true;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
 
-            // With mouse
-            // this.projectFromGroundGlobal(nearestEssObj.x + this.sceneBaseTileX, nearestEssObj.z + this.sceneBaseTileZ, 0.5);
-            // await mouse(this.projectX, this.projectY, 2);
-            // await sleep(100);
-            // if (this.menuSize > 0) {
-            //     for (let i = 0; i < this.menuOption.length; i++) {
-            //         const optiontext = this.menuOption[i];
-            //         if (optiontext.startsWith('Mine')) {
-            //             // console.log(`${this.menuOption[i]} menu details: ${[this.menuAction[i], this.menuParamA[i], this.menuParamB[i], this.menuParamC[i]]}`);
-            //             this.useMenuOption(i);
-            //             this.menuVisible = false;
-            //             if (this.menuArea === 1) {
-            //                 this.redrawSidebar = true;
-            //             } else if (this.menuArea === 2) {
-            //                 this.redrawChatback = true;
-            //             }
-            //         }
-            //     }
-            // }
-            await sleep(20000);
-            if (this.invFull()) {continue;}
-            await sleep(20000);
+        function useNearestPortal(obj: Client) {
+            let nearestObj = obj.getNearestObject(portalWorldObjId);
+            if (!nearestObj) {
+                return false;
+            }
+            let a = nearestObj.fullType;
+            let b = nearestObj.x;
+            let c = nearestObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+
+        function distToShop(obj: Client) {
+            let globalX = (obj.localPlayer?.routeTileX[0] ?? 0) + obj.sceneBaseTileX;
+            let globalZ = (obj.localPlayer?.routeTileZ[0] ?? 0) + obj.sceneBaseTileZ;
+            return obj.manhattanDist(globalX, globalZ, 3253, 3401);
+        }
+
+        while (!this.stopLoop) {
+            if (state == 'mining') {
+                await this.handleRunEnergyThrottled(5);
+                await this.clickInventoryThrottled(1);
+                if (this.invFull()) {
+                    useNearestPortal(this);
+                    console.log('Used portal, now waiting for close to shop.');
+                    for (let i = 0; i < 20; i++) {
+                        await sleep(1000);
+                        if (distToShop(this) < 100) {break;}
+                    }
+                    state = 'banking';
+                    continue;
+                }
+                console.log('Try mining essence.');
+                let mined = mineNearestEssence(this);
+                if (!mined) {
+                    console.log('Failed to mine essence.');
+                    await sleep(10000);
+                    continue;
+                }
+                await sleep(20000);
+                if (this.invFull()) {continue;}
+                await sleep(20000);
+            } else if (state == 'banking') {
+                await this.walkToEndofPath(shopToBankPath);
+                await sleep(2000);
+                await this.depositAllExcept(bankX, bankZ, [0]);
+                await sleep(1800);
+                await this.walkToEndofPath(bankToShopPath);
+                await sleep(2000);
+                // Find and click Teleport on Aubury
+                await this.findAndUseNearestNPC('Aubury', 'Teleport');
+                await sleep(2000);
+                state = 'mining';
+            } else {
+                console.log('Invalid state');
+            }
+            await sleep(5000);
+        }
+    }
+
+    async useTalismanOnRuins(ruinsX: number, ruinsZ: number, talismanId: number) {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+
+        let foundRuinsOption = false;
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            foundRuinsOption = false;
+            if (talismanId == (inv.invSlotObjId[slot] - 1)) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await sleep(100);
+                await clickInv(slot, null, 1);
+                await sleep(100);
+                this.projectFromGroundGlobal(ruinsX, ruinsZ, 0.1);
+                await mouse(this.projectX, this.projectY, 2);
+                await sleep(200);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.endsWith('ruins') && optiontext.startsWith('Use')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            foundRuinsOption = true;
+                        }
+                    }
+                }
+                if (foundRuinsOption) {
+                    await sleep(600*4);
+                } else {
+                    // Somehow failed, so need to reset.
+                    await mouse(648, 185, 1, 100);
+                    await sleep(600);
+                }
+            }
+        }
+        return true;
+    }
+
+    async onF1Pressed_airRunecraft() {
+        this.stopLoop = false;
+        let ITEM_AIR_TALISMAN = 1438, // item air talisman
+            ITEM_RUNE_ESSENCE = 1436, // item rune essence
+            LOC_AIR_RUINS = 2452, // world obj air ruins
+            LOC_AIR_ALTAR = 2478, // world obj air alter
+            LOC_AIR_PORTAL = 2465; // world obj air portal
+
+        let bankToRuinsPath = [
+            [3012, 3355],
+            [3010, 3358],
+            [3007, 3350],
+            [3007, 3343],
+            [3008, 3336],
+            [3009, 3329],
+            [3009, 3322],
+            [3002, 3318],
+            [2999, 3311],
+            [2995, 3304],
+            [2988, 3301],
+            [2987, 3293]
+        ];
+        let ruinsToBankPath = bankToRuinsPath.toReversed();
+        let bankX = 3012;
+        let bankZ = 3354;
+        let ruinsX = 2986;
+        let ruinsZ = 3293;
+
+        function useNearestAirAltar(obj: Client) {
+            let nearestEssObj = obj.getNearestObject(LOC_AIR_ALTAR);
+            if (!nearestEssObj) {
+                return false;
+            }
+            let a = nearestEssObj.fullType;
+            let b = nearestEssObj.x;
+            let c = nearestEssObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+
+        function useNearestPortal(obj: Client) {
+            let nearestObj = obj.getNearestObject(LOC_AIR_PORTAL);
+            if (!nearestObj) {
+                return false;
+            }
+            let a = nearestObj.fullType;
+            let b = nearestObj.x;
+            let c = nearestObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+
+        function distToAltar(obj: Client) {
+            let globalX = (obj.localPlayer?.routeTileX[0] ?? 0) + obj.sceneBaseTileX;
+            let globalZ = (obj.localPlayer?.routeTileZ[0] ?? 0) + obj.sceneBaseTileZ;
+            return obj.manhattanDist(globalX, globalZ, 2842, 4832);
+        }
+
+        while (!this.stopLoop) {
+            // start in bank, have talisman already in inventory
+            await this.handleRunEnergyThrottled(2);
+            await this.clickInventoryThrottled(1);
+            await this.walkToEndofPath(ruinsToBankPath);
+            await sleep(2000);
+            await this.depositAllExcept(bankX, bankZ, [ITEM_AIR_TALISMAN]);
+            await sleep(1800);
+            await this.withdrawAllBankById(ITEM_RUNE_ESSENCE);
+            await this.walkToEndofPath(bankToRuinsPath);
+            await sleep(2000);
+
+            // Should be just outside air altar now. Need to use talisman on it.
+            await this.useTalismanOnRuins(ruinsX, ruinsZ, ITEM_AIR_TALISMAN);
+            await sleep(700);
+            for (let i = 0; i < 20; i++) {
+                await sleep(1000);
+                if (distToAltar(this) < 20) {break;}
+            }
+            await sleep(700);
+
+            // Should be just inside air altar now. Need to interact with it.
+            useNearestAirAltar(this);
+            await sleep(2000); // leave some buffer for leveling up
+            for (let i = 0; i < 20; i++) {
+                await sleep(1000);
+                if (!this.invFull()) {break;} // not full means we crafted, can exit
+            }
+            await sleep(700);
+            useNearestPortal(this);
+            for (let i = 0; i < 20; i++) {
+                await sleep(1000);
+                if (distToAltar(this) > 20) {break;}
+            }
+
+            // Back to bank
+            await this.walkToEndofPath(ruinsToBankPath);
         }
     }
 
