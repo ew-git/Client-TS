@@ -14390,6 +14390,7 @@ export class Client extends GameShell {
             await this.depositAllExcept(bankX, bankZ, [ITEM_AIR_TALISMAN]);
             await sleep(1800);
             await this.withdrawAllBankById(ITEM_RUNE_ESSENCE);
+            await sleep(1000);
             await this.walkToEndofPath(bankToRuinsPath);
             await sleep(2000);
 
@@ -14404,14 +14405,20 @@ export class Client extends GameShell {
 
             // Should be just inside air altar now. Need to interact with it.
             useNearestAirAltar(this);
-            await sleep(2000); // leave some buffer for leveling up
+            await sleep(1000);
             for (let i = 0; i < 20; i++) {
                 await sleep(1000);
                 if (!this.invFull()) {break;} // not full means we crafted, can exit
             }
             await sleep(700);
             useNearestPortal(this);
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 10; i++) {
+                await sleep(1000);
+                if (distToAltar(this) > 20) {break;}
+            }
+            // Sometimes above fails because we level up, which interrupts the action on the portal.
+            useNearestPortal(this);
+            for (let i = 0; i < 10; i++) {
                 await sleep(1000);
                 if (distToAltar(this) > 20) {break;}
             }
