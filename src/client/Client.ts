@@ -550,12 +550,16 @@ export class Client extends GameShell {
             'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdy();}
         },
         {
-            'description': 'Mine and drop the nearest rune essence.',
+            'description': 'Mine and bank rune essence in Varrock.',
             'fn': (obj: Client) => {obj.onF1Pressed_mineAndDropRuneEssence();}
         },
         {
             'description': 'Craft air runes from Falador bank',
             'fn': (obj: Client) => {obj.onF1Pressed_airRunecraft();}
+        },
+        {
+            'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
         }
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
@@ -14591,6 +14595,18 @@ export class Client extends GameShell {
                 }
             }
             await sleep(1200);
+        }
+    }
+    
+    async onF1Pressed_killLesserDemonWizTower() {
+        this.stopLoop = false;
+        let needle = 'Lesser demon';
+        
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            await this.attackNearestNPC(needle);
+            await sleep(10000);
         }
     }
 }
