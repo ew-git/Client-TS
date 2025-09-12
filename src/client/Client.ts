@@ -14414,14 +14414,15 @@ export class Client extends GameShell {
             useNearestPortal(this);
             for (let i = 0; i < 10; i++) {
                 await sleep(1000);
+                useNearestPortal(this);
                 if (distToAltar(this) > 20) {break;}
             }
             // Sometimes above fails because we level up, which interrupts the action on the portal.
-            useNearestPortal(this);
-            for (let i = 0; i < 10; i++) {
-                await sleep(1000);
-                if (distToAltar(this) > 20) {break;}
-            }
+            // useNearestPortal(this);
+            // for (let i = 0; i < 10; i++) {
+            //     await sleep(1000);
+            //     if (distToAltar(this) > 20) {break;}
+            // }
 
             // Back to bank
             await this.walkToEndofPath(ruinsToBankPath);
