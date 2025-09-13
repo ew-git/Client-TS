@@ -560,6 +560,10 @@ export class Client extends GameShell {
         {
             'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
             'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
+        },
+        {
+            'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX.',
+            'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
         }
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
@@ -14607,6 +14611,106 @@ export class Client extends GameShell {
             await this.clickInventoryThrottled(1);
             await this.attackNearestNPC(needle);
             await sleep(10000);
+        }
+    }
+
+    async onF1Pressed_pickFlaxAndSpin() {
+        this.stopLoop = false;
+        let state = 'picking_flax'
+        let flaxInvId = 1779;
+        let flaxObjId = 0; //              TODO
+        let pathFlaxToDoor = [[0,0]];
+        let doorOutside = {x: 0, z: 0}; // TODO
+        let doorInside = {x: 0, z: 0}; // TODO
+        let adjacentWheel = [[]]; //       TODO
+        let pathDoorToBank = [[]]; //         TODO
+        let bankX = 0; //                  TODO
+        let bankZ = 0; //                  TODO
+        let pathBankToFlax = [[]]; //      TODO
+
+        function pickNearestFlax(obj: Client) {
+            let nearestObj = obj.getNearestObject(flaxObjId);
+            if (!nearestObj) {
+                return false;
+            }
+            let a = nearestObj.fullType;
+            let b = nearestObj.x;
+            let c = nearestObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+
+        // TODO
+        function climbUpLadder(obj: Client) {
+
+        }
+
+        // TODO
+        function climbDownLadder(obj: Client) {
+
+        }
+
+        // TODO
+        async function useFlaxOnWheel(obj: Client) {
+
+        }
+        
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            if (state == 'picking_flax') {
+                while (!this.invFull()) {
+                    let currentFlaxCount = this.countInvById(flaxInvId);
+                    pickNearestFlax(this);
+                    while (this.countInvById(flaxInvId) == currentFlaxCount) {
+                        await sleep(200);
+                    }
+                    await sleep(700);
+                }
+                state = 'walk_flax_to_wheel';
+            } else if (state == 'walk_flax_to_wheel') {
+                await this.walkToEndofPath(pathFlaxToDoor);
+                await this.tryOpenDoor(doorOutside.x, doorOutside.z); // TODO add 0.5
+                await sleep(600);
+                climbUpLadder(this);
+                while (this.currentLevel != 1) {
+                    await sleep(200);
+                }
+                await sleep(600);
+                state = 'spinning';
+            } else if (state == 'spinning') {
+                await this.walkToEndofPath(adjacentWheel);
+                await sleep(600);
+                await useFlaxOnWheel(this);
+                await sleep(600);
+                state = 'walk_wheel_to_bank';
+            } else if (state == 'walk_wheel_to_bank') {
+                climbDownLadder(this);
+                while (this.currentLevel == 1) {
+                    await sleep(200);
+                }
+                await sleep(600);
+                await this.walkToEndofPath([[doorInside.x, doorInside.z]]);
+                await sleep(600);
+                await this.tryOpenDoor(doorOutside.x, doorOutside.z); // TODO add 0.5
+                await this.walkToEndofPath(pathDoorToBank);
+                await sleep(2000);
+                state = 'banking';
+            } else if (state == 'banking') {
+                await this.depositAllExcept(bankX, bankZ, [0]);
+                await sleep(2000);
+                await this.walkToEndofPath(pathBankToFlax);
+                await sleep(2000);
+                state = 'picking_flax';
+            } else {
+                this.addMessage(0, `Invalid state ${state}`, '');
+                console.log(`Invalid state ${state}`);
+                break;
+            }
+            await sleep(200);
         }
     }
 }
