@@ -597,10 +597,57 @@ export class Client extends GameShell {
                 // For testing functions
                 // console.log(await this.dropItems([1436]));
                 // console.log(this.getNearestObject(2491));
-                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                console.log('Distance to Aubury:');
-                console.log(this.manhattanDist(globalX, globalZ, 3253, 3401));
+                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                // console.log('Distance to Aubury:');
+                // console.log(this.manhattanDist(globalX, globalZ, 3253, 3401));
+                async function testThing(obj: Client) {
+                    let flaxInvId = 1779;
+                    let spinningWheelId = 2644;
+                    let inv = Component.types[obj.inventoryComponentId];
+                    if (!inv || !inv.invSlotObjId) {
+                        obj.addMessage?.(0, 'Inventory data not available', '');
+                        return false;
+                    }
+
+                    for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                        if (flaxInvId == (inv.invSlotObjId[slot] - 1)) {
+                            let currentFlaxCount = obj.countInvById(flaxInvId);
+                            
+                            if (obj.selectedTab != 3) {
+                                await mouse(648, 185, 1, 100);
+                            }
+                            await sleep(100);
+                            await clickInv(slot, null, 1);
+                            await sleep(200);
+                            // At this point, should have flax selected
+                            if (obj.objSelected == 0) {
+                                console.log('Dont have an object selected, skipping this item.');
+                                continue;
+                            }
+
+                            let nearestObj = obj.getNearestObject(spinningWheelId);
+                            if (!nearestObj) {
+                                return false;
+                            }
+                            let a = nearestObj.fullType;
+                            let b = nearestObj.x;
+                            let c = nearestObj.z;
+                            if (obj.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
+                                obj.out.p2(obj.objInterface);
+                                obj.out.p2(obj.objSelectedSlot);
+                                obj.out.p2(obj.objSelectedInterface);
+                            }
+                            obj.objSelected = 0;
+                            obj.spellSelected = 0;
+                            obj.redrawSidebar = true;
+                            // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
+                            await sleep(2500);
+                        }
+                    }
+                    return true;
+                }
+                testThing(this);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -14618,18 +14665,34 @@ export class Client extends GameShell {
         this.stopLoop = false;
         let state = 'picking_flax'
         let flaxInvId = 1779;
-        let flaxObjId = 0; //              TODO
-        let pathFlaxToDoor = [[0,0]];
-        let doorOutside = {x: 0, z: 0}; // TODO
-        let doorInside = {x: 0, z: 0}; // TODO
-        let adjacentWheel = [[]]; //       TODO
-        let pathDoorToBank = [[]]; //         TODO
-        let bankX = 0; //                  TODO
-        let bankZ = 0; //                  TODO
-        let pathBankToFlax = [[]]; //      TODO
+        let pathFlaxToDoor = [[2737, 3442], [2724, 3454], [2716, 3472]];
+        let doorOutside = {x: 2716, z: 3472};
+        let doorInside = {x: 2715, z: 3472};
+        let adjacentWheel = [[2712, 3471]];
+        let pathDoorToBank = [[2716, 3472], [2726, 3487], [2727, 3493]];
+        let bankX = 2727;
+        let bankZ = 3494;
+        let pathBankToFlax = [[2727, 3493], [2726, 3477], [2726, 3460], [2734, 3448], [2737, 3442]];
+        let doorId = 1530;
+        let spinningWheelId = 2644;
 
         function pickNearestFlax(obj: Client) {
-            let nearestObj = obj.getNearestObject(flaxObjId);
+            let nearestObj = obj.getNearestObject(2646); // flax_ground
+            if (!nearestObj) {
+                return false;
+            }
+            let a = nearestObj.fullType;
+            let b = nearestObj.x;
+            let c = nearestObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC2, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+
+        function climbUpLadder(obj: Client) {
+            let nearestObj = obj.getNearestObject(1747);
             if (!nearestObj) {
                 return false;
             }
@@ -14643,19 +14706,64 @@ export class Client extends GameShell {
             return true;
         }
 
-        // TODO
-        function climbUpLadder(obj: Client) {
-
-        }
-
-        // TODO
         function climbDownLadder(obj: Client) {
-
+            let nearestObj = obj.getNearestObject(1746);
+            if (!nearestObj) {
+                return false;
+            }
+            let a = nearestObj.fullType;
+            let b = nearestObj.x;
+            let c = nearestObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
         }
 
-        // TODO
         async function useFlaxOnWheel(obj: Client) {
+            let inv = Component.types[obj.inventoryComponentId];
+            if (!inv || !inv.invSlotObjId) {
+                obj.addMessage?.(0, 'Inventory data not available', '');
+                return false;
+            }
 
+            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                if (flaxInvId == (inv.invSlotObjId[slot] - 1)) {
+                    let currentFlaxCount = obj.countInvById(flaxInvId);
+                    
+                    if (obj.selectedTab != 3) {
+                        await mouse(648, 185, 1, 100);
+                    }
+                    await sleep(100);
+                    await clickInv(slot, null, 1);
+                    await sleep(200);
+                    // At this point, should have flax selected
+                    if (obj.objSelected == 0) {
+                        console.log('Dont have an object selected, skipping this item.');
+                        continue;
+                    }
+
+                    let nearestObj = obj.getNearestObject(spinningWheelId);
+                    if (!nearestObj) {
+                        return false;
+                    }
+                    let a = nearestObj.fullType;
+                    let b = nearestObj.x;
+                    let c = nearestObj.z;
+                    if (obj.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
+                        obj.out.p2(obj.objInterface);
+                        obj.out.p2(obj.objSelectedSlot);
+                        obj.out.p2(obj.objSelectedInterface);
+                    }
+                    obj.objSelected = 0;
+                    obj.spellSelected = 0;
+                    obj.redrawSidebar = true;
+                    // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
+                    await sleep(2500);
+                }
+            }
+            return true;
         }
         
         while (!this.stopLoop) {
@@ -14673,7 +14781,7 @@ export class Client extends GameShell {
                 state = 'walk_flax_to_wheel';
             } else if (state == 'walk_flax_to_wheel') {
                 await this.walkToEndofPath(pathFlaxToDoor);
-                await this.tryOpenDoor(doorOutside.x, doorOutside.z); // TODO add 0.5
+                await this.tryOpenDoor(doorOutside.x + 0.5, doorOutside.z);
                 await sleep(600);
                 climbUpLadder(this);
                 while (this.currentLevel != 1) {
@@ -14695,7 +14803,7 @@ export class Client extends GameShell {
                 await sleep(600);
                 await this.walkToEndofPath([[doorInside.x, doorInside.z]]);
                 await sleep(600);
-                await this.tryOpenDoor(doorOutside.x, doorOutside.z); // TODO add 0.5
+                await this.tryOpenDoor(doorOutside.x + 0.5, doorOutside.z);
                 await this.walkToEndofPath(pathDoorToBank);
                 await sleep(2000);
                 state = 'banking';
