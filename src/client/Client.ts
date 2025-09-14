@@ -594,60 +594,18 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                // For testing functions
-                // console.log(await this.dropItems([1436]));
-                // console.log(this.getNearestObject(2491));
-                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                // console.log('Distance to Aubury:');
-                // console.log(this.manhattanDist(globalX, globalZ, 3253, 3401));
-                async function testThing(obj: Client) {
-                    let flaxInvId = 1779;
-                    let spinningWheelId = 2644;
-                    let inv = Component.types[obj.inventoryComponentId];
-                    if (!inv || !inv.invSlotObjId) {
-                        obj.addMessage?.(0, 'Inventory data not available', '');
-                        return false;
-                    }
+                // function useNearestDoor(obj: Client) {
+                //     let a = 1098815540;
+                //     let b = 2716 - obj.sceneBaseTileX;
+                //     let c = 3472 - obj.sceneBaseTileZ;
+                //     obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+                //     obj.objSelected = 0;
+                //     obj.spellSelected = 0;
+                //     obj.redrawSidebar = true;
+                //     return true;
+                // }
+                // useNearestDoor(this);
 
-                    for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-                        if (flaxInvId == (inv.invSlotObjId[slot] - 1)) {
-                            let currentFlaxCount = obj.countInvById(flaxInvId);
-                            
-                            if (obj.selectedTab != 3) {
-                                await mouse(648, 185, 1, 100);
-                            }
-                            await sleep(100);
-                            await clickInv(slot, null, 1);
-                            await sleep(200);
-                            // At this point, should have flax selected
-                            if (obj.objSelected == 0) {
-                                console.log('Dont have an object selected, skipping this item.');
-                                continue;
-                            }
-
-                            let nearestObj = obj.getNearestObject(spinningWheelId);
-                            if (!nearestObj) {
-                                return false;
-                            }
-                            let a = nearestObj.fullType;
-                            let b = nearestObj.x;
-                            let c = nearestObj.z;
-                            if (obj.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
-                                obj.out.p2(obj.objInterface);
-                                obj.out.p2(obj.objSelectedSlot);
-                                obj.out.p2(obj.objSelectedInterface);
-                            }
-                            obj.objSelected = 0;
-                            obj.spellSelected = 0;
-                            obj.redrawSidebar = true;
-                            // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
-                            await sleep(2500);
-                        }
-                    }
-                    return true;
-                }
-                testThing(this);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -13260,6 +13218,7 @@ export class Client extends GameShell {
             for (let i = 0; i < this.menuOption.length; i++) {
                 const optiontext = this.menuOption[i];
                 if (optiontext.startsWith('Open')) {
+                    console.log(`Menu option details for ${this.menuOption[i]}: ${[this.menuAction[i], this.menuParamA[i], this.menuParamB[i], this.menuParamC[i]]}`)
                     this.useMenuOption(i);
                     this.menuVisible = false;
                     if (this.menuArea === 1) {
@@ -13269,6 +13228,7 @@ export class Client extends GameShell {
                     }
                     this.addMessage(0, 'Opened door.', '');
                     await sleep(600);
+                    break;
                 }
             }
         }
@@ -14720,6 +14680,17 @@ export class Client extends GameShell {
             obj.redrawSidebar = true;
             return true;
         }
+        // This isn't working reliably
+        function openDoor(obj: Client) {
+            let a = 1098815540;
+            let b = 2716 - obj.sceneBaseTileX;
+            let c = 3472 - obj.sceneBaseTileZ;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
 
         async function useFlaxOnWheel(obj: Client) {
             let inv = Component.types[obj.inventoryComponentId];
@@ -14730,7 +14701,6 @@ export class Client extends GameShell {
 
             for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                 if (flaxInvId == (inv.invSlotObjId[slot] - 1)) {
-                    let currentFlaxCount = obj.countInvById(flaxInvId);
                     
                     if (obj.selectedTab != 3) {
                         await mouse(648, 185, 1, 100);
@@ -14773,15 +14743,22 @@ export class Client extends GameShell {
                 while (!this.invFull()) {
                     let currentFlaxCount = this.countInvById(flaxInvId);
                     pickNearestFlax(this);
+                    for (let i = 0; i < 50; i++) {
+                        if (this.countInvById(flaxInvId) != currentFlaxCount) {
+                            break;
+                        } else {
+                            await sleep(200);
+                        }
+                    }
                     while (this.countInvById(flaxInvId) == currentFlaxCount) {
                         await sleep(200);
                     }
-                    await sleep(700);
+                    await sleep(900);
                 }
                 state = 'walk_flax_to_wheel';
             } else if (state == 'walk_flax_to_wheel') {
                 await this.walkToEndofPath(pathFlaxToDoor);
-                await this.tryOpenDoor(doorOutside.x + 0.5, doorOutside.z);
+                await this.tryOpenDoor(doorOutside.x - 0.5, doorOutside.z);
                 await sleep(600);
                 climbUpLadder(this);
                 while (this.currentLevel != 1) {
@@ -14803,7 +14780,7 @@ export class Client extends GameShell {
                 await sleep(600);
                 await this.walkToEndofPath([[doorInside.x, doorInside.z]]);
                 await sleep(600);
-                await this.tryOpenDoor(doorOutside.x + 0.5, doorOutside.z);
+                await this.tryOpenDoor(doorOutside.x - 0.5, doorOutside.z);
                 await this.walkToEndofPath(pathDoorToBank);
                 await sleep(2000);
                 state = 'banking';
