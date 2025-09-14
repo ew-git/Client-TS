@@ -562,7 +562,7 @@ export class Client extends GameShell {
             'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
         },
         {
-            'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX.',
+            'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX. POINT CAMERA WEST FOR DOOR.',
             'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
         }
     ];
