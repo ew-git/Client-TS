@@ -568,7 +568,7 @@ export class Client extends GameShell {
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
     private rareTableIds = [1623,1621,1619,1617,830,985,987,1452,1462, 1247, 2366, 1249];
-
+    private logArray = [[0, 0]];
     // ----
 
     private initializeLevelExperience(): void {
@@ -594,18 +594,10 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                // function useNearestDoor(obj: Client) {
-                //     let a = 1098815540;
-                //     let b = 2716 - obj.sceneBaseTileX;
-                //     let c = 3472 - obj.sceneBaseTileZ;
-                //     obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-                //     obj.objSelected = 0;
-                //     obj.spellSelected = 0;
-                //     obj.redrawSidebar = true;
-                //     return true;
-                // }
-                // useNearestDoor(this);
-
+                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                this.logArray.push([globalX, globalZ]);
+                console.log(JSON.stringify(this.logArray));
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -14749,9 +14741,6 @@ export class Client extends GameShell {
                         } else {
                             await sleep(200);
                         }
-                    }
-                    while (this.countInvById(flaxInvId) == currentFlaxCount) {
-                        await sleep(200);
                     }
                     await sleep(900);
                 }
