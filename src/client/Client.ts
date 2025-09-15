@@ -564,6 +564,10 @@ export class Client extends GameShell {
         {
             'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX. POINT CAMERA WEST FOR DOOR.',
             'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
+        },
+        {
+            'description': 'Mine iron in Al Kharid and smelt on the way to the bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_mineIronAndSmelt();}
         }
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
@@ -594,10 +598,27 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                this.logArray.push([globalX, globalZ]);
-                console.log(JSON.stringify(this.logArray));
+                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                // this.logArray.push([globalX, globalZ]);
+                // console.log(JSON.stringify(this.logArray));
+
+                let ironRockIds = [2092, 2093];
+                function mineNearestIron(obj: Client) {
+                    let nearestObj = obj.getNearestObjectFromArray(ironRockIds, 4);
+                    if (!nearestObj) {
+                        return false;
+                    }
+                    let a = nearestObj.fullType;
+                    let b = nearestObj.x;
+                    let c = nearestObj.z;
+                    obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+                    obj.objSelected = 0;
+                    obj.spellSelected = 0;
+                    obj.redrawSidebar = true;
+                    return true;
+                }
+                mineNearestIron(this);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -14120,6 +14141,44 @@ export class Client extends GameShell {
         }
     }
 
+    getNearestObjectFromArray(targetids: number[], maxdist = 1000) {
+        if (this.localPlayer == null) {
+            return null;
+        }
+        let playerX = this.localPlayer.routeTileX[0];
+        let playerZ = this.localPlayer.routeTileZ[0];
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestX = -1;
+        let closestZ = -1;
+        let closestFullType = -1;
+        let s = this.scene;
+        if (!s) {return null;}
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let tile = s.getLocTypecode(this.currentLevel, x, z);
+                if (tile == 0) {
+                    continue;
+                }
+                let type = (tile >> 14) & 32767;
+                if (targetids.includes(type)) {
+                    let dist = this.manhattanDist(playerX, playerZ, x, z);
+                    if (dist < closestDist && dist < maxdist) {
+                        closestDist = dist;
+                        closestX = x;
+                        closestZ = z;
+                        closestFullType = tile;
+                    }
+                    // console.log(`Found tile ${tile} at ${[this.currentLevel, x, z]} with type ${type}.`);
+                }
+            }
+        }
+        if (closestX == -1 || closestZ == -1 || !this.localPlayer) {
+            return null;
+        } else {
+            return {level: this.currentLevel, x: closestX, z: closestZ, fullType: closestFullType};
+        }
+    }
+
     async findAndUseNearestNPC(npcNameNeedle: string, menuTextPrefix: string) {
         if (!this.localPlayer) {
             return;
@@ -14779,6 +14838,125 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(pathBankToFlax);
                 await sleep(2000);
                 state = 'picking_flax';
+            } else {
+                this.addMessage(0, `Invalid state ${state}`, '');
+                console.log(`Invalid state ${state}`);
+                break;
+            }
+            await sleep(200);
+        }
+    }
+
+    async onF1Pressed_mineIronAndSmelt() {
+        this.stopLoop = false;
+        let state = 'mining_iron'
+        let ironInvId = 440;
+        let pathIronToFurnace = [[3295,3310],[3301,3298],[3299,3282],[3294,3268],[3291,3253],[3288,3238],[3280,3226],[3282,3210],[3283,3194],[3275,3186]];
+        let pathFurnaceToBank = [[3275,3186],[3275,3170],[3269,3167]];
+        let bankX = 3268;
+        let bankZ = 3167;
+        let pathBankToIron = [[3269,3167],[3280,3181],[3284,3213],[3282,3231],[3291,3246],[3295,3267],[3296,3279],[3298,3293],[3295,3310]];
+        let furnaceId = 2781;
+        let ironRockIds = [2092, 2093];
+
+        function mineNearestIron(obj: Client) {
+            let nearestObj = obj.getNearestObjectFromArray(ironRockIds, 4);
+            if (!nearestObj) {
+                return false;
+            }
+            let a = nearestObj.fullType;
+            let b = nearestObj.x;
+            let c = nearestObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+
+        async function useIronOnFurnace(obj: Client) {
+            let inv = Component.types[obj.inventoryComponentId];
+            if (!inv || !inv.invSlotObjId) {
+                obj.addMessage?.(0, 'Inventory data not available', '');
+                return false;
+            }
+
+            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                if (ironInvId == (inv.invSlotObjId[slot] - 1)) {
+                    
+                    if (obj.selectedTab != 3) {
+                        await mouse(648, 185, 1, 100);
+                    }
+                    await sleep(100);
+                    await clickInv(slot, null, 1);
+                    await sleep(200);
+                    // At this point, should have inv item selected
+                    if (obj.objSelected == 0) {
+                        console.log('Dont have an object selected, skipping this item.');
+                        continue;
+                    }
+
+                    let nearestObj = obj.getNearestObject(furnaceId);
+                    if (!nearestObj) {
+                        return false;
+                    }
+                    let a = nearestObj.fullType;
+                    let b = nearestObj.x;
+                    let c = nearestObj.z;
+                    if (obj.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
+                        obj.out.p2(obj.objInterface);
+                        obj.out.p2(obj.objSelectedSlot);
+                        obj.out.p2(obj.objSelectedInterface);
+                    }
+                    obj.objSelected = 0;
+                    obj.spellSelected = 0;
+                    obj.redrawSidebar = true;
+                    // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
+                    await sleep(2500);
+                }
+            }
+            return true;
+        }
+        
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            if (state == 'mining_iron') {
+                while (!this.invFull()) {
+                    let currentIronCount = this.countInvById(ironInvId);
+                    let foundiron = mineNearestIron(this);
+                    if (!foundiron) {
+                        await sleep(200);
+                        continue;
+                    }
+                    for (let i = 0; i < 50; i++) {
+                        if (this.countInvById(ironInvId) != currentIronCount) {
+                            break;
+                        } else {
+                            await sleep(200);
+                        }
+                    }
+                    await sleep(900);
+                }
+                state = 'walk_iron_to_furnace';
+            } else if (state == 'walk_iron_to_furnace') {
+                await this.walkToEndofPath(pathIronToFurnace);
+                await sleep(2000);
+                state = 'smelting';
+            } else if (state == 'smelting') {
+                await useIronOnFurnace(this);
+                await sleep(600);
+                state = 'walk_furnace_to_bank';
+            } else if (state == 'walk_furnace_to_bank') {
+                await this.walkToEndofPath(pathFurnaceToBank);
+                await sleep(2000);
+                state = 'banking';
+            } else if (state == 'banking') {
+                await this.depositAllExcept(bankX, bankZ, [0]);
+                await sleep(2000);
+                await this.walkToEndofPath(pathBankToIron);
+                await sleep(2000);
+                state = 'mining_iron';
             } else {
                 this.addMessage(0, `Invalid state ${state}`, '');
                 console.log(`Invalid state ${state}`);
