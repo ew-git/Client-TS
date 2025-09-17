@@ -568,6 +568,10 @@ export class Client extends GameShell {
         {
             'description': 'Mine iron in Al Kharid and smelt on the way to the bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_mineIronAndSmelt();}
+        },
+        {
+            'description': 'Cut nearby Dead tree and fletch into arrow shafts.',
+            'fn': (obj: Client) => {obj.onF1Pressed_cutAndFletchDeadTree();}
         }
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
@@ -603,22 +607,7 @@ export class Client extends GameShell {
                 // this.logArray.push([globalX, globalZ]);
                 // console.log(JSON.stringify(this.logArray));
 
-                let ironRockIds = [2092, 2093];
-                function mineNearestIron(obj: Client) {
-                    let nearestObj = obj.getNearestObjectFromArray(ironRockIds, 4);
-                    if (!nearestObj) {
-                        return false;
-                    }
-                    let a = nearestObj.fullType;
-                    let b = nearestObj.x;
-                    let c = nearestObj.z;
-                    obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-                    obj.objSelected = 0;
-                    obj.spellSelected = 0;
-                    obj.redrawSidebar = true;
-                    return true;
-                }
-                mineNearestIron(this);
+                this.cutNearestDeadTree()
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -630,7 +619,7 @@ export class Client extends GameShell {
         Client.nodeId = nodeid;
         Client.membersWorld = members;
 
-        if (false) {
+        if (true) {
             Client.setLowMemory();
         } else {
             Client.setHighMemory();
@@ -14957,6 +14946,101 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(pathBankToIron);
                 await sleep(2000);
                 state = 'mining_iron';
+            } else {
+                this.addMessage(0, `Invalid state ${state}`, '');
+                console.log(`Invalid state ${state}`);
+                break;
+            }
+            await sleep(200);
+        }
+    }
+
+    cutNearestDeadTree() {
+        let nearestObj = this.getNearestObjectFromArray([1286], 20);
+        if (!nearestObj) {
+            return false;
+        }
+        let a = nearestObj.fullType;
+        let b = nearestObj.x;
+        let c = nearestObj.z;
+        this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+        return true;
+    }
+
+    async onF1Pressed_cutAndFletchDeadTree() {
+        this.stopLoop = false;
+        let state = 'cutting_trees';
+        let logsInvId = 1511;
+        let knifeInvId = 946;
+
+        async function fletchArrowShafts(obj: Client) {
+            let inv = Component.types[obj.inventoryComponentId];
+            if (!inv || !inv.invSlotObjId) {
+                obj.addMessage?.(0, 'Inventory data not available', '');
+                return false;
+            }
+            let knifeslot = 0;
+            for (let s = 0; s < inv.invSlotObjId.length; s++) {
+                if (knifeInvId == (inv.invSlotObjId[s] - 1)) {
+                    knifeslot = s;
+                    break;
+                }
+            }
+
+            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                if (logsInvId == (inv.invSlotObjId[slot] - 1)) {
+                    
+                    if (obj.selectedTab != 3) {
+                        await mouse(648, 185, 1, 100);
+                    }
+                    await sleep(100);
+                    await clickInv(slot, null, 1);
+                    await sleep(200);
+                    // At this point, should have inv item selected
+                    if (obj.objSelected == 0) {
+                        console.log('Dont have an object selected, skipping this item.');
+                        continue;
+                    }
+
+                    await clickInv(knifeslot, null, 1);
+                    await sleep(700);
+                    await mouse(93, 403, 1, 100);
+
+                    // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
+                    await sleep(700);
+                }
+            }
+            return true;
+        }
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            if (state == 'cutting_trees') {
+                while (!this.invFull()) {
+                    let currentLogCount = this.countInvById(logsInvId);
+                    let foundtree = this.cutNearestDeadTree();
+                    if (!foundtree) {
+                        await sleep(200);
+                        continue;
+                    }
+                    for (let i = 0; i < 50; i++) {
+                        if (this.countInvById(logsInvId) != currentLogCount) {
+                            break;
+                        } else {
+                            await sleep(200);
+                        }
+                    }
+                    await sleep(900);
+                }
+                state = 'fletching';
+            } else if (state == 'fletching') {
+                await sleep(2000); // maybe level up message from cutting tree
+                await fletchArrowShafts(this);
+                await sleep(2000);
+                state = 'cutting_trees';
             } else {
                 this.addMessage(0, `Invalid state ${state}`, '');
                 console.log(`Invalid state ${state}`);
