@@ -14956,7 +14956,7 @@ export class Client extends GameShell {
     }
 
     cutNearestDeadTree() {
-        let nearestObj = this.getNearestObjectFromArray([1286], 20);
+        let nearestObj = this.getNearestObjectFromArray([1286], 10);
         if (!nearestObj) {
             return false;
         }
