@@ -602,12 +602,11 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                // this.logArray.push([globalX, globalZ]);
-                // console.log(JSON.stringify(this.logArray));
+                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                this.logArray.push([globalX, globalZ]);
+                console.log(JSON.stringify(this.logArray));
 
-                this.cutNearestDeadTree()
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -15244,6 +15243,81 @@ export class Client extends GameShell {
                 break;
             }
             await sleep(200);
+        }
+    }
+
+    async onF1Pressed_doWildernessAgility() {
+        this.stopLoop = false;
+        let state = 'lapping';
+
+        let foodInvId = 361;
+
+        // Banker = Gundai (902)
+        let clickToContinueMouseLoc = {x: 220, y: 448}; // click this twice
+        let accessBankMouseLoc = {x: 254, y: 397}; // Click once
+        let bankUpLadderId = 2872;
+        let bankDownLadderId = 2871;
+        // Web id = 733
+        let agilityDoorOutsideId = 2309;
+        let agilityDoorOutsideLoc = {x: 2998, z: 3916};
+        let agilityDoorInsideId = 2307;
+        let agilityDoorInsideLoc = {x: 2998, z: 3931};
+        let pathAgilityDoorOutsideToBankWebOutside = [[2998,3916],[3013,3912],[3029,3921],[3041,3934],[3059,3935],[3075,3943],[3090,3952],[3096,3957]];
+        let betweenWebsLoc = {x: 3094, z: 3957};
+        // Go up fail ladder obj id = 1755
+        let obstaclePipeId_1 = 2288;
+        let ropeSwingId_2 = 2283;
+        let steppingStoneId_3 = 2311;
+        let logBalanceId_4 = 2297;
+        let rocksId_5 = 2328;
+
+        function getAgilitySection(obj: Client) {
+            let globalX = (obj.localPlayer?.routeTileX[0] ?? 0) + obj.sceneBaseTileX;
+            let globalZ = (obj.localPlayer?.routeTileZ[0] ?? 0) + obj.sceneBaseTileZ;
+            if (globalZ <= 3935 && globalZ >= 3931) {
+                return 'upper';
+            } else if (globalZ >= 3936 && globalZ <= 3938 && globalX >= 2999 && globalX <= 3006) {
+                return 'upper';
+            } else if (globalX >= 3003 && globalZ >= 3949 && globalX <= 3008 && globalZ <= 3953) {
+                return 'beforeropeswing';
+            } else if (globalZ >= 10000) {
+                return 'underground';
+            } else if (globalX >= 3002 && globalZ >= 3958 && globalX <= 3007 && globalZ <= 3966) {
+                return 'beforelava';
+            } else if (globalZ >= 3949 || (globalX >= 3001 && globalZ >= 3943 && globalX <= 3002 && globalZ <= 3948)) {
+                return 'beforelog';
+            } else if ((globalX <= 2955 && globalX >= 2988) || (globalZ >= 3937 && globalZ <= 3942)) {
+                return 'beforerocks';
+            } else {
+                return 'invalidagilitylocation';
+            }
+        }
+
+        function isInsideWebNearLadder(obj: Client) {
+            let globalX = (obj.localPlayer?.routeTileX[0] ?? 0) + obj.sceneBaseTileX;
+            let globalZ = (obj.localPlayer?.routeTileZ[0] ?? 0) + obj.sceneBaseTileZ;
+            if (globalX >= 3090 && globalZ >= 3956 && globalX <= 3092 && globalZ <= 3958) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        while (!this.stopLoop) {
+            // check hp and eat if necessary
+            if (state == 'lapping') {
+                // If don't have at least 1 food, then set state == walktobank and continue
+                // Otherwise, do another lap
+            } else if (state == 'banking') {
+
+            } else if (state == 'walktobank') {
+
+            } else if (state == 'walktoagility') {
+
+            } else {
+                console.log(`Invalid state ${state}`);
+                break;
+            }
         }
     }
 }
