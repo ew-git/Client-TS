@@ -546,7 +546,7 @@ export class Client extends GameShell {
             'fn': (obj: Client) => {obj.onF1Pressed_agilityGnomeNetOnly();}
         },
         {
-            'description': 'Kill Chaos Druids in ardy tower. Eats Tuna when low HP and tries to bank.',
+            'description': 'Kill Chaos Druids in ardy tower. Point camera WEST.',
             'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdy();}
         },
         {
@@ -572,6 +572,10 @@ export class Client extends GameShell {
         {
             'description': 'Cut nearby Willow tree and fletch into longbows.',
             'fn': (obj: Client) => {obj.onF1Pressed_cutAndFletchWillowTree();}
+        },
+        {
+            'description': 'Do wilderness agility course. Start in course upper, bring sword',
+            'fn': (obj: Client) => {obj.onF1Pressed_doWildernessAgility();}
         }
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
@@ -602,11 +606,12 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                this.logArray.push([globalX, globalZ]);
-                console.log(JSON.stringify(this.logArray));
+                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                // this.logArray.push([globalX, globalZ]);
+                // console.log(JSON.stringify(this.logArray));
 
+                this.useNearestObjOP1([2311], 20);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -15246,11 +15251,48 @@ export class Client extends GameShell {
         }
     }
 
+    async clickInvById(id: number) {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (id == inv.invSlotObjId[slot] - 1) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await sleep(50);
+                await clickInv(slot, null, 1);
+                await sleep(200);
+                break;
+            }
+        }
+        await sleep(1000);
+    }
+
+    useNearestObjOP1(ids: number[], maxdist: number) {
+        let nearestObj = this.getNearestObjectFromArray(ids, maxdist);
+        if (!nearestObj) {
+            this.addMessage(0, `Failed to find a nearest object of ${ids} within ${maxdist} dist.`, '');
+            return false;
+        }
+        let a = nearestObj.fullType;
+        let b = nearestObj.x;
+        let c = nearestObj.z;
+        this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+        return true;
+    }
+
     async onF1Pressed_doWildernessAgility() {
         this.stopLoop = false;
-        let state = 'lapping';
+        let state = 'startlap';
 
         let foodInvId = 361;
+        let minHP = 50;
 
         // Banker = Gundai (902)
         let clickToContinueMouseLoc = {x: 220, y: 448}; // click this twice
@@ -15264,7 +15306,7 @@ export class Client extends GameShell {
         let agilityDoorInsideLoc = {x: 2998, z: 3931};
         let pathAgilityDoorOutsideToBankWebOutside = [[2998,3916],[3013,3912],[3029,3921],[3041,3934],[3059,3935],[3075,3943],[3090,3952],[3096,3957]];
         let betweenWebsLoc = {x: 3094, z: 3957};
-        // Go up fail ladder obj id = 1755
+        let failLadderId = 1755;
         let obstaclePipeId_1 = 2288;
         let ropeSwingId_2 = 2283;
         let steppingStoneId_3 = 2311;
@@ -15286,7 +15328,7 @@ export class Client extends GameShell {
                 return 'beforelava';
             } else if (globalZ >= 3949 || (globalX >= 3001 && globalZ >= 3943 && globalX <= 3002 && globalZ <= 3948)) {
                 return 'beforelog';
-            } else if ((globalX <= 2955 && globalX >= 2988) || (globalZ >= 3937 && globalZ <= 3942)) {
+            } else if ((globalX <= 2995 && globalX >= 2988) || (globalZ >= 3937 && globalZ <= 3948)) {
                 return 'beforerocks';
             } else {
                 return 'invalidagilitylocation';
@@ -15303,11 +15345,187 @@ export class Client extends GameShell {
             }
         }
 
+        async function useLogBalance(obj: Client) {
+            await obj.walkToEndofPath([[3002, 3945]]);
+            obj.projectFromGroundGlobal(3001, 3945, 0.1);
+            await mouse(obj.projectX, obj.projectY, 2);
+            await sleep(100);
+            if (obj.menuSize > 0) {
+                for (let i = 0; i < obj.menuOption.length; i++) {
+                    const optiontext = obj.menuOption[i];
+                    if (optiontext.startsWith('Walk-across')) {
+                        console.log(`Menu option details for ${obj.menuOption[i]}: ${[obj.menuAction[i], obj.menuParamA[i], obj.menuParamB[i], obj.menuParamC[i]]}`)
+                        obj.useMenuOption(i);
+                        obj.menuVisible = false;
+                        if (obj.menuArea === 1) {
+                            obj.redrawSidebar = true;
+                        } else if (obj.menuArea === 2) {
+                            obj.redrawChatback = true;
+                        }
+                        obj.addMessage(0, 'Used log balance.', '');
+                        await sleep(600);
+                        break;
+                    }
+                }
+            }
+            await sleep(100);
+        }
+
+        async function useRocks(obj: Client) {
+            await obj.walkToEndofPath([[2994, 3937]]);
+            obj.projectFromGroundGlobal(2994, 3936, 0.1);
+            await mouse(obj.projectX, obj.projectY, 2);
+            await sleep(100);
+            if (obj.menuSize > 0) {
+                for (let i = 0; i < obj.menuOption.length; i++) {
+                    const optiontext = obj.menuOption[i];
+                    if (optiontext.startsWith('Climb')) {
+                        console.log(`Menu option details for ${obj.menuOption[i]}: ${[obj.menuAction[i], obj.menuParamA[i], obj.menuParamB[i], obj.menuParamC[i]]}`)
+                        obj.useMenuOption(i);
+                        obj.menuVisible = false;
+                        if (obj.menuArea === 1) {
+                            obj.redrawSidebar = true;
+                        } else if (obj.menuArea === 2) {
+                            obj.redrawChatback = true;
+                        }
+                        obj.addMessage(0, 'Climbed rocks.', '');
+                        await sleep(600);
+                        break;
+                    }
+                }
+            }
+            await sleep(100);
+        }
+
+        async function useSteppingStone(obj: Client) {
+            // go to 3002, 3960
+            await obj.walkToEndofPath([[3002, 3960]]);
+            // click 3001, 3960
+            obj.projectFromGroundGlobal(3001, 3960, 0.1);
+            await mouse(obj.projectX, obj.projectY, 2);
+            await sleep(100);
+            if (obj.menuSize > 0) {
+                for (let i = 0; i < obj.menuOption.length; i++) {
+                    const optiontext = obj.menuOption[i];
+                    if (optiontext.startsWith('Jump')) {
+                        console.log(`Menu option details for ${obj.menuOption[i]}: ${[obj.menuAction[i], obj.menuParamA[i], obj.menuParamB[i], obj.menuParamC[i]]}`)
+                        obj.useMenuOption(i);
+                        obj.menuVisible = false;
+                        if (obj.menuArea === 1) {
+                            obj.redrawSidebar = true;
+                        } else if (obj.menuArea === 2) {
+                            obj.redrawChatback = true;
+                        }
+                        obj.addMessage(0, 'Jumped on stepping stone.', '');
+                        await sleep(600);
+                        break;
+                    }
+                }
+            }
+            await sleep(100);
+        }
+
         while (!this.stopLoop) {
-            // check hp and eat if necessary
-            if (state == 'lapping') {
-                // If don't have at least 1 food, then set state == walktobank and continue
+            await this.handleRunEnergyThrottled(5);
+            await this.clickInventoryThrottled(1);
+            if (this.skillLevel[3] < minHP) {
+                await this.clickInvById(foodInvId);
+                continue; // Restart the outer while loop.
+            }
+            if (state == 'startlap') {
+                // If don't have at least 3 food, then set state == walktobank and continue
+                if (this.countInvById(foodInvId) < 3) {
+                    state = 'walktobank';
+                    this.addMessage(0, 'Out of food, need to bank', '');
+                    continue;
+                }
                 // Otherwise, do another lap
+                this.useNearestObjOP1([obstaclePipeId_1], 20);
+                await sleep(8000);
+                for (let i = 0; i < 30; i++) {
+                    if (getAgilitySection(this) == 'beforeropeswing') {
+                        await sleep(3000);
+                        this.addMessage(0, 'Now before ropeswing, breaking', '');
+                        break;
+                    } else {
+                        await sleep(200);
+                    }
+                }
+
+                this.useNearestObjOP1([ropeSwingId_2], 20);
+                await sleep(5000);
+                for (let i = 0; i < 30; i++) {
+                    if (getAgilitySection(this) == 'underground') {
+                        this.addMessage(0, 'Fell underground, using ladder', '');
+                        this.useNearestObjOP1([failLadderId], 30);
+                        await sleep(8000);
+                        // TODO: to get full credit, need to go to do ropeswing again.
+                        this.addMessage(0, 'Waited 8s after using ladder', '');
+                        continue;
+                    } else if (getAgilitySection(this) == 'beforelava') {
+                        await sleep(3000);
+                        this.addMessage(0, 'Now before lava, breaking', '');
+                        break;
+                    } else {
+                        await sleep(100);
+                    }
+                }
+                this.addMessage(0, 'Just before stepping stone loop', '');
+                // Make this a limited loop because we could fail stepping stones and log crossing multiple times.
+                for (let i = 0; i < 30; i++) {
+                    if (this.skillLevel[3] < minHP) {
+                        await this.clickInvById(foodInvId);
+                    }
+                    if (getAgilitySection(this) == 'beforerocks') {
+                        await sleep(3000);
+                        this.addMessage(0, 'Now before rocks, breaking', '');
+                        break;
+                    }
+                    // this.useNearestObjOP1([steppingStoneId_3], 20);
+                    await useSteppingStone(this);
+                    await sleep(8000);
+                    if (getAgilitySection(this) != 'beforelog') {
+                        // We failed the stepping stones, so try again.
+                        await sleep(2000);
+                        this.addMessage(0, 'We failed the stepping stones, so try again', '');
+                        if (this.skillLevel[3] < minHP) {
+                            await this.clickInvById(foodInvId);
+                        }
+                        continue;
+                    }
+                    // this.useNearestObjOP1([logBalanceId_4], 10000);
+                    await useLogBalance(this);
+                    await sleep(5000);
+                    if (getAgilitySection(this) == 'underground') {
+                        this.addMessage(0, 'Fell underground, using ladder', '');
+                        this.useNearestObjOP1([failLadderId], 30);
+                        await sleep(10000);
+                        this.addMessage(0, 'Waiting 10s after using ladder', '');
+                        continue;
+                    } else if (getAgilitySection(this) == 'beforerocks') {
+                        await sleep(3000);
+                        this.addMessage(0, 'Now before rocks, breaking (2)', '');
+                        break;
+                    } else {
+                        await sleep(5000);
+                        continue;
+                    }
+                }
+                this.addMessage(0, 'Now before rocks, tryingn to climb rocks', '');
+                // Should be able to climb the rocks now.
+                // this.useNearestObjOP1([rocksId_5], 200);
+                await useRocks(this);
+                await sleep(2000);
+                for (let i = 0; i < 30; i++) {
+                    if (getAgilitySection(this) == 'upper') {
+                        await sleep(1700);
+                        this.addMessage(0, 'Now in upper, breaking', '');
+                        break;
+                    } else {
+                        await sleep(200);
+                    }
+                }
+                // After this, should continue the outer while loop.
             } else if (state == 'banking') {
 
             } else if (state == 'walktobank') {
