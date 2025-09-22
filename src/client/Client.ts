@@ -15287,6 +15287,25 @@ export class Client extends GameShell {
         return true;
     }
 
+    async slashNearbyWebs() {
+        let webId = 733;
+        let maxdist = 6;
+        let nearestObj = this.getNearestObjectFromArray([webId], maxdist);
+        if (!nearestObj) {
+            this.addMessage(0, `Failed to find a web within ${maxdist} dist.`, '');
+            return false;
+        }
+        let a = nearestObj.fullType;
+        let b = nearestObj.x;
+        let c = nearestObj.z;
+        this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+        await sleep(700);
+        return true;
+    }
+
     async onF1Pressed_doWildernessAgility() {
         this.stopLoop = false;
         let state = 'startlap';
@@ -15425,6 +15444,19 @@ export class Client extends GameShell {
             await sleep(100);
         }
 
+        function escapeWolves(obj: Client) {
+            if (!obj.localPlayer) {
+                return;
+            }
+            let p = [agilityDoorOutsideLoc.x, agilityDoorOutsideLoc.z];
+            if (obj.localPlayer.routeTileX[0] != p[0] - obj.sceneBaseTileX || obj.localPlayer.routeTileZ[0] != p[1] - obj.sceneBaseTileZ) {
+                obj.addMessage(0, `Trying to escape wolves by moving`, '');
+                obj.tryMove(obj.localPlayer.routeTileX[0], obj.localPlayer.routeTileZ[0], p[0] - obj.sceneBaseTileX, p[1] - obj.sceneBaseTileZ, 0, 0, 0, 0, 0, 0, true)
+            } else {
+                obj.addMessage(0, `Already safe`, '');
+            }
+        }
+
         while (!this.stopLoop) {
             await this.handleRunEnergyThrottled(5);
             await this.clickInventoryThrottled(1);
@@ -15526,9 +15558,42 @@ export class Client extends GameShell {
                     }
                 }
                 // After this, should continue the outer while loop.
-            } else if (state == 'banking') {
-
             } else if (state == 'walktobank') {
+                await this.walkToEndofPath([[agilityDoorInsideLoc.x, agilityDoorInsideLoc.z]]);
+                await sleep(500);
+                await mouse(711, 485, 1, 100); // run tab
+                await sleep(200);
+                await mouse(625, 265, 1, 100); // run on
+                await mouse(648, 185, 1, 100); // back to inventory
+                await sleep(500);
+                await this.tryOpenDoor(agilityDoorInsideLoc.x, agilityDoorInsideLoc.z - 0.5);
+                await sleep(1000);
+                for (let i = 0; i < 100; i++) {
+                    await sleep(500);
+                    if (this.playerIsInBounds([agilityDoorOutsideLoc.x, agilityDoorOutsideLoc.x,
+                        agilityDoorOutsideLoc.z, agilityDoorOutsideLoc.z])) {
+                        break;
+                    } else {
+                        escapeWolves(this);
+                    }
+                }
+                // Should be just outside agility door now.
+                await this.walkToEndofPath(pathAgilityDoorOutsideToBankWebOutside);
+                await sleep(2000);
+                // Try to slash all the nearby webs (avoid mage arena?)
+                for (let i = 0; i < 100; i++) {
+                    let slashed = await this.slashNearbyWebs();
+                    if (!slashed) {
+                        console.log('Breaking out of web slashing loop now.');
+                        break;
+                    }
+                    await sleep(500);
+                }
+
+                this.useNearestObjOP1([bankDownLadderId], 20);
+                await sleep(5000);
+                state = 'banking';
+            } else if (state == 'banking') {
 
             } else if (state == 'walktoagility') {
 
