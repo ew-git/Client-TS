@@ -15352,7 +15352,7 @@ export class Client extends GameShell {
 
     async onF1Pressed_doWildernessAgility() {
         this.stopLoop = false;
-        let state = 'banking';
+        let state = 'startlap';
 
         let foodInvId = 361;
         let minHP = 50;
@@ -15409,6 +15409,7 @@ export class Client extends GameShell {
         }
 
         async function useLogBalance(obj: Client) {
+            obj.menuVisible = false;
             await obj.walkToEndofPath([[3002, 3945]]);
             obj.projectFromGroundGlobal(3001, 3945, 0.1);
             await mouse(obj.projectX, obj.projectY, 2);
@@ -15435,6 +15436,7 @@ export class Client extends GameShell {
         }
 
         async function useRocks(obj: Client) {
+            obj.menuVisible = false;
             await obj.walkToEndofPath([[2994, 3937]]);
             obj.projectFromGroundGlobal(2994, 3936, 0.1);
             await mouse(obj.projectX, obj.projectY, 2);
@@ -15461,6 +15463,7 @@ export class Client extends GameShell {
         }
 
         async function useSteppingStone(obj: Client) {
+            obj.menuVisible = false;
             // go to 3002, 3960
             await obj.walkToEndofPath([[3002, 3960]]);
             // click 3001, 3960
@@ -15536,9 +15539,9 @@ export class Client extends GameShell {
                     if (getAgilitySection(this) == 'underground') {
                         this.addMessage(0, 'Fell underground, using ladder', '');
                         this.useNearestObjOP1([failLadderId], 30);
-                        await sleep(8000);
+                        await sleep(12000);
                         // TODO: to get full credit, need to go to do ropeswing again.
-                        this.addMessage(0, 'Waited 8s after using ladder', '');
+                        this.addMessage(0, 'Waited 12s after using ladder', '');
                         continue;
                     } else if (getAgilitySection(this) == 'beforelava') {
                         await sleep(3000);
@@ -15577,8 +15580,8 @@ export class Client extends GameShell {
                     if (getAgilitySection(this) == 'underground') {
                         this.addMessage(0, 'Fell underground, using ladder', '');
                         this.useNearestObjOP1([failLadderId], 30);
-                        await sleep(10000);
-                        this.addMessage(0, 'Waiting 10s after using ladder', '');
+                        await sleep(15000);
+                        this.addMessage(0, 'Waiting 15s after using ladder', '');
                         continue;
                     } else if (getAgilitySection(this) == 'beforerocks') {
                         await sleep(3000);
@@ -15658,7 +15661,7 @@ export class Client extends GameShell {
                 await sleep(2000);
                 await mouse(accessBankMouseLoc.x, accessBankMouseLoc.y, 1, 100);
                 await sleep(4000);
-                await this.withdrawAllBankById(foodInvId); // TODO: change to all after testing!!!!!!!!!
+                await this.withdrawAllBankById(foodInvId);
                 await sleep(4000);
                 this.useNearestObjOP1([bankUpLadderId], 20);
                 await sleep(7000);
