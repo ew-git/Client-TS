@@ -526,6 +526,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Do wilderness agility course. Start in course upper, bring sword',
+            'fn': (obj: Client) => {obj.onF1Pressed_doWildernessAgility();}
+        },
+        {
             'description': 'Cook Tuna and Swordfish in Catherby',
             'fn': (obj: Client) => {obj.onF1Pressed_cookCatherby([359, 371]);}
         },
@@ -573,10 +577,6 @@ export class Client extends GameShell {
             'description': 'Cut nearby Willow tree and fletch into longbows.',
             'fn': (obj: Client) => {obj.onF1Pressed_cutAndFletchWillowTree();}
         },
-        {
-            'description': 'Do wilderness agility course. Start in course upper, bring sword',
-            'fn': (obj: Client) => {obj.onF1Pressed_doWildernessAgility();}
-        }
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
     private rareTableIds = [1623,1621,1619,1617,830,985,987,1452,1462, 1247, 2366, 1249];
@@ -13637,6 +13637,49 @@ export class Client extends GameShell {
         await sleep(200);
     }
 
+    async op1NearestNPC(needle: string) {
+        let nearestNPC = this.getNearestNPC(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npcs[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], npc.routeTileX[0], npc.routeTileZ[0], 2, 1, 1, 0, 0, 0, false);
+                let action = 728;
+                if (action === 963) {
+                    this.out.p1isaac(ClientProt.OPNPC4);
+                } else if (action === 6) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic2++;
+                    }
+
+                    if (Client.oplogic2 >= 124) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC2);
+                        this.out.p4(0);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC3);
+                } else if (action === 245) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic4++;
+                    }
+
+                    if (Client.oplogic4 >= 85) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC4);
+                        this.out.p2(39596);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC5);
+                } else if (action === 728) {
+                    this.out.p1isaac(ClientProt.OPNPC1);
+                } else if (action === 542) {
+                    this.out.p1isaac(ClientProt.OPNPC2);
+                }
+                this.out.p2(a);
+            }
+        }
+        await sleep(200);
+    }
+
     async onF1Pressed_thieveKnightNoRandoms() {
         // Start in south ardy bank with full inv of food and 1 coin placeholder.
         this.stopLoop = false;
@@ -14174,7 +14217,7 @@ export class Client extends GameShell {
 
     async findAndUseNearestNPC(npcNameNeedle: string, menuTextPrefix: string) {
         if (!this.localPlayer) {
-            return;
+            return false;
         }
         // Find the closest target NPC to (playerMouseX, playerMouseY)
         let closestDist = Number.POSITIVE_INFINITY;
@@ -14218,6 +14261,7 @@ export class Client extends GameShell {
                     }
                 }
             }
+            return true;
         } else {
             // No closest NPC, so try to move to the nearest by tile location
             let closestLocalNPC = this.getNearestNPC(npcNameNeedle);
@@ -14227,8 +14271,8 @@ export class Client extends GameShell {
             while (this.localPlayer?.routeLength !== 0) {
                 await new Promise(resolve => setTimeout(resolve, 300));
             }
+            return false;
         }
-        await sleep(2000);
     }
 
     async onF1Pressed_mineAndDropRuneEssence() {
@@ -15308,7 +15352,7 @@ export class Client extends GameShell {
 
     async onF1Pressed_doWildernessAgility() {
         this.stopLoop = false;
-        let state = 'startlap';
+        let state = 'banking';
 
         let foodInvId = 361;
         let minHP = 50;
@@ -15462,7 +15506,9 @@ export class Client extends GameShell {
             await this.clickInventoryThrottled(1);
             if (this.skillLevel[3] < minHP) {
                 await this.clickInvById(foodInvId);
-                continue; // Restart the outer while loop.
+                if (this.countInvById(foodInvId) != 0) {
+                    continue; // Restart the outer while loop.
+                }
             }
             if (state == 'startlap') {
                 // If don't have at least 3 food, then set state == walktobank and continue
@@ -15594,9 +15640,58 @@ export class Client extends GameShell {
                 await sleep(5000);
                 state = 'banking';
             } else if (state == 'banking') {
-
+                await this.op1NearestNPC('Gundai');
+                // let clickedBanker = await this.findAndUseNearestNPC('Gundai', 'Talk');
+                // for (let i = 0; i < 10; i++) {
+                //     if (clickedBanker) {
+                //         await sleep(5000);
+                //         break;
+                //     } else {
+                //         await sleep(2000);
+                //         clickedBanker = await this.findAndUseNearestNPC('Gundai', 'Talk');
+                //     }
+                // }
+                await sleep(10000);
+                await mouse(clickToContinueMouseLoc.x, clickToContinueMouseLoc.y, 1, 100);
+                await sleep(2000);
+                await mouse(clickToContinueMouseLoc.x, clickToContinueMouseLoc.y, 1, 100);
+                await sleep(2000);
+                await mouse(accessBankMouseLoc.x, accessBankMouseLoc.y, 1, 100);
+                await sleep(4000);
+                await this.withdrawAllBankById(foodInvId); // TODO: change to all after testing!!!!!!!!!
+                await sleep(4000);
+                this.useNearestObjOP1([bankUpLadderId], 20);
+                await sleep(7000);
+                state = 'walktoagility';
             } else if (state == 'walktoagility') {
-
+                // Try to slash all the nearby webs (avoid mage arena?)
+                for (let i = 0; i < 100; i++) {
+                    let slashed = await this.slashNearbyWebs();
+                    if (!slashed) {
+                        console.log('Breaking out of web slashing loop now.');
+                        break;
+                    }
+                    await sleep(500);
+                }
+                await this.walkToEndofPath(pathAgilityDoorOutsideToBankWebOutside.toReversed());
+                await sleep(4000);
+                // Try to get into the arena.
+                await sleep(500);
+                await this.tryOpenDoor(agilityDoorOutsideLoc.x, agilityDoorOutsideLoc.z + 0.5);
+                await sleep(1000);
+                for (let i = 0; i < 50; i++) {
+                    await sleep(500);
+                    if (this.playerIsInBounds([agilityDoorInsideLoc.x, agilityDoorInsideLoc.x,
+                        agilityDoorInsideLoc.z, agilityDoorInsideLoc.z])) {
+                        break;
+                    } else {
+                        escapeWolves(this);
+                        await sleep(700);
+                        await this.tryOpenDoor(agilityDoorOutsideLoc.x, agilityDoorOutsideLoc.z + 0.5);
+                    }
+                }
+                await sleep(2000);
+                state = 'startlap';
             } else {
                 console.log(`Invalid state ${state}`);
                 break;
