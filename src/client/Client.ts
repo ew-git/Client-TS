@@ -15352,7 +15352,11 @@ export class Client extends GameShell {
 
     async onF1Pressed_doWildernessAgility() {
         this.stopLoop = false;
+        let bankBounds = [2529, 2546, 4711, 4722];
         let state = 'startlap';
+        if (this.playerIsInBounds(bankBounds)) {
+            state = 'banking';
+        }
 
         let foodInvId = 361;
         let minHP = 50;
@@ -15505,7 +15509,7 @@ export class Client extends GameShell {
         }
 
         while (!this.stopLoop) {
-            await this.handleRunEnergyThrottled(5);
+            await this.handleRunEnergyThrottled(3);
             await this.clickInventoryThrottled(1);
             if (this.skillLevel[3] < minHP) {
                 await this.clickInvById(foodInvId);
@@ -15641,7 +15645,9 @@ export class Client extends GameShell {
 
                 this.useNearestObjOP1([bankDownLadderId], 20);
                 await sleep(5000);
-                state = 'banking';
+                if (this.playerIsInBounds(bankBounds)) {
+                    state = 'banking';
+                }
             } else if (state == 'banking') {
                 await this.op1NearestNPC('Gundai');
                 // let clickedBanker = await this.findAndUseNearestNPC('Gundai', 'Talk');
@@ -15665,10 +15671,12 @@ export class Client extends GameShell {
                 await sleep(4000);
                 this.useNearestObjOP1([bankUpLadderId], 20);
                 await sleep(7000);
-                state = 'walktoagility';
+                if (!this.playerIsInBounds(bankBounds)) {
+                    state = 'walktoagility';
+                }
             } else if (state == 'walktoagility') {
                 // Try to slash all the nearby webs (avoid mage arena?)
-                for (let i = 0; i < 100; i++) {
+                for (let i = 0; i < 200; i++) {
                     let slashed = await this.slashNearbyWebs();
                     if (!slashed) {
                         console.log('Breaking out of web slashing loop now.');
@@ -15694,7 +15702,9 @@ export class Client extends GameShell {
                     }
                 }
                 await sleep(2000);
-                state = 'startlap';
+                if (getAgilitySection(this) == 'upper') {
+                    state = 'startlap';
+                }
             } else {
                 console.log(`Invalid state ${state}`);
                 break;
