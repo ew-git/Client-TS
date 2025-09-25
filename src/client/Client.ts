@@ -15518,6 +15518,7 @@ export class Client extends GameShell {
                 }
             }
             if (state == 'startlap') {
+                console.log('Doing startlap');
                 // If don't have at least 3 food, then set state == walktobank and continue
                 if (this.countInvById(foodInvId) < 3) {
                     state = 'walktobank';
@@ -15612,6 +15613,7 @@ export class Client extends GameShell {
                 }
                 // After this, should continue the outer while loop.
             } else if (state == 'walktobank') {
+                console.log('Doing walktobank');
                 await this.walkToEndofPath([[agilityDoorInsideLoc.x, agilityDoorInsideLoc.z]]);
                 await sleep(500);
                 await mouse(711, 485, 1, 100); // run tab
@@ -15649,6 +15651,7 @@ export class Client extends GameShell {
                     state = 'banking';
                 }
             } else if (state == 'banking') {
+                console.log('Doing banking');
                 await this.op1NearestNPC('Gundai');
                 // let clickedBanker = await this.findAndUseNearestNPC('Gundai', 'Talk');
                 // for (let i = 0; i < 10; i++) {
@@ -15675,6 +15678,7 @@ export class Client extends GameShell {
                     state = 'walktoagility';
                 }
             } else if (state == 'walktoagility') {
+                console.log('Doing walktoagility');
                 // Try to slash all the nearby webs (avoid mage arena?)
                 for (let i = 0; i < 200; i++) {
                     let slashed = await this.slashNearbyWebs();
