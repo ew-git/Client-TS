@@ -14333,8 +14333,6 @@ export class Client extends GameShell {
 
         while (!this.stopLoop) {
             if (state == 'mining') {
-                await this.handleRunEnergyThrottled(5);
-                await this.clickInventoryThrottled(1);
                 if (this.invFull()) {
                     useNearestPortal(this);
                     console.log('Used portal, now waiting for close to shop.');
@@ -14344,32 +14342,39 @@ export class Client extends GameShell {
                     }
                     state = 'banking';
                     continue;
+                } else if (this.localPlayer?.primarySeqId == -1) {
+                    console.log('Player is idle, try mining then wait a bit')
+                    let mined = mineNearestEssence(this);
+                    if (!mined) {
+                        console.log('Failed to mine essence, waiting 10s.');
+                        await sleep(10000);
+                        continue;
+                    } else {
+                        console.log('Started mining, waiting for 1s.');
+                        await sleep(1000);
+                    }
                 }
-                console.log('Try mining essence.');
-                let mined = mineNearestEssence(this);
-                if (!mined) {
-                    console.log('Failed to mine essence.');
-                    await sleep(10000);
+                if (this.invFull()) {
+                    await sleep(1000);
                     continue;
                 }
-                await sleep(20000);
-                if (this.invFull()) {continue;}
-                await sleep(20000);
             } else if (state == 'banking') {
+                await this.handleRunEnergyThrottled(5);
+                await this.clickInventoryThrottled(1);
                 await this.walkToEndofPath(shopToBankPath);
                 await sleep(2000);
                 await this.depositAllExcept(bankX, bankZ, [0]);
                 await sleep(1800);
                 await this.walkToEndofPath(bankToShopPath);
-                await sleep(2000);
+                await sleep(1000);
                 // Find and click Teleport on Aubury
                 await this.findAndUseNearestNPC('Aubury', 'Teleport');
-                await sleep(2000);
+                await sleep(1400);
                 state = 'mining';
             } else {
                 console.log('Invalid state');
             }
-            await sleep(5000);
+            await sleep(1000);
         }
     }
 
