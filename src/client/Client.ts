@@ -555,11 +555,15 @@ export class Client extends GameShell {
         },
         {
             'description': 'Mine and bank rune essence in Varrock.',
-            'fn': (obj: Client) => {obj.onF1Pressed_mineAndDropRuneEssence();}
+            'fn': (obj: Client) => {obj.onF1Pressed_mineRuneEssence();}
         },
         {
             'description': 'Craft air runes from Falador bank',
             'fn': (obj: Client) => {obj.onF1Pressed_airRunecraft();}
+        },
+        {
+            'description': 'Craft mind runes. Start in Edgeville bank. TRIGGER WILDERNESS WARNING FIRST!',
+            'fn': (obj: Client) => {obj.onF1Pressed_mindRunecraft();}
         },
         {
             'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
@@ -606,12 +610,12 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                // this.logArray.push([globalX, globalZ]);
-                // console.log(JSON.stringify(this.logArray));
+                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                this.logArray.push([globalX, globalZ]);
+                console.log(JSON.stringify(this.logArray));
 
-                this.useNearestObjOP1([2311], 20);
+                // this.useNearestObjOP1([2311], 20);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -14275,7 +14279,7 @@ export class Client extends GameShell {
         }
     }
 
-    async onF1Pressed_mineAndDropRuneEssence() {
+    async onF1Pressed_mineRuneEssence() {
         this.stopLoop = false;
         let runeEssenceWorldObjId = 2491;
         let portalWorldObjId = 2492;
@@ -14531,6 +14535,104 @@ export class Client extends GameShell {
             //     await sleep(1000);
             //     if (distToAltar(this) > 20) {break;}
             // }
+
+            // Back to bank
+            await this.walkToEndofPath(ruinsToBankPath);
+        }
+    }
+    async onF1Pressed_mindRunecraft() {
+        this.stopLoop = false;
+        let ITEM_MIND_TALISMAN = 1448, // item air talisman
+            ITEM_RUNE_ESSENCE = 1436, // item rune essence
+            // LOC_AIR_RUINS = 2452, // world obj air ruins
+            LOC_MIND_ALTAR = 2479, // world obj air alter
+            LOC_MIND_PORTAL = 2466; // world obj air portal
+
+        let bankToRuinsPath = [
+            [3096, 3494], [3087, 3509], [3075, 3522], [3061, 3531],
+            [3045, 3535], [3030, 3541], [3013, 3546], [2997, 3542],
+            [2983, 3531], [2983, 3516]
+        ];
+        let ruinsToBankPath = bankToRuinsPath.toReversed();
+        let bankX = 3096;
+        let bankZ = 3493;
+        let ruinsX = 2982;
+        let ruinsZ = 3515;
+        let altarX = 2787;
+        let altarZ = 4839;
+
+        function useNearestAltar(obj: Client) {
+            let nearestEssObj = obj.getNearestObject(LOC_MIND_ALTAR);
+            if (!nearestEssObj) {
+                return false;
+            }
+            let a = nearestEssObj.fullType;
+            let b = nearestEssObj.x;
+            let c = nearestEssObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+
+        function useNearestPortal(obj: Client) {
+            let nearestObj = obj.getNearestObject(LOC_MIND_PORTAL);
+            if (!nearestObj) {
+                return false;
+            }
+            let a = nearestObj.fullType;
+            let b = nearestObj.x;
+            let c = nearestObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+
+        function distToAltar(obj: Client) {
+            let globalX = (obj.localPlayer?.routeTileX[0] ?? 0) + obj.sceneBaseTileX;
+            let globalZ = (obj.localPlayer?.routeTileZ[0] ?? 0) + obj.sceneBaseTileZ;
+            return obj.manhattanDist(globalX, globalZ, altarX, altarZ);
+        }
+
+        while (!this.stopLoop) {
+            // start in bank, have talisman already in inventory
+            await this.handleRunEnergyThrottled(2);
+            await this.clickInventoryThrottled(1);
+            await this.walkToEndofPath(ruinsToBankPath);
+            await sleep(2000);
+            await this.depositAllExcept(bankX, bankZ, [ITEM_MIND_TALISMAN]);
+            await sleep(1800);
+            await this.withdrawAllBankById(ITEM_RUNE_ESSENCE);
+            await sleep(1000);
+            await this.walkToEndofPath(bankToRuinsPath);
+            await sleep(2000);
+
+            // Should be just outside altar now. Need to use talisman on it.
+            await this.useTalismanOnRuins(ruinsX, ruinsZ, ITEM_MIND_TALISMAN);
+            await sleep(700);
+            for (let i = 0; i < 20; i++) {
+                await sleep(1000);
+                if (distToAltar(this) < 20) {break;}
+            }
+            await sleep(700);
+
+            // Should be just inside altar now. Need to interact with it.
+            useNearestAltar(this);
+            await sleep(1000);
+            for (let i = 0; i < 20; i++) {
+                await sleep(1000);
+                if (!this.invFull()) {break;} // not full means we crafted, can exit
+            }
+            await sleep(700);
+            useNearestPortal(this);
+            for (let i = 0; i < 10; i++) {
+                await sleep(1000);
+                useNearestPortal(this);
+                if (distToAltar(this) > 20) {break;}
+            }
 
             // Back to bank
             await this.walkToEndofPath(ruinsToBankPath);
