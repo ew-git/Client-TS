@@ -574,8 +574,8 @@ export class Client extends GameShell {
             'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
         },
         {
-            'description': 'Mine iron in Al Kharid and smelt on the way to the bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_mineIronAndSmelt();}
+            'description': 'Mine iron and more in Al Kharid. Start IN BANK.',
+            'fn': (obj: Client) => {obj.onF1Pressed_mineAllAlKharid();}
         },
         {
             'description': 'Cut nearby Willow tree and fletch into longbows.',
@@ -15112,8 +15112,13 @@ export class Client extends GameShell {
 
     async onF1Pressed_mineAllAlKharid() {
         this.stopLoop = false;
-        let state = 'mining'
+        let state = 'banking';
         let ironInvId = 440;
+        let goldInvId = 444;
+        let silverInvId = 442;
+        let coalInvId = 453;
+        let mithrilInvId = 447;
+        let addyInvId = 449;
         let pathIronToFurnace = [[3295,3310],[3301,3298],[3299,3282],[3294,3268],[3291,3253],[3288,3238],[3280,3226],[3282,3210],[3283,3194],[3275,3186]];
         let pathFurnaceToBank = [[3275,3186],[3275,3170],[3269,3167]];
         let bankX = 3268;
@@ -15192,11 +15197,87 @@ export class Client extends GameShell {
             return true;
         }
 
+        async function waitUntilGotOre(obj: Client, invId: number, currentCount: number) {
+            for (let i = 0; i < 300; i++) {
+                if (obj.countInvById(ironInvId) != currentCount) {
+                    break;
+                } else {
+                    await sleep(200);
+                }
+            }
+        }
+
         // TODO: create a wait_until_got_ore function.
         // Do one by one steps, then end with while not inv full mine iron.
         
         while (!this.stopLoop) {
+            let tempOreCount = 0;
             if (state == 'mining') {
+                // 2 gold
+                for (let i = 0; i < 2; i++) {
+                    tempOreCount = this.countInvById(goldInvId);
+                    mineNearestIds(this, goldRockIds, 5);
+                    await waitUntilGotOre(this, goldInvId, tempOreCount);
+                    await sleep(700);
+                }
+
+                // 3 silver
+                await this.walkToEndofPath(pathGoldToSilver);
+                for (let i = 0; i < 3; i++) {
+                    tempOreCount = this.countInvById(silverInvId);
+                    mineNearestIds(this, silverRockIds, 5);
+                    await waitUntilGotOre(this, silverInvId, tempOreCount);
+                    await sleep(700);
+                }
+
+                // 2 coal
+                await this.walkToEndofPath(pathSilverToCoalSouth);
+                for (let i = 0; i < 3; i++) {
+                    tempOreCount = this.countInvById(coalInvId);
+                    mineNearestIds(this, coalRockIds, 5);
+                    await waitUntilGotOre(this, coalInvId, tempOreCount);
+                    await sleep(700);
+                }
+
+                // 2 mith
+                await this.walkToEndofPath(pathCoalToMithril);
+                for (let i = 0; i < 3; i++) {
+                    tempOreCount = this.countInvById(mithrilInvId);
+                    mineNearestIds(this, mithrilRockIds, 5);
+                    await waitUntilGotOre(this, mithrilInvId, tempOreCount);
+                    await sleep(700);
+                }
+
+                // 2 silver
+                await this.walkToEndofPath(pathMithrilToSilver);
+                for (let i = 0; i < 3; i++) {
+                    tempOreCount = this.countInvById(silverInvId);
+                    mineNearestIds(this, silverRockIds, 5);
+                    await waitUntilGotOre(this, silverInvId, tempOreCount);
+                    await sleep(700);
+                }
+
+                // 1 coal
+                await this.walkToEndofPath(pathSilverToCoalNorth);
+                for (let i = 0; i < 3; i++) {
+                    tempOreCount = this.countInvById(coalInvId);
+                    mineNearestIds(this, coalRockIds, 5);
+                    await waitUntilGotOre(this, coalInvId, tempOreCount);
+                    await sleep(700);
+                }
+
+                // 2 addy
+                for (let i = 0; i < 3; i++) {
+                    tempOreCount = this.countInvById(addyInvId);
+                    mineNearestIds(this, addyRockIds, 5);
+                    await waitUntilGotOre(this, addyInvId, tempOreCount);
+                    await sleep(700);
+                }
+
+                await this.walkToEndofPath(pathAddyToIron);
+                await sleep(700);
+
+
                 while (!this.invFull()) {
                     let currentIronCount = this.countInvById(ironInvId);
                     let foundiron = mineNearestIds(this, ironRockIds, 4);
