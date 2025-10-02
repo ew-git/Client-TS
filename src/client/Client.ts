@@ -15063,8 +15063,6 @@ export class Client extends GameShell {
         }
         
         while (!this.stopLoop) {
-            await this.handleRunEnergyThrottled(5);
-            await this.clickInventoryThrottled(1);
             if (state == 'mining_iron') {
                 while (!this.invFull()) {
                     let currentIronCount = this.countInvById(ironInvId);
@@ -15094,6 +15092,8 @@ export class Client extends GameShell {
             } else if (state == 'walk_furnace_to_bank') {
                 await this.walkToEndofPath(pathFurnaceToBank);
                 await sleep(2000);
+                await this.handleRunEnergyThrottled(1);
+                await this.clickInventoryThrottled(1);
                 state = 'banking';
             } else if (state == 'banking') {
                 await this.depositAllExcept(bankX, bankZ, [0]);
@@ -15101,6 +15101,139 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(pathBankToIron);
                 await sleep(2000);
                 state = 'mining_iron';
+            } else {
+                this.addMessage(0, `Invalid state ${state}`, '');
+                console.log(`Invalid state ${state}`);
+                break;
+            }
+            await sleep(200);
+        }
+    }
+
+    async onF1Pressed_mineAllAlKharid() {
+        this.stopLoop = false;
+        let state = 'mining'
+        let ironInvId = 440;
+        let pathIronToFurnace = [[3295,3310],[3301,3298],[3299,3282],[3294,3268],[3291,3253],[3288,3238],[3280,3226],[3282,3210],[3283,3194],[3275,3186]];
+        let pathFurnaceToBank = [[3275,3186],[3275,3170],[3269,3167]];
+        let bankX = 3268;
+        let bankZ = 3167;
+        let pathBankToGold = [[3269,3167],[3280,3181],[3284,3213],[3282,3231],[3291,3246],[3295,3267],[3296,3279], [3295, 3287]];
+        let pathGoldToSilver = [[3294, 3300]];
+        let pathSilverToCoalSouth = [[3303, 3300]];
+        let pathCoalToMithril = [[3304, 3304]];
+        let pathMithrilToSilver = [[3302, 3313]];
+        let pathSilverToCoalNorth = [[3301, 3317]];
+        let pathAddyToIron = [[3295, 3310]];
+        let furnaceId = 2781;
+        let ironRockIds = [2092, 2093];
+        let goldRockIds = [2099, 2098];
+        let silverRockIds = [2100, 2101];
+        let coalRockIds = [2096, 2097];
+        let mithrilRockIds = [2102, 2103];
+        let addyRockIds = [2105, 2104];
+
+        function mineNearestIds(obj: Client, ids: number[], maxdist: number) {
+            let nearestObj = obj.getNearestObjectFromArray(ids, maxdist);
+            if (!nearestObj) {
+                return false;
+            }
+            let a = nearestObj.fullType;
+            let b = nearestObj.x;
+            let c = nearestObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+
+        async function useIronOnFurnace(obj: Client) {
+            let inv = Component.types[obj.inventoryComponentId];
+            if (!inv || !inv.invSlotObjId) {
+                obj.addMessage?.(0, 'Inventory data not available', '');
+                return false;
+            }
+
+            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                if (ironInvId == (inv.invSlotObjId[slot] - 1)) {
+                    
+                    if (obj.selectedTab != 3) {
+                        await mouse(648, 185, 1, 100);
+                    }
+                    await sleep(100);
+                    await clickInv(slot, null, 1);
+                    await sleep(200);
+                    // At this point, should have inv item selected
+                    if (obj.objSelected == 0) {
+                        console.log('Dont have an object selected, skipping this item.');
+                        continue;
+                    }
+
+                    let nearestObj = obj.getNearestObject(furnaceId);
+                    if (!nearestObj) {
+                        return false;
+                    }
+                    let a = nearestObj.fullType;
+                    let b = nearestObj.x;
+                    let c = nearestObj.z;
+                    if (obj.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
+                        obj.out.p2(obj.objInterface);
+                        obj.out.p2(obj.objSelectedSlot);
+                        obj.out.p2(obj.objSelectedInterface);
+                    }
+                    obj.objSelected = 0;
+                    obj.spellSelected = 0;
+                    obj.redrawSidebar = true;
+                    // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
+                    await sleep(2500);
+                }
+            }
+            return true;
+        }
+
+        // TODO: create a wait_until_got_ore function.
+        // Do one by one steps, then end with while not inv full mine iron.
+        
+        while (!this.stopLoop) {
+            if (state == 'mining') {
+                while (!this.invFull()) {
+                    let currentIronCount = this.countInvById(ironInvId);
+                    let foundiron = mineNearestIds(this, ironRockIds, 4);
+                    if (!foundiron) {
+                        await sleep(200);
+                        continue;
+                    }
+                    for (let i = 0; i < 50; i++) {
+                        if (this.countInvById(ironInvId) != currentIronCount) {
+                            break;
+                        } else {
+                            await sleep(200);
+                        }
+                    }
+                    await sleep(900);
+                }
+                state = 'walk_iron_to_furnace';
+            } else if (state == 'walk_iron_to_furnace') {
+                await this.walkToEndofPath(pathIronToFurnace);
+                await sleep(2000);
+                state = 'smelting';
+            } else if (state == 'smelting') {
+                await useIronOnFurnace(this);
+                await sleep(600);
+                state = 'walk_furnace_to_bank';
+            } else if (state == 'walk_furnace_to_bank') {
+                await this.walkToEndofPath(pathFurnaceToBank);
+                await sleep(2000);
+                await this.handleRunEnergyThrottled(1);
+                await this.clickInventoryThrottled(1);
+                state = 'banking';
+            } else if (state == 'banking') {
+                await this.depositAllExcept(bankX, bankZ, [0]);
+                await sleep(2000);
+                await this.walkToEndofPath(pathBankToGold);
+                await sleep(2000);
+                state = 'mining';
             } else {
                 this.addMessage(0, `Invalid state ${state}`, '');
                 console.log(`Invalid state ${state}`);
