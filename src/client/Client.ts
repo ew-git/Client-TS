@@ -15137,6 +15137,7 @@ export class Client extends GameShell {
         let coalRockIds = [2096, 2097];
         let mithrilRockIds = [2102, 2103];
         let addyRockIds = [2105, 2104];
+        let verbose = true;
 
         function mineNearestIds(obj: Client, ids: number[], maxdist: number) {
             let nearestObj = obj.getNearestObjectFromArray(ids, maxdist);
@@ -15198,8 +15199,9 @@ export class Client extends GameShell {
         }
 
         async function waitUntilGotOre(obj: Client, invId: number, currentCount: number) {
+            await sleep(200);
             for (let i = 0; i < 300; i++) {
-                if (obj.countInvById(ironInvId) != currentCount) {
+                if (obj.countInvById(invId) != currentCount) {
                     break;
                 } else {
                     await sleep(200);
@@ -15216,6 +15218,7 @@ export class Client extends GameShell {
                 // 2 gold
                 for (let i = 0; i < 2; i++) {
                     tempOreCount = this.countInvById(goldInvId);
+                    if (verbose) {console.log(`gold loop ${i}; ore cnt = ${tempOreCount}`)};
                     mineNearestIds(this, goldRockIds, 5);
                     await waitUntilGotOre(this, goldInvId, tempOreCount);
                     await sleep(700);
@@ -15225,6 +15228,7 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(pathGoldToSilver);
                 for (let i = 0; i < 3; i++) {
                     tempOreCount = this.countInvById(silverInvId);
+                    if (verbose) {console.log(`silver loop ${i}; ore cnt = ${tempOreCount}`)};
                     mineNearestIds(this, silverRockIds, 5);
                     await waitUntilGotOre(this, silverInvId, tempOreCount);
                     await sleep(700);
@@ -15232,8 +15236,9 @@ export class Client extends GameShell {
 
                 // 2 coal
                 await this.walkToEndofPath(pathSilverToCoalSouth);
-                for (let i = 0; i < 3; i++) {
+                for (let i = 0; i < 2; i++) {
                     tempOreCount = this.countInvById(coalInvId);
+                    if (verbose) {console.log(`coal loop ${i}; ore cnt = ${tempOreCount}`)};
                     mineNearestIds(this, coalRockIds, 5);
                     await waitUntilGotOre(this, coalInvId, tempOreCount);
                     await sleep(700);
@@ -15241,8 +15246,9 @@ export class Client extends GameShell {
 
                 // 2 mith
                 await this.walkToEndofPath(pathCoalToMithril);
-                for (let i = 0; i < 3; i++) {
+                for (let i = 0; i < 2; i++) {
                     tempOreCount = this.countInvById(mithrilInvId);
+                    if (verbose) {console.log(`mithril loop ${i}; ore cnt = ${tempOreCount}`)};
                     mineNearestIds(this, mithrilRockIds, 5);
                     await waitUntilGotOre(this, mithrilInvId, tempOreCount);
                     await sleep(700);
@@ -15250,8 +15256,9 @@ export class Client extends GameShell {
 
                 // 2 silver
                 await this.walkToEndofPath(pathMithrilToSilver);
-                for (let i = 0; i < 3; i++) {
+                for (let i = 0; i < 2; i++) {
                     tempOreCount = this.countInvById(silverInvId);
+                    if (verbose) {console.log(`silver loop ${i}; ore cnt = ${tempOreCount}`)};
                     mineNearestIds(this, silverRockIds, 5);
                     await waitUntilGotOre(this, silverInvId, tempOreCount);
                     await sleep(700);
@@ -15259,17 +15266,20 @@ export class Client extends GameShell {
 
                 // 1 coal
                 await this.walkToEndofPath(pathSilverToCoalNorth);
-                for (let i = 0; i < 3; i++) {
+                for (let i = 0; i < 1; i++) {
                     tempOreCount = this.countInvById(coalInvId);
+                    if (verbose) {console.log(`coal loop ${i}; ore cnt = ${tempOreCount}`)};
                     mineNearestIds(this, coalRockIds, 5);
                     await waitUntilGotOre(this, coalInvId, tempOreCount);
                     await sleep(700);
                 }
 
                 // 2 addy
-                for (let i = 0; i < 3; i++) {
+                for (let i = 0; i < 2; i++) {
                     tempOreCount = this.countInvById(addyInvId);
-                    mineNearestIds(this, addyRockIds, 5);
+                    if (verbose) {console.log(`addy loop ${i}; ore cnt = ${tempOreCount}`)};
+                    let addyExists = mineNearestIds(this, addyRockIds, 5);
+                    if (!addyExists) {break;}
                     await waitUntilGotOre(this, addyInvId, tempOreCount);
                     await sleep(700);
                 }
