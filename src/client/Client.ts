@@ -526,6 +526,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Mine iron and more in Al Kharid. Start IN BANK or GOLD.',
+            'fn': (obj: Client) => {obj.onF1Pressed_mineAllAlKharid();}
+        },
+        {
             'description': 'Do wilderness agility course. Start in course upper, bring sword',
             'fn': (obj: Client) => {obj.onF1Pressed_doWildernessAgility();}
         },
@@ -572,10 +576,6 @@ export class Client extends GameShell {
         {
             'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX. POINT CAMERA WEST FOR DOOR.',
             'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
-        },
-        {
-            'description': 'Mine iron and more in Al Kharid. Start IN BANK.',
-            'fn': (obj: Client) => {obj.onF1Pressed_mineAllAlKharid();}
         },
         {
             'description': 'Cut nearby Willow tree and fletch into longbows.',
@@ -15113,6 +15113,10 @@ export class Client extends GameShell {
     async onF1Pressed_mineAllAlKharid() {
         this.stopLoop = false;
         let state = 'banking';
+        if (((this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ) > 3280) {
+            // We're already in the mine, so start with mining (near gold)
+            state = 'mining';
+        }
         let ironInvId = 440;
         let goldInvId = 444;
         let silverInvId = 442;
@@ -15209,8 +15213,20 @@ export class Client extends GameShell {
             }
         }
 
-        // TODO: create a wait_until_got_ore function.
-        // Do one by one steps, then end with while not inv full mine iron.
+        async function ensureEndOfPath(obj: Client, path: number[][]) {
+            let globalX = (obj.localPlayer?.routeTileX[0] ?? 0) + obj.sceneBaseTileX;
+            let globalZ = (obj.localPlayer?.routeTileZ[0] ?? 0) + obj.sceneBaseTileZ;
+            let endOfPath = path.at(-1);
+            if (!endOfPath) {
+                return false;
+            }
+            if (globalX != endOfPath[0] || globalZ !+ endOfPath[1]) {
+                console.log("Didn't reach the end of the path. Trying again.");
+                obj.walkToEndofPath(path);
+                await sleep(2000);
+            }
+            return true;
+        }
         
         while (!this.stopLoop) {
             let tempOreCount = 0;
@@ -15285,6 +15301,7 @@ export class Client extends GameShell {
                 }
 
                 await this.walkToEndofPath(pathAddyToIron);
+                await ensureEndOfPath(this, pathAddyToIron);
                 await sleep(700);
 
 
@@ -15307,6 +15324,7 @@ export class Client extends GameShell {
                 state = 'walk_iron_to_furnace';
             } else if (state == 'walk_iron_to_furnace') {
                 await this.walkToEndofPath(pathIronToFurnace);
+                await ensureEndOfPath(this, pathIronToFurnace);
                 await sleep(2000);
                 state = 'smelting';
             } else if (state == 'smelting') {
@@ -15315,6 +15333,7 @@ export class Client extends GameShell {
                 state = 'walk_furnace_to_bank';
             } else if (state == 'walk_furnace_to_bank') {
                 await this.walkToEndofPath(pathFurnaceToBank);
+                await ensureEndOfPath(this, pathFurnaceToBank);
                 await sleep(2000);
                 await this.handleRunEnergyThrottled(1);
                 await this.clickInventoryThrottled(1);
@@ -15323,6 +15342,7 @@ export class Client extends GameShell {
                 await this.depositAllExcept(bankX, bankZ, [0]);
                 await sleep(2000);
                 await this.walkToEndofPath(pathBankToGold);
+                await ensureEndOfPath(this, pathBankToGold);
                 await sleep(2000);
                 state = 'mining';
             } else {
