@@ -526,6 +526,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Cut and burn evergreen trees.',
+            'fn': (obj: Client) => {obj.onF1Pressed_cutAndBurnEvergreen();}
+        },
+        {
             'description': 'Mine iron and more in Al Kharid. Start IN BANK or GOLD.',
             'fn': (obj: Client) => {obj.onF1Pressed_mineAllAlKharid();}
         },
@@ -627,7 +631,7 @@ export class Client extends GameShell {
         Client.nodeId = nodeid;
         Client.membersWorld = members;
 
-        if (true) {
+        if (false) {
             Client.setLowMemory();
         } else {
             Client.setHighMemory();
@@ -16064,6 +16068,102 @@ export class Client extends GameShell {
                 console.log(`Invalid state ${state}`);
                 break;
             }
+        }
+    }
+
+    cutNearestTree(ids: number[]) {
+        let nearestObj = this.getNearestObjectFromArray(ids, 10);
+        if (!nearestObj) {
+            return false;
+        }
+        let a = nearestObj.fullType;
+        let b = nearestObj.x;
+        let c = nearestObj.z;
+        this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+        return true;
+    }
+
+    async onF1Pressed_cutAndBurnEvergreen() {
+        this.stopLoop = false;
+        let state = 'cutting_trees';
+        let logsInvId = 1511;
+        let tinderboxInvId = 590;
+        let choppingAnim = 875;
+        let treeObjIds = [1315, 1316];
+        
+        async function burnLog(obj: Client) {
+            let inv = Component.types[obj.inventoryComponentId];
+            if (!inv || !inv.invSlotObjId) {
+                obj.addMessage?.(0, 'Inventory data not available', '');
+                return false;
+            }
+            let tinderboxSlot = 0;
+            for (let s = 0; s < inv.invSlotObjId.length; s++) {
+                if (tinderboxInvId == (inv.invSlotObjId[s] - 1)) {
+                    tinderboxSlot = s;
+                    break;
+                }
+            }
+
+            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                if (logsInvId == (inv.invSlotObjId[slot] - 1)) {
+                    
+                    if (obj.selectedTab != 3) {
+                        await mouse(648, 185, 1, 100);
+                    }
+                    await sleep(100);
+                    await clickInv(slot, null, 1);
+                    await sleep(200);
+                    // At this point, should have inv item selected
+                    if (obj.objSelected == 0) {
+                        console.log('Dont have an object selected, skipping this item.');
+                        continue;
+                    }
+
+                    await clickInv(tinderboxSlot, null, 1);
+                    await sleep(7000);
+                }
+            }
+            return true;
+        }
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(1);
+            await this.clickInventoryThrottled(1);
+            if (state == 'cutting_trees') {
+                while (!this.invFull()) {
+                    if (this.countInvById(logsInvId) > 0) {
+                        await burnLog(this);
+                    }
+                    let foundtree = this.cutNearestTree(treeObjIds);
+                    if (!foundtree) {
+                        await sleep(200);
+                        continue;
+                    }
+                    await sleep(2000);
+                    for (let i = 0; i < 50; i++) {
+                        if (this.localPlayer?.primarySeqId != choppingAnim) {
+                            break;
+                        } else {
+                            await sleep(1000);
+                        }
+                    }
+                    await sleep(900);
+                }
+                state = 'dropping';
+            } else if (state == 'dropping') {
+                await sleep(4000); // maybe level up message from cutting tree
+                await this.dropItems([logsInvId]);
+                await sleep(2000);
+                state = 'cutting_trees';
+            } else {
+                this.addMessage(0, `Invalid state ${state}`, '');
+                console.log(`Invalid state ${state}`);
+                break;
+            }
+            await sleep(200);
         }
     }
 }
