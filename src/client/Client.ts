@@ -526,6 +526,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Smith iron knives in Varrock West bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_smithIronKnivesVarrock();}
+        },
+        {
             'description': 'Cut and burn evergreen trees.',
             'fn': (obj: Client) => {obj.onF1Pressed_cutAndBurnEvergreen();}
         },
@@ -12828,6 +12832,56 @@ export class Client extends GameShell {
         }
         return true;
     }
+    /**
+     * Item ids are NOT +1
+     */
+    async useItemOnAnvil(anvilX: number, anvilZ: number, itemId: number) {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+
+        let foundAnvilOption = false;
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            foundAnvilOption = false;
+            if (itemId == inv.invSlotObjId[slot] - 1) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await sleep(100);
+                await clickInv(slot, null, 1);
+                await sleep(100);
+                this.projectFromGroundGlobal(anvilX, anvilZ, 0.1);
+                await mouse(this.projectX, this.projectY, 2);
+                await sleep(200);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.endsWith('Anvil')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
+                            }
+                            foundAnvilOption = true;
+                        }
+                    }
+                }
+                if (foundAnvilOption) {
+                    await sleep(600*2);
+                    return true;
+                } else {
+                    // Somehow failed, so need to reset.
+                    await mouse(648, 185, 1, 100);
+                    await sleep(600);
+                }
+            }
+        }
+        return true;
+    }
 
     countBankById(id: number): number {
         var cnt = 0;
@@ -16164,6 +16218,88 @@ export class Client extends GameShell {
                 break;
             }
             await sleep(200);
+        }
+    }
+
+    async onF1Pressed_smithIronKnivesVarrock() {
+        this.stopLoop = false;
+        let bankStandX = 3185;
+        let bankStandZ = 3436;
+        let bankX = 3186;
+        let bankZ = 3436;
+        let anvilStandX = 3188;
+        let anvilStandZ = 3427;
+        let anvilX = 3188;
+        let anvilZ = 3426;
+        let state = 1; // 1 == banking, 2 == smithing
+        let ironBarInvId = 2351;
+
+        while (!this.stopLoop) {
+            let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+            let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+            if (this.manhattanDist(globalX, globalZ, bankStandX, bankStandZ) > 50) {
+                console.log('Too far from intended position. Logging out.');
+                this.stopLoop = true;
+                await this.logout();
+            }
+            // Send a click to keep everything alive.
+            await this.handleRunEnergyThrottled(1);
+            if (state == 1) {
+                this.addMessage(0, 'Started banking state', '');
+                await this.walkToEndofPath([[bankStandX, bankStandZ]]);
+                await this.depositAllExcept(bankX, bankZ, [2347]); // hammer inv id
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdrawAllBankById(ironBarInvId);
+                } else {
+                    // click bank then withdraw
+                    await this.openBank(bankX, bankZ);
+                    await this.withdrawAllBankById(ironBarInvId);
+                }
+                await sleep(1200);
+                if (this.invCount() < 5) {
+                    console.log('Not enough items to smith. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath([[anvilStandX, anvilStandZ]]);
+                state = 2;
+                this.addMessage(0, 'Finished banking state', '');
+            } else if (state == 2) {
+                this.addMessage(0, 'Started smithing state', '');
+                await this.walkToEndofPath([[anvilStandX, anvilStandZ]]);
+                await sleep(1000); // Make sure we're stationary.
+                
+                // First 10
+                await this.useItemOnAnvil(anvilX, anvilZ, ironBarInvId);
+                mouse(450, 189, 2);
+                await sleep(200);
+                this.useMenuOption(this.menuSize - 3);
+                this.menuVisible = false;
+                await sleep(32000);
+                // Second 10
+                await this.useItemOnAnvil(anvilX, anvilZ, ironBarInvId);
+                // Should be in smithing interface now
+                mouse(450, 189, 2);
+                await sleep(200);
+                this.useMenuOption(this.menuSize - 3);
+                this.menuVisible = false;
+                await sleep(32000);
+                // Third 7
+                await this.useItemOnAnvil(anvilX, anvilZ, ironBarInvId);
+                // Should be in smithing interface now
+                mouse(450, 189, 2);
+                await sleep(200);
+                this.useMenuOption(this.menuSize - 3);
+                this.menuVisible = false;
+                await sleep(25000);
+
+                await this.walkToEndofPath([[bankStandX, bankStandZ]]);
+                state = 1;
+                this.addMessage(0, 'Finished smithing state', '');
+            }
+            await sleep(1000);
         }
     }
 }
