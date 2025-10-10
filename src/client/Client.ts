@@ -526,6 +526,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Mage fire giants in Waterfall Dungeon.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killFireGiantsWaterfall();}
+        },
+        {
             'description': 'Smith iron knives in Varrock West bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_smithIronKnivesVarrock();}
         },
@@ -591,7 +595,15 @@ export class Client extends GameShell {
         },
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
-    private rareTableIds = [1623,1621,1619,1617,830,985,987,1452,1462, 1247, 2366, 1249];
+    private rareTableIds = [
+        // jewel
+        1623,1621,1619,1617,830,985,987,1452,1462,
+        // rare
+        561,829,560,563,892,886,1319,1373,1185,1149,1201,
+        995,996,997,998,999,1000,1001,1002,1003,1004,
+        2363, 1615, 443,
+        // megarare
+        1247, 2366, 1249];
     private logArray = [[0, 0]];
     // ----
 
@@ -16270,7 +16282,7 @@ export class Client extends GameShell {
                 this.addMessage(0, 'Started smithing state', '');
                 await this.walkToEndofPath([[anvilStandX, anvilStandZ]]);
                 await sleep(1000); // Make sure we're stationary.
-                
+
                 // First 10
                 await this.useItemOnAnvil(anvilX, anvilZ, ironBarInvId);
                 mouse(450, 189, 2);
@@ -16300,6 +16312,186 @@ export class Client extends GameShell {
                 this.addMessage(0, 'Finished smithing state', '');
             }
             await sleep(1000);
+        }
+    }
+
+    getNearestNPCInBounds(needle: string, west: number, east: number, north: number, south: number, maxdist: number) {
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
+
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npcs[this.npcIds[index]];
+            if (!entity || !entity.isVisible()) {
+                continue;
+            }
+            let npcsi = this.npcIds[index];
+            const npc: ClientNpc = entity as ClientNpc;
+            let npcname: string = '' + npc.type?.name;
+            let npcx = (npc?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+            let npcz = (npc?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+            if (npcx < west || npcx > east || npcz > north || npcz < south) {
+                continue;
+            }
+            if (npcname.match(needle) && this.localPlayer) {
+                const dx = this.localPlayer?.routeTileX[0] - npc.routeTileX[0];
+                const dz = this.localPlayer?.routeTileZ[0] - npc.routeTileZ[0];
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < closestDist && dist < maxdist) {
+                    closestDist = dist;
+                    closestNpc = { x: npc.routeTileX[0], z: npc.routeTileZ[0], entity, npc, npcsIndex: npcsi };
+                }
+            }
+        }
+        return closestNpc;
+    }
+
+    async attackNearestNPCInBounds(needle: string, west: number, east: number, north: number, south: number, maxdist: number) {
+        let nearestNPC = this.getNearestNPCInBounds(needle, west, east, north, south, maxdist);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npcs[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], npc.routeTileX[0], npc.routeTileZ[0], 2, 1, 1, 0, 0, 0, false);
+                let action = 542;
+                if (action === 963) {
+                    this.out.p1isaac(ClientProt.OPNPC4);
+                } else if (action === 6) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic2++;
+                    }
+
+                    if (Client.oplogic2 >= 124) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC2);
+                        this.out.p4(0);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC3);
+                } else if (action === 245) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic4++;
+                    }
+
+                    if (Client.oplogic4 >= 85) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC4);
+                        this.out.p2(39596);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC5);
+                } else if (action === 728) {
+                    this.out.p1isaac(ClientProt.OPNPC1);
+                } else if (action === 542) {
+                    this.out.p1isaac(ClientProt.OPNPC2);
+                }
+                this.out.p2(a);
+            }
+        }
+        await sleep(200);
+    }
+
+    async onF1Pressed_killFireGiantsWaterfall() {
+        this.stopLoop = false;
+        let needle = 'Fire giant';
+        let safeX = 2568;
+        let safeZ = 9893;
+        let westBound = 2567;
+        let eastBound = westBound + 2;
+        let northBound = 9893;
+        let southBound = 9886;
+
+        let minHP = 35;
+        let foodId = 373; // Tuna == 361, swordfish 373
+        let bonesId = 532; // Big Bones
+
+        let pickupItems = [
+            532, // bigbones
+            1393, // fire battlestaff
+            1333, // rune scimitar
+            554, // firerune
+            562, // chaosrune
+            892, // rune arrow
+            565, // bloodrune
+            563, // lawrune
+            995, // coins
+        ];
+        // pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+        
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(1);
+            await this.clickInventoryThrottled(1);
+            
+
+
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.skillLevel[3] < minHP) {
+                    await this.walkToEndofPath([[safeX, safeZ]]);
+                    let inv = Component.types[this.inventoryComponentId];
+                    if (!inv || !inv.invSlotObjId) {
+                        this.addMessage?.(0, 'Inventory data not available', '');
+                        return false;
+                    }
+                    let foundFood = false;
+                    for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                        if (foodId == inv.invSlotObjId[slot] - 1) {
+                            if (this.selectedTab != 3) {
+                                await mouse(648, 185, 1, 100);
+                            }
+                            await sleep(50);
+                            await clickInv(slot, null, 1);
+                            await sleep(200);
+                            foundFood = true;
+                            break;
+                        }
+                    }
+                    if (!foundFood) {
+                        // out of food, need to log out
+                        console.log('Out of food. Going to safe spot and logging out.');
+                        this.stopLoop = true;
+                        await this.walkToEndofPath([[safeX, safeZ]]);
+                        break;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                for (const item of this.filterGroundItemsIds(pickupItems)) {
+                    await this.pickupNearestIdValidated(item);
+                    if (this.invFull()) {
+                        break;
+                    }
+                }
+                await this.walkToEndofPath([[safeX, safeZ]]);
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        console.log('Inventory full. Going to safe spot and logging out.');
+                        this.stopLoop = true;
+                        await this.walkToEndofPath([[safeX, safeZ]]);
+                        break;
+                    }
+                }
+                await this.attackNearestNPCInBounds(needle, westBound, eastBound, northBound, southBound, 10);
+                // Wait until we're actually in combat until trying to loop again.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 20) {
+                    iter++;
+                    await sleep(200);
+                }
+                await this.walkToEndofPath([[safeX, safeZ]]);
+            } else {
+                // There is an NPC after me. Need to attack and then RUN to safespot
+                await this.attackNearestNPCInBounds(needle, westBound, eastBound, northBound, southBound, 10);
+                await sleep(1300);
+                await this.walkToEndofPath([[safeX, safeZ]]);
+            }
+            await sleep(700);
         }
     }
 }
