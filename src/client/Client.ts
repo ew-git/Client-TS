@@ -13191,32 +13191,30 @@ export class Client extends GameShell {
         }
         
         // (+1 offset)
-        for (const targetId of itemIds) {
-            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-                if (inv.invSlotObjId[slot] == 0) continue; // Skip empty slots
-                if ((targetId + 1) != inv.invSlotObjId[slot]) {
-                    if (this.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
-                    }
-                    await clickInv(slot, null, 2);
-                    await sleep(100);
-                    if (this.menuSize > 0) {
-                        for (let i = 0; i < this.menuOption.length; i++) {
-                            const optiontext = this.menuOption[i];
-                            if (optiontext.startsWith('Deposit All')) {
-                                this.useMenuOption(i);
-                                this.menuVisible = false;
-                                if (this.menuArea === 1) {
-                                    this.redrawSidebar = true;
-                                } else if (this.menuArea === 2) {
-                                    this.redrawChatback = true;
-                                }
-                                break;
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (inv.invSlotObjId[slot] == 0) continue; // Skip empty slots
+            if (!itemIds.includes(inv.invSlotObjId[slot] - 1)) {
+                if (this.selectedTab != 3) {
+                    await mouse(648, 185, 1, 100);
+                }
+                await clickInv(slot, null, 2);
+                await sleep(100);
+                if (this.menuSize > 0) {
+                    for (let i = 0; i < this.menuOption.length; i++) {
+                        const optiontext = this.menuOption[i];
+                        if (optiontext.startsWith('Deposit All')) {
+                            this.useMenuOption(i);
+                            this.menuVisible = false;
+                            if (this.menuArea === 1) {
+                                this.redrawSidebar = true;
+                            } else if (this.menuArea === 2) {
+                                this.redrawChatback = true;
                             }
+                            break;
                         }
                     }
-                    await sleep(300);
                 }
+                await sleep(300);
             }
         }
         return true;
@@ -14221,7 +14219,7 @@ export class Client extends GameShell {
         let minHP = 25;
         let foodId = 361; // Tuna == 361
         let bonesId = 526; // Bones == 526
-        let state = 'not banking';
+        let state = 'banking';
         let outsideCowToBankPath = [[2565, 3356], [2581, 3351], [2582, 3367], [2606, 3365], [2614, 3350], [2615, 3332]];
         let bankToOutsideCowPath = outsideCowToBankPath.toReversed();
         let cowPenBounds = [2560, 2564, 3355, 3358]; // W, E, S, N
