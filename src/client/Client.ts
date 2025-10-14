@@ -67,6 +67,7 @@ import WordPack from '#/wordenc/WordPack.js';
 import Wave from '#/sound/Wave.js';
 import OnDemand from '#/io/OnDemand.js';
 import MobileKeyboard from '#/client/MobileKeyboard.ts';
+import path from 'path';
 
 
 const enum Constants {
@@ -525,6 +526,10 @@ export class Client extends GameShell {
     private lastCheckRelieveKnightTime: number | null = null;
     private f1FunctionIndex: number = 0;
     private f1Functions = [
+        {
+            'description': 'Id unid herbs.',
+            'fn': (obj: Client) => {obj.onF1Pressed_idHerbs(199);}
+        },
         {
             'description': 'Mage Chaos Druids in Ardy, point WEST, start in there.',
             'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdyMage();}
@@ -5617,6 +5622,14 @@ export class Client extends GameShell {
         //     this.fontBold12?.drawStringRight(x, y, 'tick', Colors.YELLOW, true);
         // }
         // y += 13;
+        this.fontPlain11?.drawStringRight(
+            x,
+            y,
+            'Mouse location: ' + this.mouseX + ', ' + this.mouseY,
+            Colors.YELLOW,
+            true
+        );
+        y += 13;
         this.fontPlain11?.drawStringRight(x, y, `primarySeqId=${this.localPlayer?.primarySeqId}`, Colors.YELLOW, true);
         y += 13;
         this.fontPlain11?.drawStringRight(x, y, `Fps: ${this.fps}, ${this.deltime} ms`, Colors.YELLOW, true);
@@ -13644,6 +13657,49 @@ export class Client extends GameShell {
         }
     }
 
+    getNearestNPCAfterMe(needle: string) {
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
+
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npcs[this.npcIds[index]];
+            if (!entity || !entity.isVisible()) {
+                continue;
+            }
+            let npcsi = this.npcIds[index];
+            const npc: ClientNpc = entity as ClientNpc;
+            let npcname: string = '' + npc.type?.name;
+            if (npcname.match(needle) && this.localPlayer && this.afterMe(npc)) {
+                const dx = this.localPlayer?.routeTileX[0] - npc.routeTileX[0];
+                const dz = this.localPlayer?.routeTileZ[0] - npc.routeTileZ[0];
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestNpc = { x: npc.routeTileX[0], z: npc.routeTileZ[0], entity, npc, npcsIndex: npcsi };
+                }
+            }
+        }
+        return closestNpc;
+    }
+
+    async attackNearestNPCAfterMe(needle: string) {
+        let nearestNPC = this.getNearestNPCAfterMe(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npcs[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], npc.routeTileX[0], npc.routeTileZ[0], 2, 1, 1, 0, 0, 0, false);
+                let action = 542;
+                if (action === 542) {
+                    this.out.p1isaac(ClientProt.OPNPC2);
+                }
+                this.out.p2(a);
+            }
+        }
+        await sleep(200);
+    }
+
     getNearestNPC(needle: string) {
         let closestDist = Number.POSITIVE_INFINITY;
         let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
@@ -14243,6 +14299,10 @@ export class Client extends GameShell {
         ];
         pickupItems = pickupItems.concat(this.uidHerbIds);
         pickupItems = pickupItems.concat(this.rareTableIds);
+
+        if (this.playerIsInBounds(cowPenBounds)) {
+            state = 'not banking';
+        }
         
         while (!this.stopLoop) {
             if (state == 'banking') {
@@ -14341,8 +14401,10 @@ export class Client extends GameShell {
                     iter++;
                     await sleep(300);
                 }
+            } else {
+                await this.attackNearestNPCAfterMe(needle);
             }
-            await sleep(700);
+            await sleep(1200);
         }
     }
 
@@ -16625,6 +16687,41 @@ export class Client extends GameShell {
                 await sleep(1300);
                 await this.walkToEndofPath([[safeX, safeZ]]);
             }
+            await sleep(700);
+        }
+    }
+
+    async onF1Pressed_idHerbs(unidId: number) {
+        this.stopLoop = false;
+        let pathToBank = [[2727, 3493]];
+        let bankX = 2727;
+        let bankZ = 3494;
+
+        async function clickAllInv(obj: Client) {
+            let inv = Component.types[obj.inventoryComponentId];
+            if (!inv || !inv.invSlotObjId) {
+                obj.addMessage?.(0, 'Inventory data not available', '');
+                return false;
+            }
+            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                if (obj.selectedTab != 3) {
+                    await mouse(648, 185, 1, 30);
+                }
+                await clickInv(slot, null, 1);
+                await sleep(30);
+            }
+            return true;
+        }
+        
+        while (!this.stopLoop) {
+            await this.walkToEndofPath(pathToBank);
+            await this.depositAllExcept(bankX, bankZ, [0]);
+            await sleep(700);
+            await this.withdrawAllBankById(unidId);
+            await sleep(700);
+            mouse(463, 41, 1); // close bank window
+            await sleep(700);
+            await clickAllInv(this);
             await sleep(700);
         }
     }
