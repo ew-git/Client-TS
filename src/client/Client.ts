@@ -528,7 +528,7 @@ export class Client extends GameShell {
     private f1Functions = [
         {
             'description': 'Id unid herbs.',
-            'fn': (obj: Client) => {obj.onF1Pressed_idHerbs(199);}
+            'fn': (obj: Client) => {obj.onF1Pressed_idHerbs(203);}
         },
         {
             'description': 'Mage Chaos Druids in Ardy, point WEST, start in there.',
@@ -16692,6 +16692,9 @@ export class Client extends GameShell {
     }
 
     async onF1Pressed_idHerbs(unidId: number) {
+        // guam: 199
+        // marrentill: 201 
+        // tarromin: 203
         this.stopLoop = false;
         let pathToBank = [[2727, 3493]];
         let bankX = 2727;
