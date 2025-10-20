@@ -527,8 +527,12 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX. POINT CAMERA WEST FOR DOOR.',
+            'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
+        },
+        {
             'description': 'Id unid herbs.',
-            'fn': (obj: Client) => {obj.onF1Pressed_idHerbs(203);}
+            'fn': (obj: Client) => {obj.onF1Pressed_idHerbs(207);}
         },
         {
             'description': 'Mage Chaos Druids in Ardy, point WEST, start in there.',
@@ -593,10 +597,6 @@ export class Client extends GameShell {
         {
             'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
             'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
-        },
-        {
-            'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX. POINT CAMERA WEST FOR DOOR.',
-            'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
         },
         {
             'description': 'Cut nearby Willow tree and fletch into longbows.',
