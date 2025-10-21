@@ -527,6 +527,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Kill chaos druids with ranged. POINT CAMERA WEST FOR DOOR.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdyRange();}
+        },
+        {
             'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX. POINT CAMERA WEST FOR DOOR.',
             'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
         },
@@ -14270,6 +14274,7 @@ export class Client extends GameShell {
             await sleep(700);
         }
     }
+
     async onF1Pressed_killChaosDruidsArdyMage() {
         this.stopLoop = false;
         let minHP = 25;
@@ -14391,6 +14396,150 @@ export class Client extends GameShell {
                         // No bones, so inv full of other stuff, need to bank.
                         state = 'banking';
                         this.addMessage(0, 'Entering banking state', '');
+                        continue;
+                    }
+                }
+                await this.attackNearestNPC(needle);
+                // Wait until we're actually in combat until trying to loop again.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 20) {
+                    iter++;
+                    await sleep(300);
+                }
+            } else {
+                await this.attackNearestNPCAfterMe(needle);
+            }
+            await sleep(1200);
+        }
+    }
+
+    async onF1Pressed_killChaosDruidsArdyRange() {
+        this.stopLoop = false;
+        let rangedAmmo = 863;
+        let minHP = 25;
+        let foodId = 361; // Tuna == 361
+        let bonesId = 526; // Bones == 526
+        let state = 'banking';
+        let outsideCowToBankPath = [[2565, 3356], [2581, 3351], [2582, 3367], [2606, 3365], [2614, 3350], [2615, 3332]];
+        let bankToOutsideCowPath = outsideCowToBankPath.toReversed();
+        let cowPenBounds = [2560, 2564, 3355, 3358]; // W, E, S, N
+        let needle = 'Chaos druid';
+        let insideGateP = [2564, 3356];
+        let bankX = 2615;
+        let bankZ = 3331;
+        let insideCowPenP = insideGateP;
+        let pickupItems = [
+            526, // bones
+            563, // lawrune
+            556, // airrune
+            559, // bodyrune
+            557, // earthrune
+            558, // mindrune
+            561, // naturerune
+            995, // coins
+            227, // vial_water
+            231, // snape_grass
+            // 1594, // unholy_symbol_mould
+            863, // iron knife
+        ];
+        pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+
+        if (this.playerIsInBounds(cowPenBounds)) {
+            state = 'not banking';
+        }
+        
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                if (this.playerIsInBounds(cowPenBounds)) {
+                    await this.walkToEndofPath([insideGateP]);
+                    await sleep(2000);
+                    await this.tryOpenDoor(insideGateP[0] + 0.5, insideGateP[1]);
+                }
+                await this.walkToEndofPath(outsideCowToBankPath);
+                await sleep(2000);
+                await this.depositAllExcept(bankX, bankZ, [0, 558, 556]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw5BankById(foodId);
+                } else {
+                    // click bank then withdraw
+                    await this.openBank(bankX, bankZ);
+                    await this.withdraw5BankById(foodId);
+                }
+                await sleep(1200);
+                if (this.invCount() == 0) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(bankToOutsideCowPath);
+                await sleep(1200);
+                let gotinside = await this.tryPickDoor(insideGateP[0], insideGateP[1] + 0.5, insideGateP[0], insideGateP[1]);
+                for (let i = 0; i < 30; i++) {
+                    if (gotinside) {break;}
+                    else {
+                        gotinside = await this.tryPickDoor(insideGateP[0], insideGateP[1] + 0.5, insideGateP[0], insideGateP[1]);
+                    }
+                }
+                await this.walkToEndofPath([insideCowPenP]);
+                state = 'not banking';
+                this.addMessage(0, 'Finished banking state', '');
+            }
+            await this.handleRunEnergyThrottled(1);
+            await this.clickInventoryThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.skillLevel[3] < minHP) {
+                    let inv = Component.types[this.inventoryComponentId];
+                    if (!inv || !inv.invSlotObjId) {
+                        this.addMessage?.(0, 'Inventory data not available', '');
+                        return false;
+                    }
+                    let foundFood = false;
+                    for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                        if (foodId == inv.invSlotObjId[slot] - 1) {
+                            if (this.selectedTab != 3) {
+                                await mouse(648, 185, 1, 100);
+                            }
+                            await sleep(50);
+                            await clickInv(slot, null, 1);
+                            await sleep(200);
+                            foundFood = true;
+                            break;
+                        }
+                    }
+                    if (!foundFood) {
+                        // out of food, need to bank
+                        state = 'banking';
+                        this.addMessage(0, 'Entering banking state', '');
+                        continue;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                for (const item of this.filterGroundItemsIds(pickupItems)) {
+                    await this.pickupNearestIdValidated(item);
+                    if (this.invFull()) {
+                        break;
+                    }
+                }
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'banking';
+                        this.addMessage(0, 'Entering banking state', '');
+                        // Re-equip ranged items that we picked up (e.g. iron knife)
+                        await sleep(300);
+                        await this.clickInvById(rangedAmmo);
+                        await sleep(300);
                         continue;
                     }
                 }
