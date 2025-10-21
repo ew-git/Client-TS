@@ -14458,7 +14458,7 @@ export class Client extends GameShell {
                 }
                 await this.walkToEndofPath(outsideCowToBankPath);
                 await sleep(2000);
-                await this.depositAllExcept(bankX, bankZ, [0, 558, 556]);
+                await this.depositAllExcept(bankX, bankZ, [0]);
                 await sleep(600);
                 if (this.checkBankOpen()) {
                     // withdraw immediately
@@ -14521,10 +14521,13 @@ export class Client extends GameShell {
                 }
                 await sleep(1400); // wait for NPC death animation.
                 // Try to pick up any items on the ground.
-                for (const item of this.filterGroundItemsIds(pickupItems)) {
-                    await this.pickupNearestIdValidated(item);
-                    if (this.invFull()) {
-                        break;
+                // Try 3 times to make sure we get all ranged ammo.
+                for (let i = 0; i < 3; i++) {
+                    for (const item of this.filterGroundItemsIds(pickupItems)) {
+                        await this.pickupNearestIdValidated(item);
+                        if (this.invFull()) {
+                            break;
+                        }
                     }
                 }
                 if (this.invFull()) {
