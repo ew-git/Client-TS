@@ -527,6 +527,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Kill hobgoblins in Witchhaven dungeon. Start in dungeon.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killHobgoblinsWitchhaven();}
+        },
+        {
             'description': 'Cut nearby Maple tree and fletch into longbows.',
             'fn': (obj: Client) => {obj.onF1Pressed_cutAndFletchMapleTree();}
         },
@@ -16976,6 +16980,138 @@ export class Client extends GameShell {
             mouse(463, 41, 1); // close bank window
             await sleep(700);
             await clickAllInv(this);
+            await sleep(700);
+        }
+    }
+    
+    async onF1Pressed_killHobgoblinsWitchhaven() {
+        this.stopLoop = false;
+        let minHP = 25;
+        let foodId = 361; // Tuna == 361
+        let bonesId = 526; // Bones == 526
+        let state = 'not banking';
+        let bankToLadderPath = [[2655,3283],[2644,3281],[2659,3278],[2675,3276],[2691,3276],[2696,3283]];
+        let ladderToBankPath = bankToLadderPath.toReversed();
+        let dungeonBounds = [2693, 2710, 9683, 9700]; // W, E, S, N
+        let needle = 'Hobgoblin';
+        let insideGateP = [2696, 9683];
+        let ladderUpObjId = 1755;
+        let ladderDownObjId = 1754;
+        let bankX = 2656;
+        let bankZ = 3283;
+
+        // TODO
+        let pickupItems = [
+            526, // bones
+            563, // lawrune
+            555, // waterrune
+            554, // firerune
+            559, // bodyrune
+            556, // airrune
+            559, // bodyrune
+            562, // chaosrune
+            561, // naturerune
+            564, // cosmicrune
+            995, // coins
+            225, // limpwurt root
+        ];
+        pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+        
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                if (this.playerIsInBounds(dungeonBounds)) {
+                    this.useNearestObjOP1([ladderUpObjId], 30);
+                    await sleep(3000);
+                    continue;
+                }
+                await this.walkToEndofPath(ladderToBankPath);
+                await sleep(2000);
+                await this.depositAllExcept(bankX, bankZ, [0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw5BankById(foodId);
+                } else {
+                    // click bank then withdraw
+                    await this.openBank(bankX, bankZ);
+                    await this.withdraw5BankById(foodId);
+                }
+                await sleep(1200);
+                if (this.invCount() == 0) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(bankToLadderPath);
+                await sleep(1200);
+                this.useNearestObjOP1([ladderDownObjId], 30);
+                await sleep(2100);
+                state = 'not banking';
+                this.addMessage(0, 'Finished banking state', '');
+            }
+            await this.handleRunEnergyThrottled(1);
+            await this.clickInventoryThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.skillLevel[3] < minHP) {
+                    let inv = Component.types[this.inventoryComponentId];
+                    if (!inv || !inv.invSlotObjId) {
+                        this.addMessage?.(0, 'Inventory data not available', '');
+                        return false;
+                    }
+                    let foundFood = false;
+                    for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                        if (foodId == inv.invSlotObjId[slot] - 1) {
+                            if (this.selectedTab != 3) {
+                                await mouse(648, 185, 1, 100);
+                            }
+                            await sleep(50);
+                            await clickInv(slot, null, 1);
+                            await sleep(200);
+                            foundFood = true;
+                            break;
+                        }
+                    }
+                    if (!foundFood) {
+                        // out of food, need to bank
+                        state = 'banking';
+                        this.addMessage(0, 'Entering banking state', '');
+                        continue;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                for (let i = 0; i < 3; i++) {
+                    for (const item of this.filterGroundItemsIds(pickupItems)) {
+                        await this.pickupNearestIdValidated(item);
+                        if (this.invFull()) {
+                            break;
+                        }
+                    }
+                }
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'banking';
+                        this.addMessage(0, 'Entering banking state', '');
+                        continue;
+                    }
+                }
+                await this.attackNearestNPC(needle);
+                // Wait until we're actually in combat until trying to loop again.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 20) {
+                    iter++;
+                    await sleep(300);
+                }
+            }
             await sleep(700);
         }
     }
