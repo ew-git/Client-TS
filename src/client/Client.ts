@@ -527,6 +527,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Tan soft leather; start in bank; make sure cow hide is visible and have coins.',
+            'fn': (obj: Client) => {obj.onF1Pressed_tanLeatherAlKharid();}
+        },
+        {
             'description': 'Kill hobgoblins in Witchhaven dungeon. Start in dungeon.',
             'fn': (obj: Client) => {obj.onF1Pressed_killHobgoblinsWitchhaven();}
         },
@@ -17113,6 +17117,40 @@ export class Client extends GameShell {
                 }
             }
             await sleep(700);
+        }
+    }
+
+    async onF1Pressed_tanLeatherAlKharid() {
+        this.stopLoop = false;
+        let coinsInvId = 995;
+        let pathBankToTanner = [[3269,3167],[3278,3177],[3279,3191],[3277,3191]];
+        let pathTannerToBank = pathBankToTanner.toReversed();
+        let bankX = 3268;
+        let bankZ = 3167;
+        let tannerId = 804;
+        let cowhideId = 1739;
+
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(1);
+            await this.clickInventoryThrottled(1);
+            await this.depositAllExcept(bankX, bankZ, [0, coinsInvId]);
+            await sleep(1000);
+            await this.withdrawAllBankById(cowhideId);
+            await sleep(1000);
+            await this.walkToEndofPath(pathBankToTanner);
+            await sleep(1000);
+            await this.op1NearestNPC('Tanner');
+            await sleep(2100);
+            await mouse(302, 448, 1);
+            await sleep(1500);
+            await mouse(302, 448, 1);
+            await sleep(1500);
+            await mouse(264, 398, 1);
+            await sleep(1500);
+            await mouse(260, 381, 1);
+            await sleep(1500);
+            await this.walkToEndofPath(pathTannerToBank);
+            await sleep(1500);
         }
     }
 }
