@@ -260,7 +260,7 @@ export default class ObjType extends ConfigType {
         } else if (code === 113) {
             this.ambient = dat.g1b();
         } else if (code === 114) {
-            this.ambient = dat.g1b() * 5;
+            this.contrast = dat.g1b() * 5;
         }
     }
 
@@ -439,8 +439,8 @@ export default class ObjType extends ConfigType {
             zoom = (zoom * 1.04) | 0;
         }
 
-        const sinPitch: number = (Pix3D.sin[obj.xan2d] * zoom) >> 16;
-        const cosPitch: number = (Pix3D.cos[obj.xan2d] * zoom) >> 16;
+        const sinPitch: number = (Pix3D.sinTable[obj.xan2d] * zoom) >> 16;
+        const cosPitch: number = (Pix3D.cosTable[obj.xan2d] * zoom) >> 16;
 
         model.drawSimple(0, obj.yan2d, obj.zan2d, obj.xan2d, obj.xof2d, sinPitch + ((model.minY / 2) | 0) + obj.yof2d, cosPitch + obj.yof2d);
 

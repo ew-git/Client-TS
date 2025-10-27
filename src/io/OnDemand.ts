@@ -703,19 +703,25 @@ export default class OnDemand extends OnDemandProvider {
     }
 
     async prefetchAll() {
-        if (!this.app.db) {
-            return;
-        }
-
         let success = false;
         for (let retry = 0; retry < 3 && !success; retry++) {
-            if (typeof (await this.app.db.read(2, 0)) !== 'undefined') {
+            if (!this.app.db) {
                 return;
             }
+
+            const remote = await downloadUrl('/build');
+            const local = await this.app.db.cacheload('build');
+
+            if (typeof local !== 'undefined' && local[0] === remote[0] && local[1] === remote[1] && local[2] === remote[2] && local[3] === remote[3]) {
+                break;
+            }
+
+            await this.app.db.cachesave('build', remote);
 
             try {
                 const zip = unzipSync(await downloadUrl('/ondemand.zip'));
 
+                const start = performance.now();
                 for (let archive = 0; archive < 4; archive++) {
                     const count = this.versions[archive].length;
 
@@ -726,9 +732,14 @@ export default class OnDemand extends OnDemandProvider {
                         }
 
                         const existing = await this.app.db.read(archive + 1, file);
-
                         if (!existing || !this.validate(existing, this.crcs[archive][file], this.versions[archive][file])) {
                             await this.app.db.write(archive + 1, file, data);
+                        }
+
+                        if (file % 100 === 0 && performance.now() - start > 15_000) {
+                            // user's CPU or I/O is too slow, since this is blocking playing it's better to operate in memory only
+                            this.app.db = null;
+                            return;
                         }
                     }
                 }
