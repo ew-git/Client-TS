@@ -649,12 +649,17 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                this.logArray.push([globalX, globalZ]);
-                console.log(JSON.stringify(this.logArray));
+                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                // this.logArray.push([globalX, globalZ]);
+                // console.log(JSON.stringify(this.logArray));
 
                 // this.useNearestObjOP1([2311], 20);
+
+                // await this.mouse(this.mouseX, this.mouseY, 2, 100);
+                // await this.mouse(271, 141, 1, 100);
+
+                await this.openBankNoMouse();
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -9046,6 +9051,8 @@ export class Client extends GameShell {
         const b: number = this.menuParamB[optionId];
         const c: number = this.menuParamC[optionId];
 
+        console.log(`Using menu option ${optionId} with action=${action}, a=${a}, b=${b}, c=${c}`);
+
         if (action >= 2000) {
             action -= 2000;
         }
@@ -12094,9 +12101,9 @@ export class Client extends GameShell {
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (inv.invSlotObjId[slot] === 1972) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
-                await clickInv(slot);
+                await this.clickInv(slot);
                 this.addMessage?.(0, 'Clicked Kebab in slot ' + slot, '');
                 return true;
             }
@@ -12134,9 +12141,9 @@ export class Client extends GameShell {
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (inv.invSlotObjId[slot] === 318 || inv.invSlotObjId[slot] === 322) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
-                await clickInv(slot, null, 2);
+                await this.clickInv(slot, null, 2);
                 await sleep(100);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -12182,9 +12189,9 @@ export class Client extends GameShell {
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (ids.includes(inv.invSlotObjId[slot] - 1)) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
-                await clickInv(slot, null, 2);
+                await this.clickInv(slot, null, 2);
                 await sleep(100);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -12238,7 +12245,7 @@ export class Client extends GameShell {
             this.projectFromEntity(entity, entity.height / 2);
             if (npcName.match(/Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
                 console.log(`Detected random ${npcName}!`);
-                await mouse(this.projectX, this.projectY, 2);
+                await this.mouse(this.projectX, this.projectY, 2);
                 await sleep(200);
                 this.useMenuStartsWith('Talk-to');
                 console.log(`Tried to talk-to ${npcName}.`);
@@ -12248,7 +12255,7 @@ export class Client extends GameShell {
             this.projectFromEntity(entity, entity.height / 2);
             if (npcName.match(/Drunken Dwarf|Genie|Mysterious Old Man/i) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
                 console.log(`Clicking random ${npcName} again!`);
-                await mouse(this.projectX, this.projectY, 2);
+                await this.mouse(this.projectX, this.projectY, 2);
                 await sleep(200);
                 this.useMenuStartsWith('Talk-to');
                 console.log(`Tried to talk-to ${npcName}.`);
@@ -12264,7 +12271,7 @@ export class Client extends GameShell {
                     // try to right click pick
                     this.projectFromEntity(entity, entity.height / 2);
                     if (this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                        await mouse(this.projectX, this.projectY, 2);
+                        await this.mouse(this.projectX, this.projectY, 2);
                         await sleep(200);
                         this.useMenuStartsWith('Pick ');
                         console.log(`Tried to pick ${npcName}.`);
@@ -12350,7 +12357,7 @@ export class Client extends GameShell {
         // right click, take small fishing net
         this.projectFromGround(targetX, 0, targetZ); // I think height of 0 is fine. May need to use project from entity on own player.
         this.projectFromGroundGlobal(targetX + this.sceneBaseTileX, targetZ + this.sceneBaseTileZ, 0.01);
-        await mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
+        await this.mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
         await sleep(100);
         if (this.menuSize > 0) {
             for (let i = 0; i < this.menuOption.length; i++) {
@@ -12411,7 +12418,7 @@ export class Client extends GameShell {
         // right click, take small fishing net
         this.projectFromGround(targetX, 0, targetZ); // I think height of 0 is fine. May need to use project from entity on own player.
         this.projectFromGroundGlobal(targetX + this.sceneBaseTileX, targetZ + this.sceneBaseTileZ, 0.01);
-        await mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
+        await this.mouse(this.projectX, this.projectY, 2); // right click and find Take small fishing net.
         await sleep(100);
         if (this.menuSize > 0) {
             for (let i = 0; i < this.menuOption.length; i++) {
@@ -12564,7 +12571,7 @@ export class Client extends GameShell {
 
         this.projectFromGround(closestX, 0, closestZ); // I think height of 0 is fine. May need to use project from entity on own player.
         this.projectFromGroundGlobal(closestX + this.sceneBaseTileX, closestZ + this.sceneBaseTileZ, 0.01);
-        await mouse(this.projectX, this.projectY, 2);
+        await this.mouse(this.projectX, this.projectY, 2);
         await sleep(200);
         console.log(`Found closest item: ${targetname}. Just right clicked.`);
         if (this.menuSize > 0) {
@@ -12667,7 +12674,7 @@ export class Client extends GameShell {
             }
 
             if (closestNpc) {
-                await mouse(closestNpc.x, closestNpc.y, 2);
+                await this.mouse(closestNpc.x, closestNpc.y, 2);
                 await sleep(100);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -12817,7 +12824,7 @@ export class Client extends GameShell {
             // Send a click to keep everything alive.
             await this.handleRunEnergyThrottled(5);
             // This clicks on the inventory tab.
-            await mouse(648, 185, 1, 100);
+            await this.mouse(648, 185, 1, 100);
             // this.addMessage(0, `Checking randoms.`, '');
             await this.handleRandoms();
             await this.useLamp();
@@ -12884,7 +12891,7 @@ export class Client extends GameShell {
 
                 if (closestNpc) {
                     this.addMessage(0, `Found closest npc at ${closestNpc.x}, ${closestNpc.y}`, '');
-                    await mouse(closestNpc.x, closestNpc.y, 2);
+                    await this.mouse(closestNpc.x, closestNpc.y, 2);
                     await sleep(300);
                     // There are "net" harpoon spots and "cage" harpoon spots.
                     // Because fishing spots may stack, then we need to check that the next
@@ -12947,13 +12954,13 @@ export class Client extends GameShell {
             foundRangeOption = false;
             if (itemIds.includes(inv.invSlotObjId[slot] - 1)) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
                 await sleep(100);
-                await clickInv(slot, null, 1);
+                await this.clickInv(slot, null, 1);
                 await sleep(100);
                 this.projectFromGroundGlobal(rangeX, rangeZ, 0.1);
-                await mouse(this.projectX, this.projectY, 2); // right click and find "use X with Range" option in case of occlusion.
+                await this.mouse(this.projectX, this.projectY, 2); // right click and find "use X with Range" option in case of occlusion.
                 await sleep(200);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -12974,7 +12981,7 @@ export class Client extends GameShell {
                     await sleep(600*4);
                 } else {
                     // Somehow failed, so need to reset.
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                     await sleep(600);
                 }
             }
@@ -12996,13 +13003,13 @@ export class Client extends GameShell {
             foundAnvilOption = false;
             if (itemId == inv.invSlotObjId[slot] - 1) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
                 await sleep(100);
-                await clickInv(slot, null, 1);
+                await this.clickInv(slot, null, 1);
                 await sleep(100);
                 this.projectFromGroundGlobal(anvilX, anvilZ, 0.1);
-                await mouse(this.projectX, this.projectY, 2);
+                await this.mouse(this.projectX, this.projectY, 2);
                 await sleep(200);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -13024,7 +13031,7 @@ export class Client extends GameShell {
                     return true;
                 } else {
                     // Somehow failed, so need to reset.
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                     await sleep(600);
                 }
             }
@@ -13059,7 +13066,7 @@ export class Client extends GameShell {
         }
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (id == (inv.invSlotObjId[slot] - 1)) {
-                await clickBank(slot, null, 2);
+                await this.clickBank(slot, null, 2);
                 await sleep(200);
                 // click withdraw all
                 if (this.menuSize > 0) {
@@ -13095,7 +13102,7 @@ export class Client extends GameShell {
         }
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (id == (inv.invSlotObjId[slot] - 1)) {
-                await clickBank(slot, null, 2);
+                await this.clickBank(slot, null, 2);
                 await sleep(200);
                 // click withdraw 1
                 if (this.menuSize > 0) {
@@ -13131,7 +13138,7 @@ export class Client extends GameShell {
         }
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (id == (inv.invSlotObjId[slot] - 1)) {
-                await clickBank(slot, null, 2);
+                await this.clickBank(slot, null, 2);
                 await sleep(200);
                 // click withdraw 5
                 if (this.menuSize > 0) {
@@ -13234,7 +13241,7 @@ export class Client extends GameShell {
     */
     async depositAll(bankX: number, bankZ: number, itemIds: number[]) {
         this.projectFromGroundGlobal(bankX, bankZ, 0.1);
-        await mouse(this.projectX, this.projectY, 2);
+        await this.mouse(this.projectX, this.projectY, 2);
         await sleep(100);
         if (this.menuSize > 0) {
             for (let i = 0; i < this.menuOption.length; i++) {
@@ -13264,9 +13271,9 @@ export class Client extends GameShell {
             for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                 if ((targetId + 1) == inv.invSlotObjId[slot]) {
                     if (this.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
+                        await this.mouse(648, 185, 1, 100);
                     }
-                    await clickInv(slot, null, 2);
+                    await this.clickInv(slot, null, 2);
                     await sleep(100);
                     if (this.menuSize > 0) {
                         for (let i = 0; i < this.menuOption.length; i++) {
@@ -13292,7 +13299,7 @@ export class Client extends GameShell {
 
     async openBank(bankX: number, bankZ: number) {
         this.projectFromGroundGlobal(bankX, bankZ, 0.1);
-        await mouse(this.projectX, this.projectY, 2);
+        await this.mouse(this.projectX, this.projectY, 2);
         await sleep(100);
         if (this.menuSize > 0) {
             for (let i = 0; i < this.menuOption.length; i++) {
@@ -13311,6 +13318,50 @@ export class Client extends GameShell {
         await sleep(2000);
         for (var _ = 0; _ < 10 && !this.checkBankOpen(); _++) await sleep(500);
     }
+
+    async openBankNoMouse(boothObjId = 2213, maxDist = 10) {
+        this.useNearestObjOPN(2, [boothObjId], maxDist);
+        await sleep(2000);
+        for (var _ = 0; _ < 10 && !this.checkBankOpen(); _++) await sleep(500);
+    }
+
+    /**
+     * Pass the actual ids, not +1
+    */
+    depositAllSingleSlot(slot: number, itemId: number){
+        let action: number = 892;
+        const a: number = itemId;
+        const b: number = slot;
+        const c: number = 2006;
+        if (action === 892) {
+            if ((b & 0x3) === 0) {
+                Client.oplogic9++;
+            }
+
+            if (Client.oplogic9 >= 130) {
+                this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC9);
+                this.out.p1(177);
+            }
+
+            this.out.p1isaac(ClientProt.INV_BUTTON4);
+        }
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedInterface = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (Component.types[c].layer === this.viewportInterfaceId) {
+            this.selectedArea = 1;
+        }
+
+        if (Component.types[c].layer === this.chatInterfaceId) {
+            this.selectedArea = 3;
+        }
+    }
     /**
      * Pass the actual ids, not +1
     */
@@ -13328,9 +13379,9 @@ export class Client extends GameShell {
             if (inv.invSlotObjId[slot] == 0) continue; // Skip empty slots
             if (!itemIds.includes(inv.invSlotObjId[slot] - 1)) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
-                await clickInv(slot, null, 2);
+                await this.clickInv(slot, null, 2);
                 await sleep(100);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -13374,13 +13425,13 @@ export class Client extends GameShell {
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (inv.invSlotObjId[slot] == (2528 + 1)) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
-                await clickInv(slot, null, 1);
+                await this.clickInv(slot, null, 1);
                 await sleep(2000); // wait for interface to open
-                await mouse(261, 194, 1, 100); // thieving for now
+                await this.mouse(261, 194, 1, 100); // thieving for now
                 await sleep(600);
-                await mouse(261, 256, 1, 100); // click confirm
+                await this.mouse(261, 256, 1, 100); // click confirm
                 await sleep(600);
             }
         }
@@ -13390,22 +13441,22 @@ export class Client extends GameShell {
     async handleRunEnergy(): Promise<boolean> {
         if (this.runenergy > 50) {
             // turn on run
-            await mouse(711, 485, 1, 100); // run tab
+            await this.mouse(711, 485, 1, 100); // run tab
             await sleep(200);
-            await mouse(625, 265, 1, 100); // run on
-            await mouse(648, 185, 1, 100); // back to inventory
+            await this.mouse(625, 265, 1, 100); // run on
+            await this.mouse(648, 185, 1, 100); // back to inventory
             return true;
         }
         return false;
     }
 
     async flipRunEnergy(): Promise<boolean> {
-        await mouse(711, 485, 1, 100); // run tab
+        await this.mouse(711, 485, 1, 100); // run tab
         await sleep(100);
-        await mouse(580, 265, 1, 100); // run off
+        await this.mouse(580, 265, 1, 100); // run off
         await sleep(100);
-        await mouse(625, 265, 1, 100); // run on
-        await mouse(648, 185, 1, 100); // back to inventory
+        await this.mouse(625, 265, 1, 100); // run on
+        await this.mouse(648, 185, 1, 100); // back to inventory
         return true;
     }
 
@@ -13420,14 +13471,14 @@ export class Client extends GameShell {
     async clickInventoryThrottled(minutes: number) {
         const now = Date.now();
         if (!this.lastClickInventoryTime || now - this.lastClickInventoryTime >= minutes * 60 * 1000) {
-            await mouse(648, 185, 1, 100);
+            await this.mouse(648, 185, 1, 100);
             this.lastClickInventoryTime = now;
         }
     }
 
     async tryOpenDoor(globalX: number, globalZ: number) {
         this.projectFromGroundGlobal(globalX, globalZ, 0.5);
-        await mouse(this.projectX, this.projectY, 2);
+        await this.mouse(this.projectX, this.projectY, 2);
         await sleep(100);
         if (this.menuSize > 0) {
             for (let i = 0; i < this.menuOption.length; i++) {
@@ -13459,7 +13510,7 @@ export class Client extends GameShell {
 
     async tryPickDoor(doorglobalX: number, doorglobalZ: number, walkedX: number, walkedZ: number) {
         this.projectFromGroundGlobal(doorglobalX, doorglobalZ, 0.5);
-        await mouse(this.projectX, this.projectY, 2);
+        await this.mouse(this.projectX, this.projectY, 2);
         await sleep(100);
         if (this.menuSize > 0) {
             for (let i = 0; i < this.menuOption.length; i++) {
@@ -13516,7 +13567,7 @@ export class Client extends GameShell {
             // Send a click to keep everything alive.
             await this.handleRunEnergyThrottled(5);
             // This clicks on the inventory tab.
-            await mouse(648, 185, 1, 100);
+            await this.mouse(648, 185, 1, 100);
             // this.addMessage(0, `Checking randoms.`, '');
             await this.handleRandoms();
             await this.useLamp();
@@ -13535,10 +13586,10 @@ export class Client extends GameShell {
                     await this.handleDangerousRandoms(escapePath);
                     if (foodId == inv.invSlotObjId[slot] - 1) {
                         if (this.selectedTab != 3) {
-                            await mouse(648, 185, 1, 100);
+                            await this.mouse(648, 185, 1, 100);
                         }
                         await sleep(50);
-                        await clickInv(slot, null, 1);
+                        await this.clickInv(slot, null, 1);
                         await sleep(200);
                         break;
                     }
@@ -13571,7 +13622,7 @@ export class Client extends GameShell {
             }
 
             if (closestNpc) {
-                await mouse(closestNpc.x, closestNpc.y, 2);
+                await this.mouse(closestNpc.x, closestNpc.y, 2);
                 await sleep(100);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -13626,7 +13677,7 @@ export class Client extends GameShell {
                 await sleep(200);
                 // try to pick
                 this.projectFromGroundGlobal(westSideX + 0.5, westSideZ, 0.2);
-                await mouse(this.projectX, this.projectY, 2);
+                await this.mouse(this.projectX, this.projectY, 2);
                 await this.useMenuStartsWith('Pick Lock');
                 await sleep(1000);
                 if ((this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX > westSideX) {
@@ -13639,7 +13690,7 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(eastEscapePath.toReversed());
                 await sleep(200);
                 this.projectFromGroundGlobal(westSideX + 0.5, westSideZ, 0.2);
-                await mouse(this.projectX, this.projectY, 2);
+                await this.mouse(this.projectX, this.projectY, 2);
                 await this.useMenuStartsWith('Open');
                 await sleep(1000);
                 if ((this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX <= westSideX) {
@@ -13686,7 +13737,7 @@ export class Client extends GameShell {
             // Send a click to keep everything alive.
             await this.handleRunEnergyThrottled(5);
             // This clicks on the inventory tab.
-            await mouse(648, 185, 1, 100);
+            await this.mouse(648, 185, 1, 100);
             // this.addMessage(0, `Checking randoms.`, '');
             await this.handleRandoms();
             await this.useLamp();
@@ -13719,10 +13770,10 @@ export class Client extends GameShell {
                     await this.handleDangerousRandoms(escapePath);
                     if (foodId == inv.invSlotObjId[slot] - 1) {
                         if (this.selectedTab != 3) {
-                            await mouse(648, 185, 1, 100);
+                            await this.mouse(648, 185, 1, 100);
                         }
                         await sleep(50);
-                        await clickInv(slot, null, 1);
+                        await this.clickInv(slot, null, 1);
                         await sleep(200);
                         break;
                     }
@@ -13755,7 +13806,7 @@ export class Client extends GameShell {
             }
 
             if (closestNpc) {
-                await mouse(closestNpc.x, closestNpc.y, 2);
+                await this.mouse(closestNpc.x, closestNpc.y, 2);
                 await sleep(100);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -13932,6 +13983,68 @@ export class Client extends GameShell {
         await sleep(200);
     }
 
+    async opNNearestNPC(n: number, needle: string) {
+        let nearestNPC = this.getNearestNPC(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npcs[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], npc.routeTileX[0], npc.routeTileZ[0], 2, 1, 1, 0, 0, 0, false);
+                let action =  728;
+                switch (n) {
+                    case 1:
+                        action = 728;
+                        break;
+                    case 2:
+                        action = 542;
+                        break;
+                    case 3:
+                        action = 6;
+                        break;
+                    case 4:
+                        action = 963;
+                        break;
+                    case 5:
+                        action = 245;
+                        break;
+                    default:
+                        break;
+                }
+                if (action === 963) {
+                    this.out.p1isaac(ClientProt.OPNPC4);
+                } else if (action === 6) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic2++;
+                    }
+
+                    if (Client.oplogic2 >= 124) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC2);
+                        this.out.p4(0);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC3);
+                } else if (action === 245) {
+                    if ((a & 0x3) === 0) {
+                        Client.oplogic4++;
+                    }
+
+                    if (Client.oplogic4 >= 85) {
+                        this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC4);
+                        this.out.p2(39596);
+                    }
+
+                    this.out.p1isaac(ClientProt.OPNPC5);
+                } else if (action === 728) {
+                    this.out.p1isaac(ClientProt.OPNPC1);
+                } else if (action === 542) {
+                    this.out.p1isaac(ClientProt.OPNPC2);
+                }
+                this.out.p2(a);
+            }
+        }
+        await sleep(200);
+    }
+
     async onF1Pressed_thieveKnightNoRandoms() {
         // Start in south ardy bank with full inv of food and 1 coin placeholder.
         this.stopLoop = false;
@@ -13957,7 +14070,7 @@ export class Client extends GameShell {
             // Send a click to keep everything alive.
             await this.handleRunEnergyThrottled(5);
             // This clicks on the inventory tab.
-            await mouse(648, 185, 1, 100);
+            await this.mouse(648, 185, 1, 100);
             // If food is out, go to bank, deposit everything, withdraw 1 coin and all food.
             if (this.countInvById(foodId) == 0) {
                 console.log('Out of food, trying to bank');
@@ -13981,10 +14094,10 @@ export class Client extends GameShell {
                 for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                     if (foodId == inv.invSlotObjId[slot] - 1) {
                         if (this.selectedTab != 3) {
-                            await mouse(648, 185, 1, 100);
+                            await this.mouse(648, 185, 1, 100);
                         }
                         await sleep(50);
-                        await clickInv(slot, null, 1);
+                        await this.clickInv(slot, null, 1);
                         await sleep(200);
                         break;
                     }
@@ -14017,7 +14130,7 @@ export class Client extends GameShell {
             }
 
             if (closestNpc) {
-                await mouse(closestNpc.x, closestNpc.y, 2);
+                await this.mouse(closestNpc.x, closestNpc.y, 2);
                 await sleep(100);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -14077,10 +14190,10 @@ export class Client extends GameShell {
                     for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                         if (foodId == inv.invSlotObjId[slot] - 1) {
                             if (this.selectedTab != 3) {
-                                await mouse(648, 185, 1, 100);
+                                await this.mouse(648, 185, 1, 100);
                             }
                             await sleep(50);
-                            await clickInv(slot, null, 1);
+                            await this.clickInv(slot, null, 1);
                             await sleep(200);
                             break;
                         }
@@ -14133,10 +14246,10 @@ export class Client extends GameShell {
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (itemIds.includes(inv.invSlotObjId[slot] - 1)) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
                 await sleep(100);
-                await clickInv(slot, null, 1);
+                await this.clickInv(slot, null, 1);
                 await sleep(1300);
             }
         }
@@ -14213,10 +14326,10 @@ export class Client extends GameShell {
                     for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                         if (foodId == inv.invSlotObjId[slot] - 1) {
                             if (this.selectedTab != 3) {
-                                await mouse(648, 185, 1, 100);
+                                await this.mouse(648, 185, 1, 100);
                             }
                             await sleep(50);
-                            await clickInv(slot, null, 1);
+                            await this.clickInv(slot, null, 1);
                             await sleep(200);
                             break;
                         }
@@ -14341,10 +14454,10 @@ export class Client extends GameShell {
                     for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                         if (foodId == inv.invSlotObjId[slot] - 1) {
                             if (this.selectedTab != 3) {
-                                await mouse(648, 185, 1, 100);
+                                await this.mouse(648, 185, 1, 100);
                             }
                             await sleep(50);
-                            await clickInv(slot, null, 1);
+                            await this.clickInv(slot, null, 1);
                             await sleep(200);
                             foundFood = true;
                             break;
@@ -14477,10 +14590,10 @@ export class Client extends GameShell {
                     for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                         if (foodId == inv.invSlotObjId[slot] - 1) {
                             if (this.selectedTab != 3) {
-                                await mouse(648, 185, 1, 100);
+                                await this.mouse(648, 185, 1, 100);
                             }
                             await sleep(50);
-                            await clickInv(slot, null, 1);
+                            await this.clickInv(slot, null, 1);
                             await sleep(200);
                             foundFood = true;
                             break;
@@ -14617,10 +14730,10 @@ export class Client extends GameShell {
                     for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                         if (foodId == inv.invSlotObjId[slot] - 1) {
                             if (this.selectedTab != 3) {
-                                await mouse(648, 185, 1, 100);
+                                await this.mouse(648, 185, 1, 100);
                             }
                             await sleep(50);
-                            await clickInv(slot, null, 1);
+                            await this.clickInv(slot, null, 1);
                             await sleep(200);
                             foundFood = true;
                             break;
@@ -14781,7 +14894,7 @@ export class Client extends GameShell {
         }
 
         if (closestNpc) {
-            await mouse(closestNpc.x, closestNpc.y, 2);
+            await this.mouse(closestNpc.x, closestNpc.y, 2);
             await sleep(100);
             if (this.menuSize > 0) {
                 for (let i = 0; i < this.menuOption.length; i++) {
@@ -14831,6 +14944,7 @@ export class Client extends GameShell {
         let bankX = 3254;
         let bankZ = 3419;
         let state = 'mining';
+        let needle = 'Aubury';
 
         function mineNearestEssence(obj: Client) {
             let nearestEssObj = obj.getNearestObject(runeEssenceWorldObjId);
@@ -14896,7 +15010,7 @@ export class Client extends GameShell {
                     continue;
                 }
             } else if (state == 'banking') {
-                await this.handleRunEnergyThrottled(5);
+                await this.handleRunEnergyThrottled(1);
                 await this.clickInventoryThrottled(1);
                 await this.walkToEndofPath(shopToBankPath);
                 await sleep(2000);
@@ -14905,7 +15019,8 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(bankToShopPath);
                 await sleep(1000);
                 // Find and click Teleport on Aubury
-                await this.findAndUseNearestNPC('Aubury', 'Teleport');
+                // await this.findAndUseNearestNPC('Aubury', 'Teleport');
+                await this.opNNearestNPC(4, needle);
                 await sleep(1400);
                 state = 'mining';
             } else {
@@ -14927,13 +15042,13 @@ export class Client extends GameShell {
             foundRuinsOption = false;
             if (talismanId == (inv.invSlotObjId[slot] - 1)) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
                 await sleep(100);
-                await clickInv(slot, null, 1);
+                await this.clickInv(slot, null, 1);
                 await sleep(100);
                 this.projectFromGroundGlobal(ruinsX, ruinsZ, 0.1);
-                await mouse(this.projectX, this.projectY, 2);
+                await this.mouse(this.projectX, this.projectY, 2);
                 await sleep(200);
                 if (this.menuSize > 0) {
                     for (let i = 0; i < this.menuOption.length; i++) {
@@ -14954,7 +15069,7 @@ export class Client extends GameShell {
                     await sleep(600*4);
                 } else {
                     // Somehow failed, so need to reset.
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                     await sleep(600);
                 }
             }
@@ -15243,10 +15358,10 @@ export class Client extends GameShell {
                     for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                         if (foodId == inv.invSlotObjId[slot] - 1) {
                             if (this.selectedTab != 3) {
-                                await mouse(648, 185, 1, 100);
+                                await this.mouse(648, 185, 1, 100);
                             }
                             await sleep(50);
-                            await clickInv(slot, null, 1);
+                            await this.clickInv(slot, null, 1);
                             await sleep(200);
                             break;
                         }
@@ -15310,7 +15425,7 @@ export class Client extends GameShell {
             }
 
             this.projectFromGroundGlobal(startX, startZ + 1, 1);
-            await mouse(this.projectX, this.projectY, 2);
+            await this.mouse(this.projectX, this.projectY, 2);
             await sleep(100);
             if (this.menuSize > 0) {
                 for (let i = 0; i < this.menuOption.length; i++) {
@@ -15431,10 +15546,10 @@ export class Client extends GameShell {
                 if (flaxInvId == (inv.invSlotObjId[slot] - 1)) {
                     
                     if (obj.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
+                        await obj.mouse(648, 185, 1, 100);
                     }
                     await sleep(100);
-                    await clickInv(slot, null, 1);
+                    await obj.clickInv(slot, null, 1);
                     await sleep(200);
                     // At this point, should have flax selected
                     if (obj.objSelected == 0) {
@@ -15562,10 +15677,10 @@ export class Client extends GameShell {
                 if (ironInvId == (inv.invSlotObjId[slot] - 1)) {
                     
                     if (obj.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
+                        await obj.mouse(648, 185, 1, 100);
                     }
                     await sleep(100);
-                    await clickInv(slot, null, 1);
+                    await obj.clickInv(slot, null, 1);
                     await sleep(200);
                     // At this point, should have inv item selected
                     if (obj.objSelected == 0) {
@@ -15702,10 +15817,10 @@ export class Client extends GameShell {
                 if (ironInvId == (inv.invSlotObjId[slot] - 1)) {
                     
                     if (obj.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
+                        await obj.mouse(648, 185, 1, 100);
                     }
                     await sleep(100);
-                    await clickInv(slot, null, 1);
+                    await obj.clickInv(slot, null, 1);
                     await sleep(200);
                     // At this point, should have inv item selected
                     if (obj.objSelected == 0) {
@@ -15926,10 +16041,10 @@ export class Client extends GameShell {
                 if (logsInvId == (inv.invSlotObjId[slot] - 1)) {
                     
                     if (obj.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
+                        await obj.mouse(648, 185, 1, 100);
                     }
                     await sleep(100);
-                    await clickInv(slot, null, 1);
+                    await obj.clickInv(slot, null, 1);
                     await sleep(200);
                     // At this point, should have inv item selected
                     if (obj.objSelected == 0) {
@@ -15937,9 +16052,9 @@ export class Client extends GameShell {
                         continue;
                     }
 
-                    await clickInv(knifeslot, null, 1);
+                    await obj.clickInv(knifeslot, null, 1);
                     await sleep(700);
-                    await mouse(93, 403, 1, 100);
+                    await obj.mouse(93, 403, 1, 100);
 
                     // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
                     await sleep(700);
@@ -16022,10 +16137,10 @@ export class Client extends GameShell {
                 if (logsInvId == (inv.invSlotObjId[slot] - 1)) {
                     
                     if (obj.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
+                        await obj.mouse(648, 185, 1, 100);
                     }
                     await sleep(100);
-                    await clickInv(slot, null, 1);
+                    await obj.clickInv(slot, null, 1);
                     await sleep(200);
                     // At this point, should have inv item selected
                     if (obj.objSelected == 0) {
@@ -16033,9 +16148,9 @@ export class Client extends GameShell {
                         continue;
                     }
 
-                    await clickInv(knifeslot, null, 1);
+                    await obj.clickInv(knifeslot, null, 1);
                     await sleep(700);
-                    await mouse(374, 403, 1, 100);
+                    await obj.mouse(374, 403, 1, 100);
 
                     // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
                     await sleep(700);
@@ -16121,10 +16236,10 @@ export class Client extends GameShell {
                 if (logsInvId == (inv.invSlotObjId[slot] - 1)) {
                     
                     if (obj.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
+                        await obj.mouse(648, 185, 1, 100);
                     }
                     await sleep(100);
-                    await clickInv(slot, null, 1);
+                    await obj.clickInv(slot, null, 1);
                     await sleep(200);
                     // At this point, should have inv item selected
                     if (obj.objSelected == 0) {
@@ -16132,9 +16247,9 @@ export class Client extends GameShell {
                         continue;
                     }
 
-                    await clickInv(knifeslot, null, 1);
+                    await obj.clickInv(knifeslot, null, 1);
                     await sleep(700);
-                    await mouse(374, 403, 1, 100);
+                    await obj.mouse(374, 403, 1, 100);
 
                     // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
                     await sleep(700);
@@ -16220,10 +16335,10 @@ export class Client extends GameShell {
                 if (logsInvId == (inv.invSlotObjId[slot] - 1)) {
                     
                     if (obj.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
+                        await obj.mouse(648, 185, 1, 100);
                     }
                     await sleep(100);
-                    await clickInv(slot, null, 1);
+                    await obj.clickInv(slot, null, 1);
                     await sleep(200);
                     // At this point, should have inv item selected
                     if (obj.objSelected == 0) {
@@ -16231,9 +16346,9 @@ export class Client extends GameShell {
                         continue;
                     }
 
-                    await clickInv(knifeslot, null, 1);
+                    await obj.clickInv(knifeslot, null, 1);
                     await sleep(700);
-                    await mouse(374, 403, 1, 100);
+                    await obj.mouse(374, 403, 1, 100);
 
                     // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
                     await sleep(700);
@@ -16287,10 +16402,10 @@ export class Client extends GameShell {
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (id == inv.invSlotObjId[slot] - 1) {
                 if (this.selectedTab != 3) {
-                    await mouse(648, 185, 1, 100);
+                    await this.mouse(648, 185, 1, 100);
                 }
                 await sleep(50);
-                await clickInv(slot, null, 1);
+                await this.clickInv(slot, null, 1);
                 await sleep(200);
                 break;
             }
@@ -16308,6 +16423,30 @@ export class Client extends GameShell {
         let b = nearestObj.x;
         let c = nearestObj.z;
         this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+        return true;
+    }
+
+    useNearestObjOPN(n: number, ids: number[], maxdist: number) {
+        let nearestObj = this.getNearestObjectFromArray(ids, maxdist);
+        if (!nearestObj) {
+            this.addMessage(0, `Failed to find a nearest object of ${ids} within ${maxdist} dist.`, '');
+            return false;
+        }
+        let a = nearestObj.fullType;
+        let b = nearestObj.x;
+        let c = nearestObj.z;
+        if (n == 1) {
+            this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        } else if (n == 2) {
+            this.interactWithLoc(ClientProt.OPLOC2, b, c, a);
+        } else if (n == 3) {
+            this.interactWithLoc(ClientProt.OPLOC3, b, c, a);
+        } else {
+            console.error(`Invalid n=${n} call to useNearestObjOPN.`);
+        }
         this.objSelected = 0;
         this.spellSelected = 0;
         this.redrawSidebar = true;
@@ -16399,7 +16538,7 @@ export class Client extends GameShell {
             obj.menuVisible = false;
             await obj.walkToEndofPath([[3002, 3945]]);
             obj.projectFromGroundGlobal(3001, 3945, 0.1);
-            await mouse(obj.projectX, obj.projectY, 2);
+            await obj.mouse(obj.projectX, obj.projectY, 2);
             await sleep(100);
             if (obj.menuSize > 0) {
                 for (let i = 0; i < obj.menuOption.length; i++) {
@@ -16426,7 +16565,7 @@ export class Client extends GameShell {
             obj.menuVisible = false;
             await obj.walkToEndofPath([[2994, 3937]]);
             obj.projectFromGroundGlobal(2994, 3936, 0.1);
-            await mouse(obj.projectX, obj.projectY, 2);
+            await obj.mouse(obj.projectX, obj.projectY, 2);
             await sleep(100);
             if (obj.menuSize > 0) {
                 for (let i = 0; i < obj.menuOption.length; i++) {
@@ -16455,7 +16594,7 @@ export class Client extends GameShell {
             await obj.walkToEndofPath([[3002, 3960]]);
             // click 3001, 3960
             obj.projectFromGroundGlobal(3001, 3960, 0.1);
-            await mouse(obj.projectX, obj.projectY, 2);
+            await obj.mouse(obj.projectX, obj.projectY, 2);
             await sleep(100);
             if (obj.menuSize > 0) {
                 for (let i = 0; i < obj.menuOption.length; i++) {
@@ -16599,10 +16738,10 @@ export class Client extends GameShell {
                 console.log('Doing walktobank');
                 await this.walkToEndofPath([[agilityDoorInsideLoc.x, agilityDoorInsideLoc.z]]);
                 await sleep(500);
-                await mouse(711, 485, 1, 100); // run tab
+                await this.mouse(711, 485, 1, 100); // run tab
                 await sleep(200);
-                await mouse(625, 265, 1, 100); // run on
-                await mouse(648, 185, 1, 100); // back to inventory
+                await this.mouse(625, 265, 1, 100); // run on
+                await this.mouse(648, 185, 1, 100); // back to inventory
                 await sleep(500);
                 await this.tryOpenDoor(agilityDoorInsideLoc.x, agilityDoorInsideLoc.z - 0.5);
                 await sleep(1000);
@@ -16647,11 +16786,11 @@ export class Client extends GameShell {
                 //     }
                 // }
                 await sleep(10000);
-                await mouse(clickToContinueMouseLoc.x, clickToContinueMouseLoc.y, 1, 100);
+                await this.mouse(clickToContinueMouseLoc.x, clickToContinueMouseLoc.y, 1, 100);
                 await sleep(2000);
-                await mouse(clickToContinueMouseLoc.x, clickToContinueMouseLoc.y, 1, 100);
+                await this.mouse(clickToContinueMouseLoc.x, clickToContinueMouseLoc.y, 1, 100);
                 await sleep(2000);
-                await mouse(accessBankMouseLoc.x, accessBankMouseLoc.y, 1, 100);
+                await this.mouse(accessBankMouseLoc.x, accessBankMouseLoc.y, 1, 100);
                 await sleep(4000);
                 await this.withdrawAllBankById(foodInvId);
                 await sleep(4000);
@@ -16740,10 +16879,10 @@ export class Client extends GameShell {
                 if (logsInvId == (inv.invSlotObjId[slot] - 1)) {
                     
                     if (obj.selectedTab != 3) {
-                        await mouse(648, 185, 1, 100);
+                        await obj.mouse(648, 185, 1, 100);
                     }
                     await sleep(100);
-                    await clickInv(slot, null, 1);
+                    await obj.clickInv(slot, null, 1);
                     await sleep(200);
                     // At this point, should have inv item selected
                     if (obj.objSelected == 0) {
@@ -16751,7 +16890,7 @@ export class Client extends GameShell {
                         continue;
                     }
 
-                    await clickInv(tinderboxSlot, null, 1);
+                    await obj.clickInv(tinderboxSlot, null, 1);
                     await sleep(7000);
                 }
             }
@@ -16847,7 +16986,7 @@ export class Client extends GameShell {
 
                 // First 10
                 await this.useItemOnAnvil(anvilX, anvilZ, ironBarInvId);
-                mouse(450, 189, 2);
+                this.mouse(450, 189, 2);
                 await sleep(200);
                 this.useMenuOption(this.menuSize - 3);
                 this.menuVisible = false;
@@ -16855,7 +16994,7 @@ export class Client extends GameShell {
                 // Second 10
                 await this.useItemOnAnvil(anvilX, anvilZ, ironBarInvId);
                 // Should be in smithing interface now
-                mouse(450, 189, 2);
+                this.mouse(450, 189, 2);
                 await sleep(200);
                 this.useMenuOption(this.menuSize - 3);
                 this.menuVisible = false;
@@ -16863,7 +17002,7 @@ export class Client extends GameShell {
                 // Third 7
                 await this.useItemOnAnvil(anvilX, anvilZ, ironBarInvId);
                 // Should be in smithing interface now
-                mouse(450, 189, 2);
+                this.mouse(450, 189, 2);
                 await sleep(200);
                 this.useMenuOption(this.menuSize - 3);
                 this.menuVisible = false;
@@ -16998,10 +17137,10 @@ export class Client extends GameShell {
                     for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                         if (foodId == inv.invSlotObjId[slot] - 1) {
                             if (this.selectedTab != 3) {
-                                await mouse(648, 185, 1, 100);
+                                await this.mouse(648, 185, 1, 100);
                             }
                             await sleep(50);
-                            await clickInv(slot, null, 1);
+                            await this.clickInv(slot, null, 1);
                             await sleep(200);
                             foundFood = true;
                             break;
@@ -17075,9 +17214,9 @@ export class Client extends GameShell {
             }
             for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                 if (obj.selectedTab != 3) {
-                    await mouse(648, 185, 1, 30);
+                    await obj.mouse(648, 185, 1, 30);
                 }
-                await clickInv(slot, null, 1);
+                await obj.clickInv(slot, null, 1);
                 await sleep(30);
             }
             return true;
@@ -17089,7 +17228,7 @@ export class Client extends GameShell {
             await sleep(700);
             await this.withdrawAllBankById(unidId);
             await sleep(700);
-            mouse(463, 41, 1); // close bank window
+            this.mouse(463, 41, 1); // close bank window
             await sleep(700);
             await clickAllInv(this);
             await sleep(700);
@@ -17176,10 +17315,10 @@ export class Client extends GameShell {
                     for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                         if (foodId == inv.invSlotObjId[slot] - 1) {
                             if (this.selectedTab != 3) {
-                                await mouse(648, 185, 1, 100);
+                                await this.mouse(648, 185, 1, 100);
                             }
                             await sleep(50);
-                            await clickInv(slot, null, 1);
+                            await this.clickInv(slot, null, 1);
                             await sleep(200);
                             foundFood = true;
                             break;
@@ -17249,61 +17388,120 @@ export class Client extends GameShell {
             await sleep(1000);
             await this.op1NearestNPC('Tanner');
             await sleep(2100);
-            await mouse(302, 448, 1);
+            await this.mouse(302, 448, 1);
             await sleep(1500);
-            await mouse(302, 448, 1);
+            await this.mouse(302, 448, 1);
             await sleep(1500);
-            await mouse(264, 398, 1);
+            await this.mouse(264, 398, 1);
             await sleep(1500);
-            await mouse(260, 381, 1);
+            await this.mouse(260, 381, 1);
             await sleep(1500);
             await this.walkToEndofPath(pathTannerToBank);
             await sleep(1500);
         }
     }
-}
 
-
-
-async function mouse(x: number, y: number, button = 0, delay = 100) {
-    // console.log("Doing a click at" + x + "," + y);
-    const rect = canvas.getBoundingClientRect();
-    canvas.dispatchEvent(new MouseEvent('mousemove', {
-        'clientX': Math.round(x) + rect.left,
-        'clientY': Math.round(y) + rect.top
-    }));
-    await sleep(delay);
-    if (button > 0) {
-        canvas.dispatchEvent(new MouseEvent('mousedown', {
+    async mouse(x: number, y: number, button = 0, delay = 100) {
+        // Send button 1 to get the mouse to actually move, then do the real click.
+        // Don't understand why this is necessary, but looking at the "Use ..." in top left,
+        // making a left click seems to work.
+        let originalButton = button;
+        button = 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.dispatchEvent(new MouseEvent('mousemove', {
             'clientX': Math.round(x) + rect.left,
-            'clientY': Math.round(y) + rect.top,
-            'button': button == 2 ? 2 : 0,
-            'buttons': button == 2 ? 2 : 1,
-            'which': button == 2 ? 3 : 1
+            'clientY': Math.round(y) + rect.top
         }));
         await sleep(delay);
-        canvas.dispatchEvent(new MouseEvent('mouseup', {
-            'clientX': Math.round(x) + rect.left,
-            'clientY': Math.round(y) + rect.top,
-            'button': button == 2 ? 2 : 0,
-            'buttons': 0,
-            'which': button == 2 ? 3 : 1
-        }));
+
+        // From GameShell onmousedown
+        this.idleCycles = performance.now();
+        this.nextMouseClickX = x;
+        this.nextMouseClickY = y;
+        this.nextMouseClickTime = performance.now();
+
+        // custom: down event comes before and potentially without move event
+        this.mouseX = x;
+        this.mouseY = y;
+
+        if (button === 2) {
+            this.nextMouseClickButton = 2;
+            this.mouseButton = 2;
+        } else {
+            this.nextMouseClickButton = 1;
+            this.mouseButton = 1;
+        }
+        if (InputTracking.enabled) {
+            InputTracking.mousePressed(x, y, button, 'mouse');
+        }
+
+        await sleep(delay);
+
+        // From GameShell onmouseup
+        this.idleCycles = performance.now();
+        this.mouseButton = 0;
+
+        if (InputTracking.enabled) {
+            InputTracking.mouseReleased(button, 'mouse');
+        }
+
+        // custom: up event comes before and potentially without move event
+        this.mouseX = x;
+        this.mouseY = y;
+
+        // Try to send ANOTHER click??
+        button = originalButton;
+        await sleep(100);
+        // From GameShell onmousedown
+        this.idleCycles = performance.now();
+        this.nextMouseClickX = x;
+        this.nextMouseClickY = y;
+        this.nextMouseClickTime = performance.now();
+
+        // custom: down event comes before and potentially without move event
+        this.mouseX = x;
+        this.mouseY = y;
+
+        if (button === 2) {
+            this.nextMouseClickButton = 2;
+            this.mouseButton = 2;
+        } else {
+            this.nextMouseClickButton = 1;
+            this.mouseButton = 1;
+        }
+        if (InputTracking.enabled) {
+            InputTracking.mousePressed(x, y, button, 'mouse');
+        }
+
+        await sleep(delay);
+
+        // From GameShell onmouseup
+        this.idleCycles = performance.now();
+        this.mouseButton = 0;
+
+        if (InputTracking.enabled) {
+            InputTracking.mouseReleased(button, 'mouse');
+        }
+
+        // custom: up event comes before and potentially without move event
+        this.mouseX = x;
+        this.mouseY = y;
+    }
+
+    async clickInv(i: number, j: number | null=null, button=1) {
+        if (j === null) {
+            j = Math.floor(i / 4);
+            i = i % 4;
+        }
+        await this.mouse(583 + i*40, 232 + j*35, button);
+    }
+    
+    async clickBank(i: number, j: number | null=null, button=1) {
+        if (j === null) {
+            j = Math.floor(i / 8);
+            i = i % 8;
+        }
+        await this.mouse(95 + i*47, 80 + j*38, button);
     }
 }
 
-async function clickInv(i: number, j: number | null=null, button=1) {
-    if (j === null) {
-        j = Math.floor(i / 4);
-        i = i % 4;
-    }
-    await mouse(583 + i*40, 232 + j*35, button);
-}
-
-async function clickBank(i: number, j: number | null=null, button=1) {
-    if (j === null) {
-        j = Math.floor(i / 8);
-        i = i % 8;
-    }
-    await mouse(95 + i*47, 80 + j*38, button);
-}
