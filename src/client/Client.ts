@@ -525,6 +525,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Mine and bank rune essence in Varrock.',
+            'fn': (obj: Client) => {obj.onF1Pressed_mineRuneEssence();}
+        },
+        {
             'description': 'Tan soft leather; start in bank; make sure cow hide is visible and have coins.',
             'fn': (obj: Client) => {obj.onF1Pressed_tanLeatherAlKharid();}
         },
@@ -595,10 +599,6 @@ export class Client extends GameShell {
         {
             'description': 'Kill Chaos Druids in ardy tower. Point camera WEST.',
             'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdy();}
-        },
-        {
-            'description': 'Mine and bank rune essence in Varrock.',
-            'fn': (obj: Client) => {obj.onF1Pressed_mineRuneEssence();}
         },
         {
             'description': 'Craft air runes from Falador bank',
