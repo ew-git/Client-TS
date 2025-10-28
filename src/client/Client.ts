@@ -659,7 +659,11 @@ export class Client extends GameShell {
                 // await this.mouse(this.mouseX, this.mouseY, 2, 100);
                 // await this.mouse(271, 141, 1, 100);
 
-                await this.openBankNoMouse();
+                // await this.openBankNoMouse();
+
+                // this.depositAllSingleSlot(0, 1436);
+
+                this.depositAllExceptNoMouse([0, 1436]);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -13362,6 +13366,31 @@ export class Client extends GameShell {
             this.selectedArea = 3;
         }
     }
+
+        /**
+     * Pass the actual ids, not +1
+    */
+    async depositAllExceptNoMouse(itemIds: number[]) {
+        await this.openBankNoMouse();
+
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (inv.invSlotObjId[slot] == 0) continue; // Skip empty slots
+            let objId = inv.invSlotObjId[slot] - 1;
+            if (!itemIds.includes(objId)) {
+                this.depositAllSingleSlot(slot, objId);
+                await sleep(300);
+            }
+        }
+        return true;
+    }
+    
     /**
      * Pass the actual ids, not +1
     */
@@ -15014,14 +15043,20 @@ export class Client extends GameShell {
                 await this.clickInventoryThrottled(1);
                 await this.walkToEndofPath(shopToBankPath);
                 await sleep(2000);
-                await this.depositAllExcept(bankX, bankZ, [0]);
+                // await this.depositAllExcept(bankX, bankZ, [0]);
+                await this.depositAllExceptNoMouse([0]);
                 await sleep(1800);
                 await this.walkToEndofPath(bankToShopPath);
                 await sleep(1000);
                 // Find and click Teleport on Aubury
                 // await this.findAndUseNearestNPC('Aubury', 'Teleport');
                 await this.opNNearestNPC(4, needle);
-                await sleep(1400);
+                // Wait until we are in the mine (far away from the shop)
+                for (let i = 0; i < 20; i++) {
+                    await sleep(1000);
+                    if (distToShop(this) > 100) {break;}
+                }
+                await sleep(700);
                 state = 'mining';
             } else {
                 console.log('Invalid state');
