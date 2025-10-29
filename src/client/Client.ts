@@ -15652,61 +15652,6 @@ export class Client extends GameShell {
             obj.redrawSidebar = true;
             return true;
         }
-        // This isn't working reliably
-        function openDoor(obj: Client) {
-            let a = 1098815540;
-            let b = 2716 - obj.sceneBaseTileX;
-            let c = 3472 - obj.sceneBaseTileZ;
-            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-            obj.objSelected = 0;
-            obj.spellSelected = 0;
-            obj.redrawSidebar = true;
-            return true;
-        }
-
-        async function useFlaxOnWheel(obj: Client) {
-            let inv = Component.types[obj.inventoryComponentId];
-            if (!inv || !inv.invSlotObjId) {
-                obj.addMessage?.(0, 'Inventory data not available', '');
-                return false;
-            }
-
-            for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-                if (flaxInvId == (inv.invSlotObjId[slot] - 1)) {
-                    
-                    if (obj.selectedTab != 3) {
-                        await obj.mouse(648, 185, 1, 100);
-                    }
-                    await sleep(100);
-                    await obj.clickInv(slot, null, 1);
-                    await sleep(200);
-                    // At this point, should have flax selected
-                    if (obj.objSelected == 0) {
-                        console.log('Dont have an object selected, skipping this item.');
-                        continue;
-                    }
-
-                    let nearestObj = obj.getNearestObject(spinningWheelId);
-                    if (!nearestObj) {
-                        return false;
-                    }
-                    let a = nearestObj.fullType;
-                    let b = nearestObj.x;
-                    let c = nearestObj.z;
-                    if (obj.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
-                        obj.out.p2(obj.objInterface);
-                        obj.out.p2(obj.objSelectedSlot);
-                        obj.out.p2(obj.objSelectedInterface);
-                    }
-                    obj.objSelected = 0;
-                    obj.spellSelected = 0;
-                    obj.redrawSidebar = true;
-                    // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
-                    await sleep(2500);
-                }
-            }
-            return true;
-        }
         
         while (!this.stopLoop) {
             await this.handleRunEnergyThrottled(1);
@@ -15766,7 +15711,7 @@ export class Client extends GameShell {
                 await sleep(2000);
                 state = 'banking';
             } else if (state == 'banking') {
-                await this.depositAllExcept(bankX, bankZ, [0]);
+                await this.depositAllExceptNoMouse([0]);
                 await sleep(2000);
                 await this.walkToEndofPath(pathBankToFlax);
                 await sleep(2000);
