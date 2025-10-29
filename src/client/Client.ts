@@ -525,6 +525,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX. POINT CAMERA WEST FOR DOOR.',
+            'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
+        },
+        {
             'description': 'Mine and bank rune essence in Varrock.',
             'fn': (obj: Client) => {obj.onF1Pressed_mineRuneEssence();}
         },
@@ -543,10 +547,6 @@ export class Client extends GameShell {
         {
             'description': 'Kill chaos druids with ranged. POINT CAMERA WEST FOR DOOR.',
             'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdyRange();}
-        },
-        {
-            'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX. POINT CAMERA WEST FOR DOOR.',
-            'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
         },
         {
             'description': 'Id unid herbs.',
@@ -663,7 +663,26 @@ export class Client extends GameShell {
 
                 // this.depositAllSingleSlot(0, 1436);
 
-                this.depositAllExceptNoMouse([0, 1436]);
+                // this.depositAllExceptNoMouse([0, 1436]);
+
+                // this.useNearestObjOP1([1530], 2); // can't find obj 1530
+
+                let level = this.currentLevel;
+                let tileX = this.localPlayer?.routeTileX[0] ?? 0;
+                let tileZ = this.localPlayer?.routeTileZ[0] ?? 0;
+                if (this.scene) {
+                    console.log(`${level},${tileX},${tileZ}. ${this.scene.getWallTypecode(level, tileX, tileZ)}; ${this.scene.getLocTypecode(level, tileX, tileZ)}; ${this.scene.getGroundDecorTypecode(level, tileX, tileZ)}`);
+                }
+
+
+                // let a = 1098815540; // typecode, but now it's 1098816564. probably depends on loc
+                // let b = 2716 - this.sceneBaseTileX;
+                // let c = 3472 - this.sceneBaseTileZ;
+                // this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+                // this.objSelected = 0;
+                // this.spellSelected = 0;
+                // this.redrawSidebar = true;
+                // return true;
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -13331,6 +13350,25 @@ export class Client extends GameShell {
 
     /**
      * Pass the actual ids, not +1
+     * This selects the item if it's not already selected.
+    */
+    selectInvSingleSlot(slot: number, itemId: number){
+        let action: number = 188;
+        const a: number = itemId;
+        const b: number = slot;
+        const c: number = 3214;
+
+        this.objSelected = 1;
+        this.objSelectedSlot = b;
+        this.objSelectedInterface = c;
+        this.objInterface = a;
+        this.objSelectedName = ObjType.get(a).name;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    /**
+     * Pass the actual ids, not +1
     */
     depositAllSingleSlot(slot: number, itemId: number){
         let action: number = 892;
@@ -15499,6 +15537,52 @@ export class Client extends GameShell {
         }
     }
 
+    async useFlaxOnWheelNoMouse() {
+        let flaxInvId = 1779;
+        let spinningWheelId = 2644;
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (flaxInvId == (inv.invSlotObjId[slot] - 1)) {
+                
+                if (this.selectedTab != 3) {
+                    await this.mouse(648, 185, 1, 100);
+                }
+                await sleep(100);
+                this.selectInvSingleSlot(slot, flaxInvId);
+                await sleep(200);
+                // At this point, should have flax selected
+                if (this.objSelected == 0) {
+                    console.log('Dont have an object selected, skipping this item.');
+                    continue;
+                }
+
+                let nearestObj = this.getNearestObject(spinningWheelId);
+                if (!nearestObj) {
+                    return false;
+                }
+                let a = nearestObj.fullType;
+                let b = nearestObj.x;
+                let c = nearestObj.z;
+                if (this.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
+                    this.out.p2(this.objInterface);
+                    this.out.p2(this.objSelectedSlot);
+                    this.out.p2(this.objSelectedInterface);
+                }
+                this.objSelected = 0;
+                this.spellSelected = 0;
+                this.redrawSidebar = true;
+                // There seems to be a constant tick delay for doing the next item even though it's immediately converted.
+                await sleep(2700);
+            }
+        }
+        return true;
+    }
+
     async onF1Pressed_pickFlaxAndSpin() {
         this.stopLoop = false;
         let state = 'picking_flax'
@@ -15513,6 +15597,16 @@ export class Client extends GameShell {
         let pathBankToFlax = [[2727, 3493], [2726, 3477], [2726, 3460], [2734, 3448], [2737, 3442]];
         let doorId = 1530;
         let spinningWheelId = 2644;
+
+        // a needs to be the typecode, which seems to depend on the location, which could change based on the server? or client?
+        // let a = 1098815540; // Can't hardcode this because it is kind of randomized.
+        let b = 2716 - this.sceneBaseTileX;
+        let c = 3472 - this.sceneBaseTileZ;
+        let a = this.scene?.getWallTypecode(this.currentLevel, b, c) ?? 0;
+        // this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        // this.objSelected = 0;
+        // this.spellSelected = 0;
+        // this.redrawSidebar = true;
 
         function pickNearestFlax(obj: Client) {
             let nearestObj = obj.getNearestObject(2646); // flax_ground
@@ -15615,7 +15709,7 @@ export class Client extends GameShell {
         }
         
         while (!this.stopLoop) {
-            await this.handleRunEnergyThrottled(5);
+            await this.handleRunEnergyThrottled(1);
             await this.clickInventoryThrottled(1);
             if (state == 'picking_flax') {
                 while (!this.invFull()) {
@@ -15633,8 +15727,13 @@ export class Client extends GameShell {
                 state = 'walk_flax_to_wheel';
             } else if (state == 'walk_flax_to_wheel') {
                 await this.walkToEndofPath(pathFlaxToDoor);
-                await this.tryOpenDoor(doorOutside.x - 0.5, doorOutside.z);
-                await sleep(600);
+                // await this.tryOpenDoor(doorOutside.x - 0.5, doorOutside.z);
+                await sleep(700);
+                this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+                this.objSelected = 0;
+                this.spellSelected = 0;
+                this.redrawSidebar = true;
+                await sleep(700);
                 climbUpLadder(this);
                 while (this.currentLevel != 1) {
                     await sleep(200);
@@ -15644,7 +15743,8 @@ export class Client extends GameShell {
             } else if (state == 'spinning') {
                 await this.walkToEndofPath(adjacentWheel);
                 await sleep(600);
-                await useFlaxOnWheel(this);
+                // await useFlaxOnWheel(this);
+                await this.useFlaxOnWheelNoMouse();
                 await sleep(600);
                 state = 'walk_wheel_to_bank';
             } else if (state == 'walk_wheel_to_bank') {
@@ -15655,7 +15755,13 @@ export class Client extends GameShell {
                 await sleep(600);
                 await this.walkToEndofPath([[doorInside.x, doorInside.z]]);
                 await sleep(600);
-                await this.tryOpenDoor(doorOutside.x - 0.5, doorOutside.z);
+                // await this.tryOpenDoor(doorOutside.x - 0.5, doorOutside.z);
+                await sleep(700);
+                this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+                this.objSelected = 0;
+                this.spellSelected = 0;
+                this.redrawSidebar = true;
+                await sleep(700);
                 await this.walkToEndofPath(pathDoorToBank);
                 await sleep(2000);
                 state = 'banking';
