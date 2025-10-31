@@ -649,10 +649,10 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                // this.logArray.push([globalX, globalZ]);
-                // console.log(JSON.stringify(this.logArray));
+                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                this.logArray.push([globalX, globalZ]);
+                console.log(JSON.stringify(this.logArray));
 
                 // this.useNearestObjOP1([2311], 20);
 
@@ -693,7 +693,7 @@ export class Client extends GameShell {
                 // console.log(`a=${a}, b=${b}, c=${c}`);
 
                 
-                await this.useTalismanOnRuins(2984, 3291, 1438);
+                // await this.useTalismanOnRuins(2984, 3291, 1438);
 
 
             }
@@ -15215,23 +15215,8 @@ export class Client extends GameShell {
             LOC_AIR_ALTAR = 2478, // world obj air alter
             LOC_AIR_PORTAL = 2465; // world obj air portal
 
-        let bankToRuinsPath = [
-            [3012, 3355],
-            [3010, 3358],
-            [3007, 3350],
-            [3007, 3343],
-            [3008, 3336],
-            [3009, 3329],
-            [3009, 3322],
-            [3002, 3318],
-            [2999, 3311],
-            [2995, 3304],
-            [2988, 3301],
-            [2987, 3293]
-        ];
-        let ruinsToBankPath = bankToRuinsPath.toReversed();
-        let bankX = 3012;
-        let bankZ = 3354;
+        let bankToRuinsPath = [[3012,3355],[3006,3348],[3006,3332],[3006,3322],[3006,3307],[2993,3301],[2986,3294]];
+        let ruinsToBankPath = bankToRuinsPath.toReversed().slice(1);
         let ruinsX = 2984; // essentially the center. Need to check with right click menu debug.
         let ruinsZ = 3291;
 
