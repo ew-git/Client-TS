@@ -667,12 +667,12 @@ export class Client extends GameShell {
 
                 // this.useNearestObjOP1([1530], 2); // can't find obj 1530
 
-                let level = this.currentLevel;
-                let tileX = this.localPlayer?.routeTileX[0] ?? 0;
-                let tileZ = this.localPlayer?.routeTileZ[0] ?? 0;
-                if (this.scene) {
-                    console.log(`${level},${tileX},${tileZ}. ${this.scene.getWallTypecode(level, tileX, tileZ)}; ${this.scene.getLocTypecode(level, tileX, tileZ)}; ${this.scene.getGroundDecorTypecode(level, tileX, tileZ)}`);
-                }
+                // let level = this.currentLevel;
+                // let tileX = this.localPlayer?.routeTileX[0] ?? 0;
+                // let tileZ = this.localPlayer?.routeTileZ[0] ?? 0;
+                // if (this.scene) {
+                //     console.log(`${level},${tileX},${tileZ}. ${this.scene.getWallTypecode(level, tileX, tileZ)}; ${this.scene.getLocTypecode(level, tileX, tileZ)}; ${this.scene.getGroundDecorTypecode(level, tileX, tileZ)}`);
+                // }
 
 
                 // let a = 1098815540; // typecode, but now it's 1098816564. probably depends on loc
@@ -683,6 +683,19 @@ export class Client extends GameShell {
                 // this.spellSelected = 0;
                 // this.redrawSidebar = true;
                 // return true;
+
+                // await this.withdrawAllNoMouse(1436);
+                // let ruinsX = 2984;
+                // let ruinsZ = 3291;
+                // let b = ruinsX - this.sceneBaseTileX;
+                // let c = ruinsZ - this.sceneBaseTileZ;
+                // let a = this.scene?.getLocTypecode(this.currentLevel, b, c) ?? 0;
+                // console.log(`a=${a}, b=${b}, c=${c}`);
+
+                
+                await this.useTalismanOnRuins(2984, 3291, 1438);
+
+
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -13405,7 +13418,7 @@ export class Client extends GameShell {
         }
     }
 
-        /**
+    /**
      * Pass the actual ids, not +1
     */
     async depositAllExceptNoMouse(itemIds: number[]) {
@@ -13427,6 +13440,60 @@ export class Client extends GameShell {
             }
         }
         return true;
+    }
+
+    /**
+     * Pass the actual ids, not +1
+    */
+    withdrawAllSingleSlot(slot: number, itemId: number){
+        let action: number = 892;
+        const a: number = itemId;
+        const b: number = slot;
+        const c: number = 5382;
+        if (action === 892) {
+            if ((b & 0x3) === 0) {
+                Client.oplogic9++;
+            }
+
+            if (Client.oplogic9 >= 130) {
+                this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC9);
+                this.out.p1(177);
+            }
+
+            this.out.p1isaac(ClientProt.INV_BUTTON4);
+        }
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedInterface = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (Component.types[c].layer === this.viewportInterfaceId) {
+            this.selectedArea = 1;
+        }
+
+        if (Component.types[c].layer === this.chatInterfaceId) {
+            this.selectedArea = 3;
+        }
+    }
+
+    async withdrawAllNoMouse(id: number) {
+        let inv = Component.types[this.bankComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (id == (inv.invSlotObjId[slot] - 1)) {
+                this.withdrawAllSingleSlot(slot, id);
+                await sleep(700);
+                return true;
+            }
+        }
+        return false;
     }
     
     /**
@@ -15110,44 +15177,34 @@ export class Client extends GameShell {
             return false;
         }
 
-        let foundRuinsOption = false;
+        let b = ruinsX - this.sceneBaseTileX;
+        let c = ruinsZ - this.sceneBaseTileZ;
+        let a = this.scene?.getLocTypecode(this.currentLevel, b, c) ?? 0;
+
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-            foundRuinsOption = false;
             if (talismanId == (inv.invSlotObjId[slot] - 1)) {
                 if (this.selectedTab != 3) {
                     await this.mouse(648, 185, 1, 100);
                 }
                 await sleep(100);
-                await this.clickInv(slot, null, 1);
+                await this.selectInvSingleSlot(slot, talismanId);
                 await sleep(100);
-                this.projectFromGroundGlobal(ruinsX, ruinsZ, 0.1);
-                await this.mouse(this.projectX, this.projectY, 2);
-                await sleep(200);
-                if (this.menuSize > 0) {
-                    for (let i = 0; i < this.menuOption.length; i++) {
-                        const optiontext = this.menuOption[i];
-                        if (optiontext.endsWith('ruins') && optiontext.startsWith('Use')) {
-                            this.useMenuOption(i);
-                            this.menuVisible = false;
-                            if (this.menuArea === 1) {
-                                this.redrawSidebar = true;
-                            } else if (this.menuArea === 2) {
-                                this.redrawChatback = true;
-                            }
-                            foundRuinsOption = true;
-                        }
-                    }
+                // Have talisman selected, now we need to click on the ruins.
+
+                if (this.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
+                    this.out.p2(this.objInterface);
+                    this.out.p2(this.objSelectedSlot);
+                    this.out.p2(this.objSelectedInterface);
+                    this.objSelected = 0;
+                    this.spellSelected = 0;
+                    this.redrawSidebar = true;
+                    await sleep(700);
+                    return true;
                 }
-                if (foundRuinsOption) {
-                    await sleep(600*4);
-                } else {
-                    // Somehow failed, so need to reset.
-                    await this.mouse(648, 185, 1, 100);
-                    await sleep(600);
-                }
+
             }
         }
-        return true;
+        return false;
     }
 
     async onF1Pressed_airRunecraft() {
@@ -15175,8 +15232,10 @@ export class Client extends GameShell {
         let ruinsToBankPath = bankToRuinsPath.toReversed();
         let bankX = 3012;
         let bankZ = 3354;
-        let ruinsX = 2986;
-        let ruinsZ = 3293;
+        let ruinsX = 2984; // essentially the center. Need to check with right click menu debug.
+        let ruinsZ = 3291;
+
+
 
         function useNearestAirAltar(obj: Client) {
             let nearestEssObj = obj.getNearestObject(LOC_AIR_ALTAR);
@@ -15220,9 +15279,9 @@ export class Client extends GameShell {
             await this.clickInventoryThrottled(1);
             await this.walkToEndofPath(ruinsToBankPath);
             await sleep(2000);
-            await this.depositAllExcept(bankX, bankZ, [ITEM_AIR_TALISMAN]);
+            await this.depositAllExceptNoMouse([ITEM_AIR_TALISMAN]);
             await sleep(1800);
-            await this.withdrawAllBankById(ITEM_RUNE_ESSENCE);
+            await this.withdrawAllNoMouse(ITEM_RUNE_ESSENCE);
             await sleep(1000);
             await this.walkToEndofPath(bankToRuinsPath);
             await sleep(2000);
@@ -15250,12 +15309,6 @@ export class Client extends GameShell {
                 useNearestPortal(this);
                 if (distToAltar(this) > 20) {break;}
             }
-            // Sometimes above fails because we level up, which interrupts the action on the portal.
-            // useNearestPortal(this);
-            // for (let i = 0; i < 10; i++) {
-            //     await sleep(1000);
-            //     if (distToAltar(this) > 20) {break;}
-            // }
 
             // Back to bank
             await this.walkToEndofPath(ruinsToBankPath);
@@ -15652,6 +15705,18 @@ export class Client extends GameShell {
             obj.redrawSidebar = true;
             return true;
         }
+
+        function openDoor(obj: Client) {
+            // a needs to be the typecode, which seems to depend on the location, which could change based on the server? or client?
+            // let a = 1098815540; // Can't hardcode this because it is kind of randomized.
+            let b = 2716 - obj.sceneBaseTileX;
+            let c = 3472 - obj.sceneBaseTileZ;
+            let a = obj.scene?.getWallTypecode(obj.currentLevel, b, c) ?? 0;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+        }
         
         while (!this.stopLoop) {
             await this.handleRunEnergyThrottled(1);
@@ -15674,10 +15739,7 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(pathFlaxToDoor);
                 // await this.tryOpenDoor(doorOutside.x - 0.5, doorOutside.z);
                 await sleep(700);
-                this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-                this.objSelected = 0;
-                this.spellSelected = 0;
-                this.redrawSidebar = true;
+                openDoor(this);
                 await sleep(700);
                 climbUpLadder(this);
                 while (this.currentLevel != 1) {
@@ -15702,10 +15764,7 @@ export class Client extends GameShell {
                 await sleep(600);
                 // await this.tryOpenDoor(doorOutside.x - 0.5, doorOutside.z);
                 await sleep(700);
-                this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-                this.objSelected = 0;
-                this.spellSelected = 0;
-                this.redrawSidebar = true;
+                openDoor(this);
                 await sleep(700);
                 await this.walkToEndofPath(pathDoorToBank);
                 await sleep(2000);
