@@ -525,16 +525,16 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Tan hard leather; start in bank; make sure cow hide is visible and have coins.',
+            'fn': (obj: Client) => {obj.onF1Pressed_tanLeatherAlKharid();}
+        },
+        {
             'description': 'Pick flax and spin to bowstring in Camelet. START AT FLAX. POINT CAMERA WEST FOR DOOR.',
             'fn': (obj: Client) => {obj.onF1Pressed_pickFlaxAndSpin();}
         },
         {
             'description': 'Mine and bank rune essence in Varrock.',
             'fn': (obj: Client) => {obj.onF1Pressed_mineRuneEssence();}
-        },
-        {
-            'description': 'Tan soft leather; start in bank; make sure cow hide is visible and have coins.',
-            'fn': (obj: Client) => {obj.onF1Pressed_tanLeatherAlKharid();}
         },
         {
             'description': 'Kill hobgoblins in Witchhaven dungeon. Start in dungeon.',
@@ -649,10 +649,10 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                this.logArray.push([globalX, globalZ]);
-                console.log(JSON.stringify(this.logArray));
+                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                // this.logArray.push([globalX, globalZ]);
+                // console.log(JSON.stringify(this.logArray));
 
                 // this.useNearestObjOP1([2311], 20);
 
@@ -694,8 +694,21 @@ export class Client extends GameShell {
 
                 
                 // await this.useTalismanOnRuins(2984, 3291, 1438);
+                let c = 2461;
+                const com: Component = Component.types[c];
+                let notify: boolean = true;
 
+                if (com.clientCode > 0) {
+                    notify = this.handleInterfaceAction(com);
+                }
 
+                if (notify) {
+                    this.out.p1isaac(ClientProt.IF_BUTTON);
+                    this.out.p2(c);
+                }
+                this.objSelected = 0;
+                this.spellSelected = 0;
+                this.redrawSidebar = true;
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -17497,6 +17510,34 @@ export class Client extends GameShell {
         }
     }
 
+    selectContinueDialog(c: number) {
+        if (!this.pressedContinueOption) {
+            this.out.p1isaac(ClientProt.RESUME_PAUSEBUTTON);
+            this.out.p2(c);
+            this.pressedContinueOption = true;
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    selectDialogOption(c: number) {
+        const com: Component = Component.types[c];
+        let notify: boolean = true;
+
+        if (com.clientCode > 0) {
+            notify = this.handleInterfaceAction(com);
+        }
+
+        if (notify) {
+            this.out.p1isaac(ClientProt.IF_BUTTON);
+            this.out.p2(c);
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+}
+
     async onF1Pressed_tanLeatherAlKharid() {
         this.stopLoop = false;
         let coinsInvId = 995;
@@ -17506,25 +17547,29 @@ export class Client extends GameShell {
         let bankZ = 3167;
         let tannerId = 804;
         let cowhideId = 1739;
+        let firstContinueC = 4886;
+        let secondContinueC = 4892;
+        let firstMenuSelectC = 2461;
+        let secondMenuSelectC = 2483;
 
         while (!this.stopLoop) {
             await this.handleRunEnergyThrottled(1);
             await this.clickInventoryThrottled(1);
-            await this.depositAllExcept(bankX, bankZ, [0, coinsInvId]);
+            await this.depositAllExceptNoMouse([0, coinsInvId]);
             await sleep(1000);
-            await this.withdrawAllBankById(cowhideId);
+            await this.withdrawAllNoMouse(cowhideId);
             await sleep(1000);
             await this.walkToEndofPath(pathBankToTanner);
             await sleep(1000);
             await this.op1NearestNPC('Tanner');
-            await sleep(2100);
-            await this.mouse(302, 448, 1);
+            await sleep(3100);
+            this.selectContinueDialog(firstContinueC);
             await sleep(1500);
-            await this.mouse(302, 448, 1);
+            this.selectContinueDialog(secondContinueC);
             await sleep(1500);
-            await this.mouse(264, 398, 1);
+            this.selectDialogOption(firstMenuSelectC);
             await sleep(1500);
-            await this.mouse(260, 381, 1);
+            this.selectDialogOption(secondMenuSelectC);
             await sleep(1500);
             await this.walkToEndofPath(pathTannerToBank);
             await sleep(1500);
