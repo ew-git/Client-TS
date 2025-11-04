@@ -525,6 +525,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Make hardleather bodies. Start in bank with needle and thread in inv.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makeHardleatherBody();}
+        },
+        {
             'description': 'Tan hard leather; start in bank; make sure cow hide is visible and have coins.',
             'fn': (obj: Client) => {obj.onF1Pressed_tanLeatherAlKharid();}
         },
@@ -694,21 +698,23 @@ export class Client extends GameShell {
 
                 
                 // await this.useTalismanOnRuins(2984, 3291, 1438);
-                let c = 2461;
-                const com: Component = Component.types[c];
-                let notify: boolean = true;
+                // let c = 2461;
+                // const com: Component = Component.types[c];
+                // let notify: boolean = true;
 
-                if (com.clientCode > 0) {
-                    notify = this.handleInterfaceAction(com);
-                }
+                // if (com.clientCode > 0) {
+                //     notify = this.handleInterfaceAction(com);
+                // }
 
-                if (notify) {
-                    this.out.p1isaac(ClientProt.IF_BUTTON);
-                    this.out.p2(c);
-                }
-                this.objSelected = 0;
-                this.spellSelected = 0;
-                this.redrawSidebar = true;
+                // if (notify) {
+                //     this.out.p1isaac(ClientProt.IF_BUTTON);
+                //     this.out.p2(c);
+                // }
+                // this.objSelected = 0;
+                // this.spellSelected = 0;
+                // this.redrawSidebar = true;
+
+                this.closeInterfaces();
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -17562,7 +17568,7 @@ export class Client extends GameShell {
             await this.walkToEndofPath(pathBankToTanner);
             await sleep(1000);
             await this.op1NearestNPC('Tanner');
-            await sleep(3100);
+            await sleep(2100);
             this.selectContinueDialog(firstContinueC);
             await sleep(1500);
             this.selectContinueDialog(secondContinueC);
@@ -17573,6 +17579,83 @@ export class Client extends GameShell {
             await sleep(1500);
             await this.walkToEndofPath(pathTannerToBank);
             await sleep(1500);
+        }
+    }
+
+    async onF1Pressed_makeHardleatherBody() {
+        this.stopLoop = false;
+        let hardLeatherId = 1743;
+        let needleId = 1733;
+        let threadId = 1734;
+
+        async function makeAllBodies(obj: Client) {
+            let inv = Component.types[obj.inventoryComponentId];
+            if (!inv || !inv.invSlotObjId) {
+                obj.addMessage?.(0, 'Inventory data not available', '');
+                return false;
+            }
+            while (obj.countInvById(hardLeatherId) > 0 && obj.countInvById(needleId) > 0 && obj.countInvById(threadId)){
+                // Find hardleather and select it
+                for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                    if (inv.invSlotObjId[slot] - 1 === hardLeatherId) {
+                        if (obj.selectedTab != 3) {
+                            await obj.mouse(648, 185, 1, 100);
+                        }
+                        obj.selectInvSingleSlot(slot, hardLeatherId);
+                        break;
+                    }
+                }
+                await sleep(100);
+                // Find needle and use hardleather on it
+                // Using menu option 1 with action=881, a=1733, b=0, c=3214
+                for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+                    if (inv.invSlotObjId[slot] - 1 === needleId) {
+                        if (obj.selectedTab != 3) {
+                            await obj.mouse(648, 185, 1, 100);
+                        }
+                        let a = needleId;
+                        let c = 3214;
+                        let b = slot; // this needs to be the slot of the needle
+                        obj.out.p1isaac(ClientProt.OPHELDU);
+                        obj.out.p2(a);
+                        obj.out.p2(b);
+                        obj.out.p2(c);
+                        obj.out.p2(obj.objInterface);
+                        obj.out.p2(obj.objSelectedSlot);
+                        obj.out.p2(obj.objSelectedInterface);
+
+                        obj.selectedCycle = 0;
+                        obj.selectedInterface = c;
+                        obj.selectedItem = b;
+                        obj.selectedArea = 2;
+
+                        if (Component.types[c].layer === obj.viewportInterfaceId) {
+                            obj.selectedArea = 1;
+                        }
+
+                        if (Component.types[c].layer === obj.chatInterfaceId) {
+                            obj.selectedArea = 3;
+                        }
+                        obj.objSelected = 0;
+                        obj.spellSelected = 0;
+                        obj.redrawSidebar = true;
+                        break;
+                    }
+                }
+                await sleep(200);
+            }
+        }
+
+        while (!this.stopLoop) {
+            await this.clickInventoryThrottled(1);
+            await this.depositAllExceptNoMouse([0, needleId, threadId]);
+            await sleep(1000);
+            await this.withdrawAllNoMouse(hardLeatherId);
+            await sleep(1000);
+            this.closeInterfaces();
+            await sleep(1500);
+            await makeAllBodies(this);
+            await sleep(2000);
         }
     }
 
