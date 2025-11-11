@@ -525,6 +525,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Kill blue dragons in Heros Guild. Start fally bank. SET SPELL!!',
+            'fn': (obj: Client) => {obj.onF1Pressed_killBlueDragonsHerosGuild();}
+        },
+        {
             'description': 'Make hardleather bodies. Start in bank with needle and thread in inv.',
             'fn': (obj: Client) => {obj.onF1Pressed_makeHardleatherBody();}
         },
@@ -627,6 +631,7 @@ export class Client extends GameShell {
         2363, 1615, 443,
         // megarare
         1247, 2366, 1249];
+    private hardClueIds = [2722, 2723, 2724, 2725, 2726, 2727, 2728, 2729, 2730, 2731, 2732, 2733, 2734, 2735, 2736, 2737, 2738, 2739, 2740, 2741, 2742, 2743, 2744, 2745, 2746, 2747, 2748, 2773, 2774, 2775, 2776, 2777, 2778, 2779, 2780, 2781, 2782, 2783, 2784, 2785, 2786, 2787, 2788, 2789, 2790, 2791, 2792, 2793, 2794, 2795, 2796, 2797, 2798, 2799, 2800];
     private logArray = [[0, 0]];
     // ----
 
@@ -653,52 +658,21 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addMessage(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                // this.logArray.push([globalX, globalZ]);
-                // console.log(JSON.stringify(this.logArray));
+                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                this.logArray.push([globalX, globalZ]);
+                console.log(JSON.stringify(this.logArray));
 
-                // this.useNearestObjOP1([2311], 20);
-
-                // await this.mouse(this.mouseX, this.mouseY, 2, 100);
-                // await this.mouse(271, 141, 1, 100);
-
-                // await this.openBankNoMouse();
-
-                // this.depositAllSingleSlot(0, 1436);
-
-                // this.depositAllExceptNoMouse([0, 1436]);
-
-                // this.useNearestObjOP1([1530], 2); // can't find obj 1530
-
-                // let level = this.currentLevel;
-                // let tileX = this.localPlayer?.routeTileX[0] ?? 0;
-                // let tileZ = this.localPlayer?.routeTileZ[0] ?? 0;
-                // if (this.scene) {
-                //     console.log(`${level},${tileX},${tileZ}. ${this.scene.getWallTypecode(level, tileX, tileZ)}; ${this.scene.getLocTypecode(level, tileX, tileZ)}; ${this.scene.getGroundDecorTypecode(level, tileX, tileZ)}`);
-                // }
-
-
-                // let a = 1098815540; // typecode, but now it's 1098816564. probably depends on loc
-                // let b = 2716 - this.sceneBaseTileX;
-                // let c = 3472 - this.sceneBaseTileZ;
+                // let b = 2909 - this.sceneBaseTileX;
+                // let c = 9910 - this.sceneBaseTileZ;
+                // let a = this.scene?.getWallTypecode(this.currentLevel, b, c) ?? 0;
                 // this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
                 // this.objSelected = 0;
                 // this.spellSelected = 0;
                 // this.redrawSidebar = true;
-                // return true;
-
-                // await this.withdrawAllNoMouse(1436);
-                // let ruinsX = 2984;
-                // let ruinsZ = 3291;
-                // let b = ruinsX - this.sceneBaseTileX;
-                // let c = ruinsZ - this.sceneBaseTileZ;
-                // let a = this.scene?.getLocTypecode(this.currentLevel, b, c) ?? 0;
-                // console.log(`a=${a}, b=${b}, c=${c}`);
-
                 
-                // await this.useTalismanOnRuins(2984, 3291, 1438);
-                // let c = 2461;
+                // Teleport to falador
+                // let c = 1170;
                 // const com: Component = Component.types[c];
                 // let notify: boolean = true;
 
@@ -713,8 +687,6 @@ export class Client extends GameShell {
                 // this.objSelected = 0;
                 // this.spellSelected = 0;
                 // this.redrawSidebar = true;
-
-                this.closeInterfaces();
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -12498,6 +12470,41 @@ export class Client extends GameShell {
         }
     }
 
+    itemIsOnGround(targetid: number) {
+        if (this.localPlayer == null) {
+            return false;
+        }
+        let playerX = this.localPlayer.routeTileX[0];
+        let playerZ = this.localPlayer.routeTileZ[0];
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestX = -1;
+        let closestZ = -1;
+        let closestObjIndex = -1;
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let objs = this.objStacks[this.currentLevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    if (type.id == targetid) {
+                        let dist = this.manhattanDist(playerX, playerZ, x, z);
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closestX = x;
+                            closestZ = z;
+                            closestObjIndex = obj.index;
+                        }
+                    }
+                }
+            }
+        }
+        if (closestX == -1 || closestZ == -1 || closestObjIndex == -1 || !this.localPlayer) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     async pickupNearestIdNoMouse(targetid: number) {
         if (this.localPlayer == null) {
             return false;
@@ -13508,6 +13515,48 @@ export class Client extends GameShell {
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
             if (id == (inv.invSlotObjId[slot] - 1)) {
                 this.withdrawAllSingleSlot(slot, id);
+                await sleep(700);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    withdraw5SingleSlot(slot: number, itemId: number){
+        let action: number = 596;
+        const a: number = itemId;
+        const b: number = slot;
+        const c: number = 5382;
+        if (action === 596) {
+            this.out.p1isaac(ClientProt.INV_BUTTON2);
+        }
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedInterface = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (Component.types[c].layer === this.viewportInterfaceId) {
+            this.selectedArea = 1;
+        }
+
+        if (Component.types[c].layer === this.chatInterfaceId) {
+            this.selectedArea = 3;
+        }
+    }
+
+    async withdraw5NoMouse(id: number) {
+        let inv = Component.types[this.bankComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (id == (inv.invSlotObjId[slot] - 1)) {
+                this.withdraw5SingleSlot(slot, id);
                 await sleep(700);
                 return true;
             }
@@ -17663,89 +17712,154 @@ export class Client extends GameShell {
     async onF1Pressed_killBlueDragonsHerosGuild() {
         this.stopLoop = false;
         let minHP = 45;
-        let foodId = 361; // Tuna == 361
+        let foodId = 373; // Tuna == 361, swordfish 373
         let bonesId = 536; // Dragon bones == 536
         let state = 'banking';
-        let teleportToFallyBankPath = [];
-        let fallyBankToTaverlyGatePath = [];
-        let taverlyGateId = 0;
-        let taverlyGateToHerosDoorPath = [];
-        let herosDoorId = 0;
-        let herosLadderDownId = 0;
-        // use ladder directly
-        let ladderToDragonGatePath = [];
-        let dragonGateId = 0;
-
-
-        let outsideCowToBankPath = [[2565, 3356], [2581, 3351], [2582, 3367], [2606, 3365], [2614, 3350], [2615, 3332]];
-        let bankToOutsideCowPath = outsideCowToBankPath.toReversed();
-        let cowPenBounds = [2560, 2564, 3355, 3358]; // W, E, S, N
+        let teleportToFallyBankPath = [[2965,3379],[2947,3374],[2945,3368]];
+        let fallyBankToTaverlyGatePath = [[2945,3368],[2958,3381],[2965,3393],[2960,3409],[2949,3423],[2947,3441],[2936,3450]];
+        let taverlyGateToHerosDoorPath = [[2936,3450],[2938,3466],[2928,3479],[2923,3495],[2913,3508],[2902,3510]];
+        let herosLadderDownId = 1754;
+        let ladderToDragonGatePath = [[2893,9907],[2904,9912],[2909,9911]];
+        let safeX = 2909;
+        let safeZ = 9911;
         let needle = 'Blue dragon';
-        let insideGateP = [2564, 3356];
-        let bankX = 2615;
-        let bankZ = 3331;
-        let insideCowPenP = insideGateP;
+
+        function openTaverlyGate(obj: Client) {
+            let b = 2935 - obj.sceneBaseTileX;
+            let c = 3450 - obj.sceneBaseTileZ;
+            let a = obj.scene?.getWallTypecode(obj.currentLevel, b, c) ?? 0;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+        }
+        function openHerosGuildDoor(obj: Client) {
+            let b = 2902 - obj.sceneBaseTileX;
+            let c = 3510 - obj.sceneBaseTileZ;
+            let a = obj.scene?.getWallTypecode(obj.currentLevel, b, c) ?? 0;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+        }
+        function climbDownLadder(obj: Client) {
+            let nearestObj = obj.getNearestObject(herosLadderDownId);
+            if (!nearestObj) {
+                return false;
+            }
+            let a = nearestObj.fullType;
+            let b = nearestObj.x;
+            let c = nearestObj.z;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+            return true;
+        }
+        function openDragonGate(obj: Client) {
+            let b = 2909 - obj.sceneBaseTileX;
+            let c = 9910 - obj.sceneBaseTileZ;
+            let a = obj.scene?.getWallTypecode(obj.currentLevel, b, c) ?? 0;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+        }
+        function teleportToFally(obj: Client) {
+            let c = 1170;
+            const com: Component = Component.types[c];
+            let notify: boolean = true;
+
+            if (com.clientCode > 0) {
+                notify = obj.handleInterfaceAction(com);
+            }
+
+            if (notify) {
+                obj.out.p1isaac(ClientProt.IF_BUTTON);
+                obj.out.p2(c);
+            }
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+        }
+
+        function isSafe(obj: Client){ 
+            let {x, z} = obj.getPlayerGlobalLoc();
+            return x == safeX && z == safeZ
+        }
+
         let pickupItems = [
-            526, // bones
+            bonesId, // bones
             563, // lawrune
             556, // airrune
             559, // bodyrune
             557, // earthrune
             558, // mindrune
             561, // naturerune
+            555, // waterrune
+            554, // firerune
             995, // coins
-            227, // vial_water
-            231, // snape_grass
-            // 1594, // unholy_symbol_mould
+            1213, // rune dagger
+            449, // adamantite_ore
+            1751, // dragonhide_blue
         ];
         pickupItems = pickupItems.concat(this.uidHerbIds);
         pickupItems = pickupItems.concat(this.rareTableIds);
-
-        if (this.playerIsInBounds(cowPenBounds)) {
-            state = 'not banking';
-        }
+        pickupItems = pickupItems.concat(this.hardClueIds);
         
         while (!this.stopLoop) {
             if (state == 'banking') {
-                if (this.playerIsInBounds(cowPenBounds)) {
-                    await this.walkToEndofPath([insideGateP]);
-                    await sleep(2000);
-                    await this.tryOpenDoor(insideGateP[0] + 0.5, insideGateP[1]);
-                }
-                await this.walkToEndofPath(outsideCowToBankPath);
+                // walk on path to fally bank (from fally square)
+                await this.walkToEndofPath(teleportToFallyBankPath);
+                // deposit everything EXCEPT KILLING RUNES
+                await this.depositAllExceptNoMouse([0, 556, 558]);
+                // withdraw water, law, air runes (for port back to fally)
+                await this.withdraw5NoMouse(555);
+                await this.withdraw5NoMouse(563);
+                await this.withdraw5NoMouse(556);
+                // withdraw some food
+                await this.withdraw5NoMouse(foodId);
+                state = 'go to dragon';
+                this.addMessage(0, 'Finished banking state', '');
+            } else if (state == 'go to dragon') {
+                // walk to Taverly gate
+                await this.walkToEndofPath(fallyBankToTaverlyGatePath);
                 await sleep(2000);
-                await this.depositAllExcept(bankX, bankZ, [0, 558, 556]);
-                await sleep(600);
-                if (this.checkBankOpen()) {
-                    // withdraw immediately
-                    await this.withdraw5BankById(foodId);
-                } else {
-                    // click bank then withdraw
-                    await this.openBank(bankX, bankZ);
-                    await this.withdraw5BankById(foodId);
-                }
+                // again just to be sure
+                await this.walkToEndofPath(fallyBankToTaverlyGatePath);
+                await sleep(2000);
+                // open Taverly gate
+                openTaverlyGate(this);
                 await sleep(1200);
-                if (this.invCount() == 0) {
-                    console.log('Not enough food. Logging out.');
-                    this.stopLoop = true;
-                    await this.logout();
-                }
-                await this.walkToEndofPath(bankToOutsideCowPath);
-                await sleep(1200);
-                let gotinside = await this.tryPickDoor(insideGateP[0], insideGateP[1] + 0.5, insideGateP[0], insideGateP[1]);
-                for (let i = 0; i < 30; i++) {
-                    if (gotinside) {break;}
-                    else {
-                        gotinside = await this.tryPickDoor(insideGateP[0], insideGateP[1] + 0.5, insideGateP[0], insideGateP[1]);
+                // walk to hero's guild
+                await this.walkToEndofPath(taverlyGateToHerosDoorPath);
+                await sleep(2000);
+                // again just to be sure
+                await this.walkToEndofPath(taverlyGateToHerosDoorPath);
+                await sleep(2000);
+                // go into hero's guild
+                openHerosGuildDoor(this);
+                await sleep(2100);
+                // go down ladder
+                climbDownLadder(this);
+                await sleep(15000);
+                // walk to safe spot
+                await this.walkToEndofPath(ladderToDragonGatePath);
+                await sleep(2100);
+                if (!isSafe(this)) {
+                    await this.walkToEndofPath(ladderToDragonGatePath);
+                    await sleep(2100);
+                    if (!isSafe(this)) {
+                        // something went wrong
+                        console.error('Cant get to safe spot, exiting');
+                        break;
                     }
                 }
-                await this.walkToEndofPath([insideCowPenP]);
-                state = 'not banking';
-                this.addMessage(0, 'Finished banking state', '');
-            }
-            await this.handleRunEnergyThrottled(1);
-            await this.clickInventoryThrottled(1);
-            if (!this.anyNPCafterMe()) {
+                state = 'fighting';
+                this.addMessage(0, 'Finished go to dragon state.', '');
+            } else if (state == 'fighting') {
+                await this.handleRunEnergyThrottled(1);
+                await this.clickInventoryThrottled(1);
                 // Eat if HP is low
                 if (this.skillLevel[3] < minHP) {
                     let inv = Component.types[this.inventoryComponentId];
@@ -17753,6 +17867,7 @@ export class Client extends GameShell {
                         this.addMessage?.(0, 'Inventory data not available', '');
                         return false;
                     }
+                    // TODO: need to refactor eating into another function that directly uses the inv item instead of mouse.
                     let foundFood = false;
                     for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
                         if (foodId == inv.invSlotObjId[slot] - 1) {
@@ -17768,17 +17883,54 @@ export class Client extends GameShell {
                     }
                     if (!foundFood) {
                         // out of food, need to bank
-                        state = 'banking';
-                        this.addMessage(0, 'Entering banking state', '');
+                        state = 'back to fally';
+                        this.addMessage(0, 'Out of food, going back to bank', '');
                         continue;
                     }
                     await sleep(1000);
                     continue; // Restart the outer while loop.
                 }
-                await sleep(1400); // wait for NPC death animation.
+                // go to safe spot
+                await this.walkToEndofPath([[safeX, safeZ]]);
+                await sleep(1700);
+                // attack dragon
+                if (!this.anyNPCafterMe() && isSafe(this)) {
+                    await sleep(1400); // wait for NPC death animation.
+                    await this.attackNearestNPC(needle);
+                    // Wait until we're actually in combat until trying to loop again.
+                    let iter = 0;
+                    while (!this.anyNPCafterMe() && iter < 20) {
+                        iter++;
+                        await sleep(300);
+                    }
+                } else if (isSafe(this)) {
+                    await this.attackNearestNPCAfterMe(needle);
+                } else {
+                    console.error('Cant get to safe spot, exiting');
+                    break;
+                }
+                // wait until dragon bones are available or max T time
+                let iter = 0;
+                while (!this.itemIsOnGround(bonesId) && iter < 90) {
+                    iter++;
+                    await sleep(300);
+                }
+                // if dragon bones are available then loop (below) else continue outer loop
+                if (!this.itemIsOnGround(bonesId)) {
+                    continue;
+                }
+                // open gate and go loot
+                openDragonGate(this);
+                await sleep(2300);
+                openDragonGate(this);
+                await sleep(300);
                 // Try to pick up any items on the ground.
                 for (const item of this.filterGroundItemsIds(pickupItems)) {
                     await this.pickupNearestIdValidated(item);
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        await sleep(700);
+                    }
                     if (this.invFull()) {
                         break;
                     }
@@ -17790,25 +17942,43 @@ export class Client extends GameShell {
                         continue;
                     } else {
                         // No bones, so inv full of other stuff, need to bank.
-                        state = 'banking';
-                        this.addMessage(0, 'Entering banking state', '');
+                        state = 'back to fally';
+                        this.addMessage(0, 'Entering back to fally state', '');
                         continue;
                     }
                 }
-                await this.attackNearestNPC(needle);
-                // Wait until we're actually in combat until trying to loop again.
-                let iter = 0;
-                while (!this.anyNPCafterMe() && iter < 20) {
-                    iter++;
-                    await sleep(300);
+                // open gate and go to safe spot
+                while (!isSafe(this)) {
+                    openDragonGate(this);
+                    await sleep(2300);
+                    await this.walkToEndofPath([[safeX, safeZ]]);
+                    await sleep(700);
                 }
+            } else if (state == 'back to fally') {
+                // teleport to fally
+                // wait until near fally if not try to tele
+                let iter = 0;
+                while (!this.playerIsInBounds([2958, 2972, 3375, 3388]) && iter < 20) {
+                    await sleep(1100);
+                    teleportToFally(this);
+                }
+                // run to fally bank
+                await this.walkToEndofPath(teleportToFallyBankPath);
+                await sleep(2100);
+                state = 'banking';
             } else {
-                await this.attackNearestNPCAfterMe(needle);
+                console.error(`Invalid state ${state}`);
+                break;
             }
             await sleep(1200);
         }
     }
 
+    getPlayerGlobalLoc() {
+        let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+        let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+        return {x: globalX, z: globalZ};
+    }
 
     async mouse(x: number, y: number, button = 0, delay = 100) {
         // Send button 1 to get the mouse to actually move, then do the real click.
