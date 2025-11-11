@@ -17969,7 +17969,7 @@ export class Client extends GameShell {
                 // wait until near fally if not try to tele
                 let iter = 0;
                 while (!this.playerIsInBounds([2958, 2972, 3375, 3388]) && iter < 20) {
-                    await sleep(1100);
+                    await sleep(2100);
                     teleportToFally(this);
                 }
                 // run to fally bank
