@@ -13642,11 +13642,29 @@ export class Client extends GameShell {
 
     async handleRunEnergy(): Promise<boolean> {
         if (this.runenergy > 50) {
+            let c = 153;
+
+            this.out.p1isaac(ClientProt.IF_BUTTON);
+            this.out.p2(c);
+
+            const com: Component = Component.types[c];
+            if (com.scripts && com.scripts[0] && com.scripts[0][0] === 5) {
+                const varp: number = com.scripts[0][1];
+                if (com.scriptOperand && this.varps[varp] !== com.scriptOperand[0]) {
+                    this.varps[varp] = com.scriptOperand[0];
+                    this.updateVarp(varp);
+                    this.redrawSidebar = true;
+                }
+            }
+            this.objSelected = 0;
+            this.spellSelected = 0;
+            this.redrawSidebar = true;
+
             // turn on run
-            await this.mouse(711, 485, 1, 100); // run tab
-            await sleep(200);
-            await this.mouse(625, 265, 1, 100); // run on
-            await this.mouse(648, 185, 1, 100); // back to inventory
+            // await this.mouse(711, 485, 1, 100); // run tab
+            // await sleep(200);
+            // await this.mouse(625, 265, 1, 100); // run on
+            // await this.mouse(648, 185, 1, 100); // back to inventory
             return true;
         }
         return false;
@@ -14446,12 +14464,34 @@ export class Client extends GameShell {
         }
 
         for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-            if (itemIds.includes(inv.invSlotObjId[slot] - 1)) {
-                if (this.selectedTab != 3) {
-                    await this.mouse(648, 185, 1, 100);
+            let itemId = inv.invSlotObjId[slot] - 1;
+            if (itemIds.includes(itemId)) {
+                let c = 3214;
+                let b = slot;
+                let a = itemId;
+                Client.oplogic3 += a;
+                if (Client.oplogic3 >= 97) {
+                    this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC3);
+                    this.out.p3(14953816);
                 }
-                await sleep(100);
-                await this.clickInv(slot, null, 1);
+
+                this.out.p1isaac(ClientProt.OPHELD1);
+                this.out.p2(a);
+                this.out.p2(b);
+                this.out.p2(c);
+
+                this.selectedCycle = 0;
+                this.selectedInterface = c;
+                this.selectedItem = b;
+                this.selectedArea = 2;
+
+                if (Component.types[c].layer === this.viewportInterfaceId) {
+                    this.selectedArea = 1;
+                }
+
+                if (Component.types[c].layer === this.chatInterfaceId) {
+                    this.selectedArea = 3;
+                }
                 await sleep(1300);
             }
         }
@@ -17861,11 +17901,10 @@ export class Client extends GameShell {
                         break;
                     }
                 }
+                await this.handleRunEnergyThrottled(1);
                 state = 'fighting';
                 this.addMessage(0, 'Finished go to dragon state.', '');
             } else if (state == 'fighting') {
-                await this.handleRunEnergyThrottled(1);
-                await this.clickInventoryThrottled(1);
                 // Eat if HP is low
                 if (this.skillLevel[3] < minHP) {
                     let inv = Component.types[this.inventoryComponentId];
@@ -17935,15 +17974,20 @@ export class Client extends GameShell {
                 openDragonGate(this);
                 await sleep(300);
                 // Try to pick up any items on the ground.
-                for (const item of this.filterGroundItemsIds(pickupItems)) {
-                    await this.pickupNearestIdValidated(item);
-                    if (this.countInvById(bonesId) > 0) {
-                        await this.buryBones([bonesId]);
-                        await sleep(700);
+                let items = this.filterGroundItemsIds(pickupItems);
+                while (items.length > 0) {
+                    const item = items.shift();
+                    if (item != null) {
+                        await this.pickupNearestIdValidated(item);
+                        if (this.countInvById(bonesId) > 0) {
+                            await this.buryBones([bonesId]);
+                            await sleep(700);
+                        }
                     }
                     if (this.invFull()) {
                         break;
                     }
+                    items = this.filterGroundItemsIds(pickupItems);
                 }
                 if (this.invFull()) {
                     // Handle full inventory, maybe bank.
