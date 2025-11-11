@@ -17724,6 +17724,12 @@ export class Client extends GameShell {
         let safeZ = 9911;
         let needle = 'Blue dragon';
 
+        let {x, z} = this.getPlayerGlobalLoc();
+        if (z > 9000) {
+            // we're in the guild basement, so must start fighting.
+            state = 'fighting';
+        }
+
         function openTaverlyGate(obj: Client) {
             let b = 2935 - obj.sceneBaseTileX;
             let c = 3450 - obj.sceneBaseTileZ;
@@ -17893,6 +17899,10 @@ export class Client extends GameShell {
                 // go to safe spot
                 await this.walkToEndofPath([[safeX, safeZ]]);
                 await sleep(1700);
+                if (this.getNearestNPC(needle) == null) {
+                    // dragon isn't available yet, restart the loop
+                    continue;
+                }
                 // attack dragon
                 if (!this.anyNPCafterMe() && isSafe(this)) {
                     await sleep(1400); // wait for NPC death animation.
