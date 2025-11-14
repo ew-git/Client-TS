@@ -525,6 +525,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Thieve knights around the market in Ardougne. Uses Tuna as food.',
+            'fn': (obj: Client) => {obj.onF1Pressed_thieveKnightNoRandoms();}
+        },
+        {
             'description': 'Kill blue dragons in Heros Guild. Start fally bank. SET SPELL!!',
             'fn': (obj: Client) => {obj.onF1Pressed_killBlueDragonsHerosGuild();}
         },
@@ -591,10 +595,6 @@ export class Client extends GameShell {
         {
             'description': 'Fish Tuna and Swordfish in Catherby',
             'fn': (obj: Client) => {obj.onF1Pressed_tunaCatherby();}
-        },
-        {
-            'description': 'Thieve knights around the market in Ardougne. Uses Tuna as food.',
-            'fn': (obj: Client) => {obj.onF1Pressed_thieveKnightNoRandoms();}
         },
         {
             'description': 'Kills cows in Falador pen, tries to bury bones and pick up cow hides. Eats Tuna when low HP.',
@@ -14270,8 +14270,6 @@ export class Client extends GameShell {
         this.stopLoop = false;
         let bankStandX = 2655;
         let bankStandZ = 3286;
-        let bankX = 2656;
-        let bankZ = 3286;
         let pathToMarket = [[bankStandX, bankStandZ], [2644, 3286], [2658, 3289], [2662, 3297], [2661, 3308]];
         let pathToBank = pathToMarket.toReversed();
         let foodId = 361; // no +1
@@ -14287,19 +14285,16 @@ export class Client extends GameShell {
                 await this.logout();
                 return;
             }
-            // Send a click to keep everything alive.
-            await this.handleRunEnergyThrottled(5);
-            // This clicks on the inventory tab.
-            await this.mouse(648, 185, 1, 100);
+            await this.handleRunEnergyThrottled(1);
             // If food is out, go to bank, deposit everything, withdraw 1 coin and all food.
             if (this.countInvById(foodId) == 0) {
                 console.log('Out of food, trying to bank');
                 await sleep(6000); // make sure we're not stunned
                 await this.walkToEndofPath(pathToBank);
-                await this.depositAllExcept(bankX, bankZ, [0]); // deposit all
+                await this.depositAllExceptNoMouse([0]);
                 await sleep(1000);
-                await this.withdraw1BankById(995); // Withdraw 1 coin as placeholder
-                await this.withdrawAllBankById(foodId); // it expects +1 id
+                await this.withdraw5NoMouse(995); // withdraw coin as placeholder
+                await this.withdrawAllNoMouse(foodId);
                 await sleep(1000);
                 console.log('Done banking');
                 await this.walkToEndofPath(pathToMarket); // go back to the Market
@@ -14325,58 +14320,7 @@ export class Client extends GameShell {
                 await sleep(1000);
                 continue;
             }
-            // Find the closest target NPC to (playerMouseX, playerMouseY)
-            let closestDist = Number.POSITIVE_INFINITY;
-            let closestNpc: { x: number, y: number, entity: ClientEntity, npc: ClientNpc } | null = null;
-
-            for (let index: number = 0; index < this.npcCount; index++) {
-                let entity: ClientEntity | null = null;
-                entity = this.npcs[this.npcIds[index]];
-                if (!entity || !entity.isVisible()) {
-                    continue;
-                }
-                const npc: ClientNpc = entity as ClientNpc;
-                this.projectFromEntity(entity, entity.height / 2);
-                let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
-                if (npcprojectinfo.match(npcNameNeedle) && this.projectX > 5 && this.projectX < this.mainScreenMaxX && this.projectY > 5 && this.projectY < this.mainScreenMaxY) {
-                    const dx = this.projectX - this.playerMouseX;
-                    const dy = this.projectY - this.playerMouseY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < closestDist) {
-                        closestDist = dist;
-                        closestNpc = { x: this.projectX, y: this.projectY, entity, npc };
-                    }
-                }
-            }
-
-            if (closestNpc) {
-                await this.mouse(closestNpc.x, closestNpc.y, 2);
-                await sleep(100);
-                if (this.menuSize > 0) {
-                    for (let i = 0; i < this.menuOption.length; i++) {
-                        const optiontext = this.menuOption[i];
-                        if (optiontext.startsWith('Pickpocket')) {
-                            this.useMenuOption(i);
-                            this.menuVisible = false;
-                            if (this.menuArea === 1) {
-                                this.redrawSidebar = true;
-                            } else if (this.menuArea === 2) {
-                                this.redrawChatback = true;
-                            }
-                            break;
-                        }
-                    }
-                }
-            } else {
-                // No closest NPC, so try to move to the nearest by tile location
-                let closestLocalNPC = this.getNearestNPC(npcNameNeedle);
-                if (this.localPlayer == null || closestLocalNPC == null) continue;
-                await this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], closestLocalNPC.x, closestLocalNPC.z, 0, 0, 0, 0, 0, 0, true)
-                await sleep(500);
-                while (this.localPlayer?.routeLength !== 0) {
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                }
-            }
+            await this.opNNearestNPC(3, npcNameNeedle);
             await sleep(2000);
         }
     }
