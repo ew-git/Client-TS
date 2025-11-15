@@ -525,6 +525,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Buy eye of newt from port sarim. Start in Draynor bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_buyEyeOfNewt();}
+        },
+        {
             'description': 'Thieve knights around the market in Ardougne. Uses Tuna as food.',
             'fn': (obj: Client) => {obj.onF1Pressed_thieveKnightNoRandoms();}
         },
@@ -687,6 +691,8 @@ export class Client extends GameShell {
                 // this.objSelected = 0;
                 // this.spellSelected = 0;
                 // this.redrawSidebar = true;
+                // this.opNNearestNPC(3, 'Betty');
+                // this.buy10(221, 8);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -17976,6 +17982,67 @@ export class Client extends GameShell {
         let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
         let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
         return {x: globalX, z: globalZ};
+    }
+
+    buy10(itemId: number, slot: number) {
+        let action = 892;
+        let a = itemId;
+        let b = slot;
+        let c = 3900;
+
+        if ((b & 0x3) === 0) {
+            Client.oplogic9++;
+        }
+
+        if (Client.oplogic9 >= 130) {
+            this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC9);
+            this.out.p1(177);
+        }
+
+        this.out.p1isaac(ClientProt.INV_BUTTON4);
+
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedInterface = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (Component.types[c].layer === this.viewportInterfaceId) {
+        this.selectedArea = 1;
+        }
+
+        if (Component.types[c].layer === this.chatInterfaceId) {
+        this.selectedArea = 3;
+        }
+    }
+
+    async onF1Pressed_buyEyeOfNewt() {
+        this.stopLoop = false;
+        let coinsInvId = 995;
+        let pathBankToShop = [[3092,3245],[3080,3259],[3074,3274],[3057,3274],[3041,3268],[3030,3263],[3016,3259]];
+        let pathShopToBank = pathBankToShop.toReversed();
+        let shopOwnerNeedle = 'Betty';
+
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(1);
+            await this.clickInventoryThrottled(1);
+            await this.depositAllExceptNoMouse([0, coinsInvId]);
+            await sleep(1000);
+            await this.walkToEndofPath(pathBankToShop);
+            await sleep(1000);
+            await this.opNNearestNPC(3, shopOwnerNeedle);
+            await sleep(2100);
+            while (!this.invFull()) {
+                this.buy10(221, 8);
+                await sleep(1400);
+            }
+            await sleep(1500);
+            await this.walkToEndofPath(pathShopToBank);
+            await sleep(1500);
+        }
     }
 
     async mouse(x: number, y: number, button = 0, delay = 100) {
