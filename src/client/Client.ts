@@ -525,6 +525,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Kill hobgoblins and pick up snape grass. Set rapid',
+            'fn': (obj: Client) => {obj.onF1Pressed_killHobgoblinsSnapeGrass();}
+        },
+        {
             'description': 'Buy empty vials and other stuff in Ardy. Start in north bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_buyVialsArdy();}
         },
@@ -697,7 +701,7 @@ export class Client extends GameShell {
                 // this.redrawSidebar = true;
                 // this.opNNearestNPC(3, 'Betty');
                 // this.buy10(221, 8);
-                await this.eatFoodInv(361);
+                // await this.eatFoodInv(361);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -18165,6 +18169,145 @@ export class Client extends GameShell {
             await sleep(1500);
             await this.walkToEndofPath(pathShopToBank);
             await sleep(1500);
+        }
+    }
+
+    async onF1Pressed_killHobgoblinsSnapeGrass() {
+        this.stopLoop = false;
+        let minHP = 55;
+        let foodId = 373; // Tuna == 361, swordfish 373
+        let bonesId = 526; // Dragon bones == 536
+        let snapeGrassId = 231;
+        let state = 'banking';
+        let fallyBankToPeninsulaPath = [[3012,3355],[3006,3350],[3006,3332],[2999,3318],[2986,3308],[2971,3299],[2958,3290],[2947,3279],[2934,3266],[2918,3273],[2908,3288]];
+        let peninsulaToFallyBankPath = fallyBankToPeninsulaPath.toReversed();
+        let needle = 'Hobgoblin';
+        let rangeAmmoId = 863; // iron knife = 863
+
+        let {x, z} = this.getPlayerGlobalLoc();
+        if (x < 2915) {
+            // we're in the peninsula, so must start fighting.
+            state = 'fighting';
+        }
+
+
+        let pickupItems = [
+            bonesId, // bones
+            564, // cosmicrune
+            225, // limpwurt root
+            563, // lawrune
+            556, // airrune
+            559, // bodyrune
+            557, // earthrune
+            558, // mindrune
+            561, // naturerune
+            555, // waterrune
+            554, // firerune
+            995, // coins
+            225, // limpwurt root
+            rangeAmmoId,
+            snapeGrassId,
+        ];
+        pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+        pickupItems = pickupItems.concat(this.hardClueIds);
+        
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                // walk on path to fally bank (from fally square)
+                await this.walkToEndofPath(peninsulaToFallyBankPath);
+                // deposit everything 
+                await this.depositAllExceptNoMouse([0]);
+                // withdraw some food
+                await this.withdraw5NoMouse(foodId);
+                state = 'go to peninsula';
+                this.addMessage(0, 'Finished banking state', '');
+            } else if (state == 'go to peninsula') {
+                // walk to Taverly gate
+                await this.walkToEndofPath(fallyBankToPeninsulaPath);
+                await sleep(2000);
+                // again just to be sure
+                await this.walkToEndofPath(fallyBankToPeninsulaPath);
+                await sleep(2000);
+                await this.handleRunEnergyThrottled(1);
+                state = 'fighting';
+                this.addMessage(0, 'Finished go to peninsula state.', '');
+            } else if (state == 'fighting') {
+                // Eat if HP is low
+                if (this.skillLevel[3] < minHP) {
+                    if (this.countInvById(foodId) == 0) {
+                        // out of food, need to bank
+                        state = 'back to fally';
+                        this.addMessage(0, 'Out of food, going back to bank', '');
+                        continue;
+                    }
+                    this.eatFoodInv(foodId);
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1700);
+                if (this.getNearestNPC(needle) == null) {
+                    // npc isn't available yet, restart the loop
+                    continue;
+                }
+                // attack npc
+                if (!this.anyNPCafterMe()) {
+                    await sleep(1400); // wait for NPC death animation.
+                    await this.attackNearestNPC(needle);
+                    // Wait until we're actually in combat until trying to loop again.
+                    let iter = 0;
+                    while (!this.anyNPCafterMe() && iter < 20) {
+                        iter++;
+                        await sleep(300);
+                    }
+                } else {
+                    await this.attackNearestNPCAfterMe(needle);
+                }
+                // wait until bones are available or max T time
+                let iter = 0;
+                while (!this.itemIsOnGround(bonesId) && iter < 90) {
+                    iter++;
+                    await sleep(300);
+                }
+                // if bones are available then loop (below) else continue outer loop
+                if (!this.itemIsOnGround(bonesId)) {
+                    continue;
+                }
+                // Try to pick up any items on the ground.
+                let items = this.filterGroundItemsIds(pickupItems);
+                while (items.length > 0) {
+                    const item = items.shift();
+                    if (item != null) {
+                        await this.pickupNearestIdValidated(item);
+                        if (this.countInvById(bonesId) > 0) {
+                            await this.buryBones([bonesId]);
+                            await sleep(700);
+                        }
+                    }
+                    if (this.invFull()) {
+                        break;
+                    }
+                    items = this.filterGroundItemsIds(pickupItems);
+                }
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    this.equipItemInv(rangeAmmoId);
+                    await sleep(700);
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'banking';
+                        this.addMessage(0, 'Entering banking state', '');
+                        continue;
+                    }
+                }
+            } else {
+                console.error(`Invalid state ${state}`);
+                break;
+            }
+            await sleep(1200);
         }
     }
 
