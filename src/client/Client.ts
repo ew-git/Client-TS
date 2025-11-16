@@ -525,6 +525,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Buy empty vials and other stuff in Ardy. Start in north bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_buyVialsArdy();}
+        },
+        {
             'description': 'Buy eye of newt from port sarim. Start in Draynor bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_buyEyeOfNewt();}
         },
@@ -693,6 +697,7 @@ export class Client extends GameShell {
                 // this.redrawSidebar = true;
                 // this.opNNearestNPC(3, 'Betty');
                 // this.buy10(221, 8);
+                await this.eatFoodInv(361);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -13412,6 +13417,107 @@ export class Client extends GameShell {
         this.redrawSidebar = true;
     }
 
+    eatFoodSingleSlot(slot: number, itemId: number) {
+        let action = 405;
+        let a = itemId;
+        let b = slot;
+        let c = 3214;
+
+        Client.oplogic3 += a;
+        if (Client.oplogic3 >= 97) {
+            this.out.p1isaac(ClientProt.ANTICHEAT_OPLOGIC3);
+            this.out.p3(14953816);
+        }
+
+        this.out.p1isaac(ClientProt.OPHELD1);
+
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedInterface = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (Component.types[c].layer === this.viewportInterfaceId) {
+            this.selectedArea = 1;
+        }
+
+        if (Component.types[c].layer === this.chatInterfaceId) {
+            this.selectedArea = 3;
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    eatFoodInv(itemId: number) {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (inv.invSlotObjId[slot] == 0) continue; // Skip empty slots
+            let objId = inv.invSlotObjId[slot] - 1;
+            if (itemId == objId) {
+                this.eatFoodSingleSlot(slot, itemId);
+                break;
+            }
+        }
+        return true;
+    }
+
+    equipItemSingleSlot(slot: number, itemId: number) {
+        let action = 38;
+        let a = itemId;
+        let b = slot;
+        let c = 3214;
+        this.out.p1isaac(ClientProt.OPHELD2);
+
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedInterface = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (Component.types[c].layer === this.viewportInterfaceId) {
+            this.selectedArea = 1;
+        }
+
+        if (Component.types[c].layer === this.chatInterfaceId) {
+            this.selectedArea = 3;
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    equipItemInv(itemId: number) {
+        let inv = Component.types[this.inventoryComponentId];
+        if (!inv || !inv.invSlotObjId) {
+            this.addMessage?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
+            if (inv.invSlotObjId[slot] == 0) continue; // Skip empty slots
+            let objId = inv.invSlotObjId[slot] - 1;
+            if (itemId == objId) {
+                this.equipItemSingleSlot(slot, itemId);
+                break;
+            }
+        }
+        return true;
+    }
+
     /**
      * Pass the actual ids, not +1
     */
@@ -17698,10 +17804,9 @@ export class Client extends GameShell {
         }
     }
 
-    
     async onF1Pressed_killBlueDragonsHerosGuild() {
         this.stopLoop = false;
-        let minHP = 45;
+        let minHP = 55;
         let foodId = 373; // Tuna == 361, swordfish 373
         let bonesId = 536; // Dragon bones == 536
         let state = 'banking';
@@ -17713,6 +17818,7 @@ export class Client extends GameShell {
         let safeX = 2909;
         let safeZ = 9911;
         let needle = 'Blue dragon';
+        let rangeAmmoId = 863; // iron knife = 863
 
         let {x, z} = this.getPlayerGlobalLoc();
         if (z > 9000) {
@@ -17798,6 +17904,7 @@ export class Client extends GameShell {
             1213, // rune dagger
             449, // adamantite_ore
             1751, // dragonhide_blue
+            rangeAmmoId,
         ];
         pickupItems = pickupItems.concat(this.uidHerbIds);
         pickupItems = pickupItems.concat(this.rareTableIds);
@@ -17857,31 +17964,13 @@ export class Client extends GameShell {
             } else if (state == 'fighting') {
                 // Eat if HP is low
                 if (this.skillLevel[3] < minHP) {
-                    let inv = Component.types[this.inventoryComponentId];
-                    if (!inv || !inv.invSlotObjId) {
-                        this.addMessage?.(0, 'Inventory data not available', '');
-                        return false;
-                    }
-                    // TODO: need to refactor eating into another function that directly uses the inv item instead of mouse.
-                    let foundFood = false;
-                    for (let slot = 0; slot < inv.invSlotObjId.length; slot++) {
-                        if (foodId == inv.invSlotObjId[slot] - 1) {
-                            if (this.selectedTab != 3) {
-                                await this.mouse(648, 185, 1, 100);
-                            }
-                            await sleep(50);
-                            await this.clickInv(slot, null, 1);
-                            await sleep(200);
-                            foundFood = true;
-                            break;
-                        }
-                    }
-                    if (!foundFood) {
+                    if (this.countInvById(foodId) == 0) {
                         // out of food, need to bank
                         state = 'back to fally';
                         this.addMessage(0, 'Out of food, going back to bank', '');
                         continue;
                     }
+                    this.eatFoodInv(foodId);
                     await sleep(1000);
                     continue; // Restart the outer while loop.
                 }
@@ -17941,6 +18030,8 @@ export class Client extends GameShell {
                 }
                 if (this.invFull()) {
                     // Handle full inventory, maybe bank.
+                    this.equipItemInv(rangeAmmoId);
+                    await sleep(700);
                     if (this.countInvById(bonesId) > 0) {
                         await this.buryBones([bonesId]);
                         continue;
@@ -18038,6 +18129,38 @@ export class Client extends GameShell {
             while (!this.invFull()) {
                 this.buy10(221, 8);
                 await sleep(1400);
+            }
+            await sleep(1500);
+            await this.walkToEndofPath(pathShopToBank);
+            await sleep(1500);
+        }
+    }
+
+    async onF1Pressed_buyVialsArdy() {
+        this.stopLoop = false;
+        let coinsInvId = 995;
+        let pathBankToShop = [[2615,3332],[2608,3322],[2608,3307],[2614,3297]];
+        let pathShopToBank = pathBankToShop.toReversed();
+        let shopOwnerNeedle = 'Kortan';
+
+        while (!this.stopLoop) {
+            await this.handleRunEnergyThrottled(1);
+            await this.clickInventoryThrottled(1);
+            await this.depositAllExceptNoMouse([0, coinsInvId]);
+            await sleep(1000);
+            await this.walkToEndofPath(pathBankToShop);
+            await sleep(1000);
+            await this.opNNearestNPC(3, shopOwnerNeedle);
+            await sleep(2100);
+            while (!this.invFull()) {
+                this.buy10(229, 0);
+                await sleep(300);
+                this.buy10(1759, 5);
+                await sleep(300);
+                this.buy10(882, 6);
+                await sleep(300);
+                this.buy10(954, 7);
+                await sleep(300);
             }
             await sleep(1500);
             await this.walkToEndofPath(pathShopToBank);
