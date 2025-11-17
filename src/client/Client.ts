@@ -525,6 +525,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Craft mind runes. Start in Edgeville bank. TRIGGER WILDERNESS WARNING FIRST!',
+            'fn': (obj: Client) => {obj.onF1Pressed_mindRunecraft();}
+        },
+        {
             'description': 'Kill chaos druids with ranged. SET RAPID.',
             'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdyRange();}
         },
@@ -623,10 +627,6 @@ export class Client extends GameShell {
         {
             'description': 'Craft air runes from Falador bank',
             'fn': (obj: Client) => {obj.onF1Pressed_airRunecraft();}
-        },
-        {
-            'description': 'Craft mind runes. Start in Edgeville bank. TRIGGER WILDERNESS WARNING FIRST!',
-            'fn': (obj: Client) => {obj.onF1Pressed_mindRunecraft();}
         },
         {
             'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
@@ -15471,7 +15471,6 @@ export class Client extends GameShell {
         this.stopLoop = false;
         let ITEM_MIND_TALISMAN = 1448, // item air talisman
             ITEM_RUNE_ESSENCE = 1436, // item rune essence
-            // LOC_AIR_RUINS = 2452, // world obj air ruins
             LOC_MIND_ALTAR = 2479, // world obj air alter
             LOC_MIND_PORTAL = 2466; // world obj air portal
 
@@ -15481,8 +15480,6 @@ export class Client extends GameShell {
             [2983, 3531], [2983, 3516]
         ];
         let ruinsToBankPath = bankToRuinsPath.toReversed();
-        let bankX = 3096;
-        let bankZ = 3493;
         let ruinsX = 2982;
         let ruinsZ = 3515;
         let altarX = 2787;
@@ -15530,33 +15527,33 @@ export class Client extends GameShell {
             await this.clickInventoryThrottled(1);
             await this.walkToEndofPath(ruinsToBankPath);
             await sleep(2000);
-            await this.depositAllExcept(bankX, bankZ, [ITEM_MIND_TALISMAN]);
-            await sleep(1800);
-            await this.withdrawAllBankById(ITEM_RUNE_ESSENCE);
-            await sleep(1000);
+            await this.depositAllExceptNoMouse([ITEM_MIND_TALISMAN]);
+            await sleep(800);
+            await this.withdrawAllNoMouse(ITEM_RUNE_ESSENCE);
+            await sleep(700);
             await this.walkToEndofPath(bankToRuinsPath);
-            await sleep(2000);
+            await sleep(700);
 
             // Should be just outside altar now. Need to use talisman on it.
             await this.useTalismanOnRuins(ruinsX, ruinsZ, ITEM_MIND_TALISMAN);
             await sleep(700);
             for (let i = 0; i < 20; i++) {
-                await sleep(1000);
+                await sleep(700);
                 if (distToAltar(this) < 20) {break;}
             }
             await sleep(700);
 
             // Should be just inside altar now. Need to interact with it.
             useNearestAltar(this);
-            await sleep(1000);
+            await sleep(700);
             for (let i = 0; i < 20; i++) {
-                await sleep(1000);
+                await sleep(700);
                 if (!this.invFull()) {break;} // not full means we crafted, can exit
             }
             await sleep(700);
             useNearestPortal(this);
-            for (let i = 0; i < 10; i++) {
-                await sleep(1000);
+            for (let i = 0; i < 15; i++) {
+                await sleep(700);
                 useNearestPortal(this);
                 if (distToAltar(this) > 20) {break;}
             }
