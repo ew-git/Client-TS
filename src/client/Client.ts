@@ -15521,6 +15521,7 @@ export class Client extends GameShell {
             return obj.manhattanDist(globalX, globalZ, altarX, altarZ);
         }
 
+        let essenceUsed = 0;
         while (!this.stopLoop) {
             // start in bank, have talisman already in inventory
             await this.handleRunEnergyThrottled(2);
@@ -15557,6 +15558,8 @@ export class Client extends GameShell {
                 useNearestPortal(this);
                 if (distToAltar(this) > 20) {break;}
             }
+            essenceUsed += 27;
+            console.log(`Used ${essenceUsed} rune essence in total.`);
 
             // Back to bank
             await this.walkToEndofPath(ruinsToBankPath);
