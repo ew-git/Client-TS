@@ -702,6 +702,8 @@ export class Client extends GameShell {
                 // this.opNNearestNPC(3, 'Betty');
                 // this.buy10(221, 8);
                 // await this.eatFoodInv(361);
+                
+                // await this.useTalismanOnRuins(2981, 3513, 1448);
             }
         });
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
@@ -15480,8 +15482,8 @@ export class Client extends GameShell {
             [2983, 3531], [2983, 3516]
         ];
         let ruinsToBankPath = bankToRuinsPath.toReversed();
-        let ruinsX = 2982;
-        let ruinsZ = 3515;
+        let ruinsX = 2981;
+        let ruinsZ = 3513;
         let altarX = 2787;
         let altarZ = 4839;
 
