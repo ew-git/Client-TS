@@ -5415,7 +5415,8 @@ export class Client extends GameShell {
                     let offsetY: number = 0;
                     this.projectFromEntity(entity, entity.height + 30);
                     // let npcprojectinfo: string = 'name:' + npc.type?.name + ',entity.height:' + entity.height + ',projectX:' + this.projectX + ',projectY:' + this.projectY + ' ' + entity.x + ',' + entity.z;
-                    let npcprojectinfo: string = `${npc.type?.name} ${npc.routeTileX[0]}, ${npc.routeTileZ[0]}, targetid=${npc.targetId}`;
+                    // let npcprojectinfo: string = `${npc.type?.name} ${npc.routeTileX[0]}, ${npc.routeTileZ[0]}, targetid=${npc.targetId}`;
+                    let npcprojectinfo: string = ' HP ' + npc.health + '/' + npc.totalHealth;
                     this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npcprojectinfo, Colors.WHITE);
                     // this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, npc.type?.name ?? null, Colors.WHITE);
                     offsetY -= 15;
@@ -5436,7 +5437,7 @@ export class Client extends GameShell {
                             this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Say', Colors.WHITE);
                             offsetY -= 15;
                         }
-                        if ((npc.lastMask & NpcUpdate.DAMAGE) === NpcUpdate.DAMAGE) {
+                        if (true || (npc.lastMask & NpcUpdate.DAMAGE) === NpcUpdate.DAMAGE) {
                             this.fontPlain11?.drawStringCenter(this.projectX, this.projectY + offsetY, 'Hit: Type ' + npc.damageTypes[1] + ' Amount ' + npc.damageValues[1] + ' HP ' + npc.health + '/' + npc.totalHealth, Colors.WHITE);
                             offsetY -= 15;
                         }
