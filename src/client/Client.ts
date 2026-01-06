@@ -2089,13 +2089,13 @@ export class Client extends GameShell {
 
             await this.handleInputKey();
 
-            if (now - this.idleCycle > 90_000) {
-                // no input in 90s, notify the server
-                this.pendingLogout = 250;
-                this.idleCycle += 10_000; // 10s backoff
+            // if (now - this.idleCycle > 90_000) {
+            //     // no input in 90s, notify the server
+            //     this.pendingLogout = 250;
+            //     this.idleCycle += 10_000; // 10s backoff
 
-                this.out.pIsaac(ClientProt.IDLE_TIMER);
-            }
+            //     this.out.pIsaac(ClientProt.IDLE_TIMER);
+            // }
 
             this.macroCameraCycle++;
             if (this.macroCameraCycle > 500) {
