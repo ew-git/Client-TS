@@ -528,6 +528,17 @@ export class Client extends GameShell {
 		}
     }
 
+    // Custom client modifications
+    private stopLoop: boolean = false;
+    private logArray = [[0, 0]];
+    private f1FunctionIndex: number = 0;
+    private f1Functions = [
+        {
+            'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
+        },
+    ];
+
     // ----
 
     private initializeLevelExperience(): void {
@@ -542,6 +553,53 @@ export class Client extends GameShell {
 
     constructor(nodeid: number, lowmem: boolean, members: boolean) {
         super();
+
+        window.addEventListener('keydown', async (event) => {
+            if (event.key === 'F1') {
+                this.f1Functions[this.f1FunctionIndex].fn(this);
+            } else if (event.key === 'F2') {
+                this.stopLoop = true;
+            } else if (event.key === 'F3') {
+                // Cycle to next f1Function and add message explaining it.
+                this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
+                this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
+            } else if (event.key === 'F6') {
+                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
+                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
+                // this.logArray.push([globalX, globalZ]);
+                // console.log(JSON.stringify(this.logArray));
+
+                // let b = 2909 - this.sceneBaseTileX;
+                // let c = 9910 - this.sceneBaseTileZ;
+                // let a = this.scene?.getWallTypecode(this.currentLevel, b, c) ?? 0;
+                // this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+                // this.objSelected = 0;
+                // this.spellSelected = 0;
+                // this.redrawSidebar = true;
+                
+                // Teleport to falador
+                // let c = 1170;
+                // const com: Component = Component.types[c];
+                // let notify: boolean = true;
+
+                // if (com.clientCode > 0) {
+                //     notify = this.handleInterfaceAction(com);
+                // }
+
+                // if (notify) {
+                //     this.out.p1isaac(ClientProt.IF_BUTTON);
+                //     this.out.p2(c);
+                // }
+                // this.objSelected = 0;
+                // this.spellSelected = 0;
+                // this.redrawSidebar = true;
+                // this.opNNearestNPC(3, 'Betty');
+                // this.buy10(221, 8);
+                // await this.eatFoodInv(361);
+                
+                // await this.useTalismanOnRuins(2981, 3513, 1448);
+            }
+        });
 
         if (typeof nodeid === 'undefined' || typeof lowmem === 'undefined' || typeof members === 'undefined') {
             return;
@@ -11828,5 +11886,61 @@ export class Client extends GameShell {
     getReportAbuseInterfaceId(): number {
         // custom: for report abuse input on mobile
         return this.reportAbuseLayerId;
+    }
+
+    // Custom client methods
+
+    getNearestNPC(needle: string) {
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
+
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npc[this.npcIds[index]];
+            if (!entity) {
+                continue;
+            }
+            let npcsi = this.npcIds[index];
+            const npc: ClientNpc = entity as ClientNpc;
+            let npcname: string = '' + npc.type?.name;
+            if (npcname.match(needle) && this.localPlayer) {
+                const dx = this.localPlayer?.routeTileX[0] - npc.routeTileX[0];
+                const dz = this.localPlayer?.routeTileZ[0] - npc.routeTileZ[0];
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestNpc = { x: npc.routeTileX[0], z: npc.routeTileZ[0], entity, npc, npcsIndex: npcsi };
+                }
+            }
+        }
+        return closestNpc;
+    }
+
+    async attackNearestNPC(needle: string) {
+        let nearestNPC = this.getNearestNPC(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npc[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], npc.routeTileX[0], npc.routeTileZ[0], 2, 1, 1, 0, 0, 0, false);
+                let action = 542;
+                if (action === 542) {
+                    this.out.pIsaac(ClientProt.OPNPC2);
+                }
+                this.out.p2(a);
+            }
+        }
+        await sleep(200);
+    }
+
+    async onF1Pressed_killLesserDemonWizTower() {
+        this.addChat(0, 'Beginning onF1Pressed_killLesserDemonWizTower', '');
+        this.stopLoop = false;
+        let needle = 'Lesser demon';
+        
+        while (!this.stopLoop) {
+            await this.attackNearestNPC(needle);
+            await sleep(5000);
+        }
     }
 }
