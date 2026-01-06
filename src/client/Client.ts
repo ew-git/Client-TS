@@ -148,8 +148,8 @@ export class Client extends GameShell {
     private loginSelect: number = 0; // jag::oldscape::TitleScreen::m_loginSelect
     private loginMes1: string = ''; // jag::oldscape::TitleScreen::m_loginMes1
     private loginMes2: string = ''; // jag::oldscape::TitleScreen::m_loginMes2
-    private loginUser: string = ''; // jag::oldscape::TitleScreen::m_loginUser
-    private loginPass: string = ''; // jag::oldscape::TitleScreen::m_loginPass
+    private loginUser: string = 'player'; // jag::oldscape::TitleScreen::m_loginUser
+    private loginPass: string = 'player'; // jag::oldscape::TitleScreen::m_loginPass
 
     // fonts
     private fontPlain11: PixFont | null = null;
