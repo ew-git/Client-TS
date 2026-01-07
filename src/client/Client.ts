@@ -76,6 +76,31 @@ const enum Constants {
     LOCAL_PLAYER_INDEX = 2047
 }
 
+// Custom constants
+const enum PlayerStat {
+    ATTACK,
+    DEFENCE,
+    STRENGTH,
+    HITPOINTS,
+    RANGED,
+    PRAYER,
+    MAGIC,
+    COOKING,
+    WOODCUTTING,
+    FLETCHING,
+    FISHING,
+    FIREMAKING,
+    CRAFTING,
+    SMITHING,
+    MINING,
+    HERBLORE,
+    AGILITY,
+    THIEVING,
+    STAT18,
+    STAT19,
+    RUNECRAFT
+}
+
 export class Client extends GameShell {
     static nodeId: number = 10;
     static membersWorld: boolean = true;
@@ -11935,12 +11960,15 @@ export class Client extends GameShell {
 
     async onF1Pressed_killLesserDemonWizTower() {
         this.addChat(0, 'Beginning onF1Pressed_killLesserDemonWizTower', '');
+        let initialMagicXP = this.statXP[PlayerStat.MAGIC];
+        this.addChat(0, `Beginning Magic XP: ${initialMagicXP}`, '');
         this.stopLoop = false;
         let needle = 'Lesser demon';
         
         while (!this.stopLoop) {
             await this.attackNearestNPC(needle);
             await sleep(5000);
+            this.addChat(0, `Magic XP gained: ${this.statXP[PlayerStat.MAGIC] - initialMagicXP}`, '');
         }
     }
 }
