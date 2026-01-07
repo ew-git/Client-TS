@@ -562,7 +562,26 @@ export class Client extends GameShell {
             'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
             'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
         },
+        {
+            'description': 'Kill chaos druids with ranged. SET RAPID.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdyRange();}
+        },
     ];
+    private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
+    private rareTableIds = [
+        // jewel
+        1623,1621,1619,1617,830,985,987,1452,1462,
+        // rare
+        561,829,560,563,892,886,1319,1373,1185,1149,1201,
+        995,996,997,998,999,1000,1001,1002,1003,1004,
+        2363, 1615, 443,
+        // megarare
+        1247, 2366, 1249];
+    private hardClueIds = [2722, 2723, 2724, 2725, 2726, 2727, 2728, 2729, 2730,
+        2731, 2732, 2733, 2734, 2735, 2736, 2737, 2738, 2739, 2740, 2741, 2742,
+        2743, 2744, 2745, 2746, 2747, 2748, 2773, 2774, 2775, 2776, 2777, 2778,
+        2779, 2780, 2781, 2782, 2783, 2784, 2785, 2786, 2787, 2788, 2789, 2790,
+        2791, 2792, 2793, 2794, 2795, 2796, 2797, 2798, 2799, 2800];
 
     // ----
 
@@ -594,8 +613,8 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
 
-                // let b = 2909 - this.sceneBaseTileX;
-                // let c = 9910 - this.sceneBaseTileZ;
+                // let b = 2909 - this.mapBuildBaseX;
+                // let c = 9910 - this.mapBuildBaseZ;
                 // let a = this.scene?.getWallTypecode(this.currentLevel, b, c) ?? 0;
                 // this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
                 // this.objSelected = 0;
@@ -11985,6 +12004,153 @@ export class Client extends GameShell {
         while (!this.stopLoop) {
             await this.attackNearestNPC(needle);
             await sleep(5000);
+        }
+    }
+
+    async onF1Pressed_killChaosDruidsArdyRange() {
+        this.stopLoop = false;
+        let minHP = 25;
+        let foodId = 361; // Tuna == 361
+        let bonesId = 526; // Bones == 526
+        let state = 'banking';
+        let outsideRoomToBankPath = [[2565, 3356], [2581, 3351], [2582, 3367], [2606, 3365], [2614, 3350], [2615, 3332]];
+        let bankToOutsideRoomPath = outsideRoomToBankPath.toReversed();
+        let roomBounds = [2560, 2564, 3355, 3358]; // W, E, S, N
+        let needle = 'Chaos druid';
+        let insideGateP = [2564, 3356];
+        let insideCowPenP = insideGateP;
+        let rangeAmmoId = 863;
+        let pickupItems = [
+            526, // bones
+            563, // lawrune
+            556, // airrune
+            559, // bodyrune
+            557, // earthrune
+            558, // mindrune
+            561, // naturerune
+            995, // coins
+            227, // vial_water
+            231, // snape_grass
+            // 1594, // unholy_symbol_mould
+            rangeAmmoId,
+        ];
+        pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+
+        if (this.playerIsInBounds(roomBounds)) {
+            state = 'not banking';
+        }
+
+        function pickDoor(obj: Client) {
+            // action = 504;
+            let b = 2565 - obj.mapBuildBaseX;
+            let c = 3356 - obj.mapBuildBaseZ;
+            let a = obj.world?.wallType(obj.minusedlevel, b, c) ?? 0;
+            obj.interactWithLoc(ClientProt.OPLOC2, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+        }
+
+        function openDoorFromInside(obj: Client) {
+            // action = 285;
+            let b = 2565 - obj.mapBuildBaseX;
+            let c = 3356 - obj.mapBuildBaseZ;
+            let a = obj.world?.wallType(obj.minusedlevel, b, c) ?? 0;
+            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.objSelected = 0;
+            obj.spellSelected = 0;
+            obj.redrawSidebar = true;
+        }
+        
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                if (this.playerIsInBounds(roomBounds)) {
+                    await this.walkToEndofPath([insideGateP]);
+                    await sleep(2000);
+                    openDoorFromInside(this);
+                    await sleep(3500);
+                }
+                await this.walkToEndofPath(outsideRoomToBankPath);
+                await sleep(2000);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw5NoMouse(foodId);
+                }
+                await sleep(1200);
+                if (this.invCount() == 0) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(bankToOutsideRoomPath);
+                await sleep(1200);
+                while (!this.playerIsInBounds(roomBounds)) {
+                    pickDoor(this);
+                    await sleep(2100);
+                }
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            await this.handleRunEnergyThrottled(1);
+            await this.clickInventoryThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.statEffectiveLevel[3] < minHP) {
+                    let foundFood = this.eatFoodInv(foodId);
+                    if (!foundFood) {
+                        // out of food, need to bank
+                        state = 'banking';
+                        this.addChat(0, 'Entering banking state', '');
+                        continue;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                let items = this.filterGroundItemsIds(pickupItems);
+                while (items.length > 0) {
+                    const item = items.shift();
+                    if (item != null) {
+                        await this.pickupNearestIdValidated(item);
+                        if (this.countInvById(bonesId) > 0) {
+                            await this.buryBones([bonesId]);
+                            await sleep(700);
+                        }
+                    }
+                    if (this.invFull()) {
+                        break;
+                    }
+                    items = this.filterGroundItemsIds(pickupItems);
+                }
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    this.equipItemInv(rangeAmmoId);
+                    await sleep(700);
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'banking';
+                        this.addChat(0, 'Entering banking state', '');
+                        continue;
+                    }
+                }
+                await this.attackNearestNPC(needle);
+                // Wait until we're actually in combat until trying to loop again.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 20) {
+                    iter++;
+                    await sleep(300);
+                }
+            } else {
+                await this.attackNearestNPCAfterMe(needle);
+            }
+            await sleep(1200);
         }
     }
 }
