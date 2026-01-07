@@ -589,10 +589,10 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.sceneBaseTileX;
-                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.sceneBaseTileZ;
-                // this.logArray.push([globalX, globalZ]);
-                // console.log(JSON.stringify(this.logArray));
+                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
+                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
+                this.logArray.push([globalX, globalZ]);
+                console.log(JSON.stringify(this.logArray));
 
                 // let b = 2909 - this.sceneBaseTileX;
                 // let c = 9910 - this.sceneBaseTileZ;
@@ -11958,17 +11958,33 @@ export class Client extends GameShell {
         await sleep(200);
     }
 
+    async reportXPOnInterval(stat: number, intervalms: number, statname: string = '') {
+        let initialXP = this.statXP[stat];
+        this.addChat(0, `Beginning ${statname} XP: ${initialXP}`, '');
+        let initialTime = performance.now();
+        let reportTime = initialTime + intervalms;
+        while (!this.stopLoop) {
+            let currentTime = performance.now();
+            if (currentTime > reportTime) {
+                reportTime += intervalms;
+                let currentXP = this.statXP[stat];
+                let elapsedHours = ((currentTime - initialTime) / 60 / 60 / 1000);
+                this.addChat(0, `Gained ${statname} XP: ${currentXP - initialXP}. XP/hr: ${((currentXP - initialXP) / elapsedHours).toFixed(1)}`, '');
+                this.addChat(0, `Hours elapsed: ${elapsedHours.toFixed(3)}`, '');
+            }
+            await sleep(3000);
+        }
+    }
+
     async onF1Pressed_killLesserDemonWizTower() {
         this.addChat(0, 'Beginning onF1Pressed_killLesserDemonWizTower', '');
-        let initialMagicXP = this.statXP[PlayerStat.MAGIC];
-        this.addChat(0, `Beginning Magic XP: ${initialMagicXP}`, '');
         this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.MAGIC, 60_000, 'Magic');
         let needle = 'Lesser demon';
         
         while (!this.stopLoop) {
             await this.attackNearestNPC(needle);
             await sleep(5000);
-            this.addChat(0, `Magic XP gained: ${this.statXP[PlayerStat.MAGIC] - initialMagicXP}`, '');
         }
     }
 }
