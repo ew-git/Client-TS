@@ -12678,7 +12678,7 @@ export class Client extends GameShell {
         let needle = 'Chaos druid';
         let insideGateP = [2564, 3356];
         let pickupItems = [
-            526, // bones
+            // 526, // bones
             563, // lawrune
             556, // airrune
             559, // bodyrune
