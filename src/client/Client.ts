@@ -555,6 +555,9 @@ export class Client extends GameShell {
 
     // Custom client modifications
     private stopLoop: boolean = false;
+    private inventoryComponentId: number = 3214; // \Server\engine\data\symbols\component.sym
+    private bankComponentId: number = 5382;
+    private lastCheckRunTime: number | null = null;
     private logArray = [[0, 0]];
     private f1FunctionIndex: number = 0;
     private f1Functions = [
@@ -613,35 +616,7 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
 
-                // let b = 2909 - this.mapBuildBaseX;
-                // let c = 9910 - this.mapBuildBaseZ;
-                // let a = this.scene?.getWallTypecode(this.currentLevel, b, c) ?? 0;
-                // this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-                // this.objSelected = 0;
-                // this.spellSelected = 0;
-                // this.redrawSidebar = true;
-                
-                // Teleport to falador
-                // let c = 1170;
-                // const com: Component = Component.types[c];
-                // let notify: boolean = true;
-
-                // if (com.clientCode > 0) {
-                //     notify = this.handleInterfaceAction(com);
-                // }
-
-                // if (notify) {
-                //     this.out.p1isaac(ClientProt.IF_BUTTON);
-                //     this.out.p2(c);
-                // }
-                // this.objSelected = 0;
-                // this.spellSelected = 0;
-                // this.redrawSidebar = true;
-                // this.opNNearestNPC(3, 'Betty');
-                // this.buy10(221, 8);
-                // await this.eatFoodInv(361);
-                
-                // await this.useTalismanOnRuins(2981, 3513, 1448);
+                await this.depositAllExceptNoMouse([373]);
             }
         });
 
@@ -11934,6 +11909,290 @@ export class Client extends GameShell {
 
     // Custom client methods
 
+    manhattanDist(currentX: number, currentZ: number, targetX: number, targetZ: number): number {
+        const dx = currentX - targetX;
+        const dy = currentZ - targetZ;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        return dist;
+    }
+
+    getNearestObjectFromArray(targetids: number[], maxdist = 1000) {
+        if (this.localPlayer == null) {
+            return null;
+        }
+        let playerX = this.localPlayer.routeTileX[0];
+        let playerZ = this.localPlayer.routeTileZ[0];
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestX = -1;
+        let closestZ = -1;
+        let closestFullType = -1;
+        let s = this.world;
+        if (!s) {return null;}
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let tile = s.sceneType(this.minusedlevel, x, z);
+                if (tile == 0) {
+                    continue;
+                }
+                let type = (tile >> 14) & 32767;
+                if (targetids.includes(type)) {
+                    let dist = this.manhattanDist(playerX, playerZ, x, z);
+                    if (dist < closestDist && dist < maxdist) {
+                        closestDist = dist;
+                        closestX = x;
+                        closestZ = z;
+                        closestFullType = tile;
+                    }
+                    // console.log(`Found tile ${tile} at ${[this.currentLevel, x, z]} with type ${type}.`);
+                }
+            }
+        }
+        if (closestX == -1 || closestZ == -1 || !this.localPlayer) {
+            return null;
+        } else {
+            return {level: this.minusedlevel, x: closestX, z: closestZ, fullType: closestFullType};
+        }
+    }
+
+    useNearestObjOPN(n: number, ids: number[], maxdist: number) {
+        let nearestObj = this.getNearestObjectFromArray(ids, maxdist);
+        if (!nearestObj) {
+            this.addChat(0, `Failed to find a nearest object of ${ids} within ${maxdist} dist.`, '');
+            return false;
+        }
+        let a = nearestObj.fullType;
+        let b = nearestObj.x;
+        let c = nearestObj.z;
+        if (n == 1) {
+            this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        } else if (n == 2) {
+            this.interactWithLoc(ClientProt.OPLOC2, b, c, a);
+        } else if (n == 3) {
+            this.interactWithLoc(ClientProt.OPLOC3, b, c, a);
+        } else {
+            console.error(`Invalid n=${n} call to useNearestObjOPN.`);
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+        return true;
+    }
+
+    checkBankOpen() {
+        let bank = IfType.list[this.bankComponentId];
+        if (!bank || !bank.linkObjType || bank.linkObjType[0] == 0) {
+            console.log('Bank data not available or bank is empty.');
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    async openBankNoMouse(boothObjId = 2213, maxDist = 10) {
+        this.useNearestObjOPN(2, [boothObjId], maxDist);
+        await sleep(2000);
+        for (var _ = 0; _ < 10 && !this.checkBankOpen(); _++) await sleep(500);
+    }
+
+    /**
+     * Pass the actual ids, not +1
+    */
+    depositAllSingleSlot(slot: number, itemId: number){
+        let action: number = 892;
+        const a: number = itemId;
+        const b: number = slot;
+        const c: number = 2006;
+        if (action === 892) {
+            if ((b & 0x3) === 0) {
+                Client.oplogic9++;
+            }
+
+            if (Client.oplogic9 >= 130) {
+                this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC9);
+                this.out.p1(177);
+            }
+
+            this.out.pIsaac(ClientProt.INV_BUTTON4);
+        }
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+    }
+
+    async depositAllExceptNoMouse(itemIds: number[]) {
+        // Pass the actual ids, not +1
+        await this.openBankNoMouse();
+
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType) {
+            console.error('Inventory data not available');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (inv.linkObjType[slot] == 0) continue; // Skip empty slots
+            let objId = inv.linkObjType[slot] - 1;
+            if (!itemIds.includes(objId)) {
+                this.depositAllSingleSlot(slot, objId);
+                await sleep(300);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Pass the actual ids, not +1
+    */
+    withdrawAllSingleSlot(slot: number, itemId: number){
+        let action: number = 892;
+        const a: number = itemId;
+        const b: number = slot;
+        const c: number = 5382;
+        if (action === 892) {
+            if ((b & 0x3) === 0) {
+                Client.oplogic9++;
+            }
+
+            if (Client.oplogic9 >= 130) {
+                this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC9);
+                this.out.p1(177);
+            }
+
+            this.out.pIsaac(ClientProt.INV_BUTTON4);
+        }
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+    }
+
+    async withdrawAllNoMouse(id: number) {
+        let inv = IfType.list[this.bankComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (id == (inv.linkObjType[slot] - 1)) {
+                this.withdrawAllSingleSlot(slot, id);
+                await sleep(700);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    withdraw5SingleSlot(slot: number, itemId: number){
+        let action: number = 596;
+        const a: number = itemId;
+        const b: number = slot;
+        const c: number = 5382;
+        if (action === 596) {
+            this.out.pIsaac(ClientProt.INV_BUTTON2);
+        }
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+    }
+
+    async withdraw5NoMouse(id: number) {
+        let inv = IfType.list[this.bankComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (id == (inv.linkObjType[slot] - 1)) {
+                this.withdraw5SingleSlot(slot, id);
+                await sleep(700);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    invCount(): number {
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return -1;
+        }
+        let cnt = 0;
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (inv.linkObjType[slot] != 0) {
+                cnt++;
+            }
+        }
+        return cnt;
+    }
+
+    invFull(): boolean {
+        return this.invCount() == 28;
+    }
+
+    countInvById(id: number): number {
+        var cnt = 0;
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType || !inv.linkObjCount) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return 0;
+        }
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (id == (inv.linkObjType[slot] - 1)) {
+                cnt = cnt + inv.linkObjCount[slot];
+            }
+        }
+        return cnt;
+    }
+
+    /**
+     * Bounds are W, E, S, N
+     */
+    playerIsInBounds(bounds: number[]) {
+        let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
+        let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
+        return globalX >= bounds[0] && globalX <= bounds[1] && globalZ >= bounds[2] && globalZ <= bounds[3]
+    }
+
     getNearestNPC(needle: string) {
         let closestDist = Number.POSITIVE_INFINITY;
         let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
@@ -11977,6 +12236,49 @@ export class Client extends GameShell {
         await sleep(200);
     }
 
+    getNearestNPCAfterMe(needle: string) {
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
+
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npc[this.npcIds[index]];
+            if (!entity) {
+                continue;
+            }
+            let npcsi = this.npcIds[index];
+            const npc: ClientNpc = entity as ClientNpc;
+            let npcname: string = '' + npc.type?.name;
+            if (npcname.match(needle) && this.localPlayer && this.afterMe(npc)) {
+                const dx = this.localPlayer?.routeTileX[0] - npc.routeTileX[0];
+                const dz = this.localPlayer?.routeTileZ[0] - npc.routeTileZ[0];
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestNpc = { x: npc.routeTileX[0], z: npc.routeTileZ[0], entity, npc, npcsIndex: npcsi };
+                }
+            }
+        }
+        return closestNpc;
+    }
+
+    async attackNearestNPCAfterMe(needle: string) {
+        let nearestNPC = this.getNearestNPCAfterMe(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npc[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], npc.routeTileX[0], npc.routeTileZ[0], 2, 1, 1, 0, 0, 0, false);
+                let action = 542;
+                if (action === 542) {
+                    this.out.pIsaac(ClientProt.OPNPC2);
+                }
+                this.out.p2(a);
+            }
+        }
+        await sleep(200);
+    }
+
     async reportXPOnInterval(stat: number, intervalms: number, statname: string = '') {
         let initialXP = this.statXP[stat];
         this.addChat(0, `Beginning ${statname} XP: ${initialXP}`, '');
@@ -11993,6 +12295,360 @@ export class Client extends GameShell {
             }
             await sleep(3000);
         }
+    }
+
+    findNearestPointInPath(path: Array<Array<number>>) {
+        let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
+        let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
+        var closestDist = Number.POSITIVE_INFINITY;
+        var closestPoint: Array<number> = [];
+        var closestPointIndex = -1;
+        for (let i = 0; i < path.length; i++) {
+            let point = path[i];
+            let dx = point[0] - globalX;
+            let dz = point[1] - globalZ;
+            let dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestPoint = point;
+                closestPointIndex = i;
+            }
+        }
+        if (closestPointIndex == -1) {
+            console.error(`No closest point found in path ${JSON.stringify(path)}`);
+            return null;
+        } else {
+            return { point: closestPoint, index: closestPointIndex };
+        }
+    }
+
+    async walkToEndofPath(path: number[][]) {
+        const result = this.findNearestPointInPath(path);
+        if (!result || !this.localPlayer) {
+            return;
+        }
+        const { point, index } = result;
+        for (let i = index; i < path.length; i++) {
+            let p = path[i];
+            if (this.localPlayer.routeTileX[0] != p[0] - this.mapBuildBaseX || this.localPlayer.routeTileZ[0] != p[1] - this.mapBuildBaseZ) {
+                console.log(`Trying to move to ${p[0] - this.mapBuildBaseX}, ${p[1] - this.mapBuildBaseZ}; ${i+1} / ${path.length}`);
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], p[0] - this.mapBuildBaseX, p[1] - this.mapBuildBaseZ, 0, 0, 0, 0, 0, 0, true)
+                // Wait until we've started moving
+                for (let i = 0; i < 15; i++) {
+                    await sleep(100);
+                    if (this.localPlayer?.routeLength !== 0) {
+                        break;
+                    }
+                }
+                await sleep(200);
+                // Wait until we've stopped moving
+                while (this.localPlayer?.routeLength !== 0) {
+                    await sleep(300);
+                }
+            } else {
+                console.log(`Already there, don't need to move to ${p[0] - this.mapBuildBaseX}, ${p[1] - this.mapBuildBaseZ}; ${i+1} / ${path.length}`);
+                await sleep(200);
+            }
+        
+        }
+    }
+
+    async handleRunEnergy(minenergy = 30): Promise<boolean> {
+        if (this.runenergy > minenergy) {
+            let c = 153;
+
+            this.out.pIsaac(ClientProt.IF_BUTTON);
+            this.out.p2(c);
+
+            const com: IfType = IfType.list[c];
+            if (com.scripts && com.scripts[0] && com.scripts[0][0] === 5) {
+                const varp: number = com.scripts[0][1];
+                if (com.scriptOperand && this.var[varp] !== com.scriptOperand[0]) {
+                    this.var[varp] = com.scriptOperand[0];
+                    this.updateVarp(varp);
+                    this.redrawSidebar = true;
+                }
+            }
+            this.objSelected = 0;
+            this.spellSelected = 0;
+            this.redrawSidebar = true;
+            return true;
+        }
+        return false;
+    }
+
+    async handleRunEnergyThrottled(minutes: number) {
+        const now = Date.now();
+        if (!this.lastCheckRunTime || now - this.lastCheckRunTime >= minutes * 60 * 1000) {
+            await this.handleRunEnergy();
+            this.lastCheckRunTime = now;
+        }
+    }
+
+    afterMe(npc: ClientEntity) {
+        if (npc && this.localPlayer) {
+            if (npc.faceEntity - 32768 == this.localPid) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    anyNPCafterMe() {
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npc[this.npcIds[index]];
+            if (!entity) {
+                continue;
+            }
+            const npc: ClientNpc = entity as ClientNpc;
+            if (this.afterMe(npc)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    eatFoodSingleSlot(slot: number, itemId: number) {
+        let action = 405;
+        let a = itemId;
+        let b = slot;
+        let c = 3214;
+
+        Client.oplogic3 += a;
+        if (Client.oplogic3 >= 97) {
+            this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC3);
+            this.out.p3(14953816);
+        }
+
+        this.out.pIsaac(ClientProt.OPHELD1);
+
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    eatFoodInv(itemId: number) {
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (inv.linkObjType[slot] == 0) continue; // Skip empty slots
+            let objId = inv.linkObjType[slot] - 1;
+            if (itemId == objId) {
+                this.eatFoodSingleSlot(slot, itemId);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    equipItemSingleSlot(slot: number, itemId: number) {
+        let action = 38;
+        let a = itemId;
+        let b = slot;
+        let c = 3214;
+        this.out.pIsaac(ClientProt.OPHELD2);
+
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    equipItemInv(itemId: number) {
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (inv.linkObjType[slot] == 0) continue; // Skip empty slots
+            let objId = inv.linkObjType[slot] - 1;
+            if (itemId == objId) {
+                this.equipItemSingleSlot(slot, itemId);
+                break;
+            }
+        }
+        return true;
+    }
+
+    async buryBones(itemIds: number[]) {
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            let itemId = inv.linkObjType[slot] - 1;
+            if (itemIds.includes(itemId)) {
+                let c = 3214;
+                let b = slot;
+                let a = itemId;
+                Client.oplogic3 += a;
+                if (Client.oplogic3 >= 97) {
+                    this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC3);
+                    this.out.p3(14953816);
+                }
+
+                this.out.pIsaac(ClientProt.OPHELD1);
+                this.out.p2(a);
+                this.out.p2(b);
+                this.out.p2(c);
+
+                this.selectedCycle = 0;
+                this.selectedLayerId = c;
+                this.selectedItem = b;
+                this.selectedArea = 2;
+
+                if (IfType.list[c].layerId === this.mainLayerId) {
+                    this.selectedArea = 1;
+                }
+
+                if (IfType.list[c].layerId === this.chatLayerId) {
+                    this.selectedArea = 3;
+                }
+                await sleep(1300);
+            }
+        }
+        return true;
+    }
+
+    filterGroundItemsIds(items: number[]): number[] {
+        const foundIds = new Set<number>();
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let objs = this.objStacks[this.minusedlevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    foundIds.add(type.id);
+                }
+            }
+        }
+        return items.filter(item => foundIds.has(item));
+    }
+
+    async pickupNearestIdNoMouse(targetid: number) {
+        if (this.localPlayer == null) {
+            return false;
+        }
+        let playerX = this.localPlayer.routeTileX[0];
+        let playerZ = this.localPlayer.routeTileZ[0];
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestX = -1;
+        let closestZ = -1;
+        let closestObjIndex = -1;
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let objs = this.objStacks[this.minusedlevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.index);
+                    if (type.id == targetid) {
+                        let dist = this.manhattanDist(playerX, playerZ, x, z);
+                        if (dist < closestDist) {
+                            closestDist = dist;
+                            closestX = x;
+                            closestZ = z;
+                            closestObjIndex = obj.index;
+                        }
+                    }
+                }
+            }
+        }
+        if (closestX == -1 || closestZ == -1 || closestObjIndex == -1 || !this.localPlayer) {
+            return false;
+        }
+
+        let action = 99;
+        let a = closestObjIndex;
+        let b = closestX;
+        let c = closestZ;
+        console.log(`${action}, ${a}, Trying to move with the following: ${[this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], b, c]}`);
+        const success: boolean = this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], b, c, 2, 0, 0, 0, 0, 0, false);
+        if (!success) {
+            this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], b, c, 2, 1, 1, 0, 0, 0, false);
+        }
+
+        this.crossX = this.mouseClickX;
+        this.crossY = this.mouseClickY;
+        this.crossMode = 2;
+        this.crossCycle = 0;
+
+        if (action === 99) {
+            this.out.pIsaac(ClientProt.OPOBJ3);
+        } else if (action === 993) {
+            this.out.pIsaac(ClientProt.OPOBJ2);
+        } else if (action === 224) {
+            this.out.pIsaac(ClientProt.OPOBJ1);
+        } else if (action === 877) {
+            this.out.pIsaac(ClientProt.OPOBJ5);
+        } else if (action === 746) {
+            this.out.pIsaac(ClientProt.OPOBJ4);
+        }
+
+        this.out.p2(b + this.mapBuildBaseX);
+        this.out.p2(c + this.mapBuildBaseZ);
+        this.out.p2(a);
+        return true;
+    }
+
+    async pickupNearestIdValidated(targetid: number, waitseconds: number = 20) {
+        // Check we have at least one free inventory space
+        if (this.invFull()) {return false;}
+        // Count current number of objects in inventory (what if stackable?), save in variable
+        const originalCount = this.countInvById(targetid);
+        // Try pickup
+        let pickupAttempted = await this.pickupNearestIdNoMouse(targetid);
+        if (!pickupAttempted) {return false;}
+        // Wait until latest count of items is greater than saved variable, or X secs has passed and fail
+        for (let i = 0; i < waitseconds; i++) {
+            let currentCount = this.countInvById(targetid);
+            if (currentCount > originalCount) {return true;}
+            await sleep(1000);
+        }
+        return false;
     }
 
     async onF1Pressed_killLesserDemonWizTower() {
@@ -12012,14 +12668,13 @@ export class Client extends GameShell {
         let minHP = 25;
         let foodId = 361; // Tuna == 361
         let bonesId = 526; // Bones == 526
+        let rangeAmmoId = 863; // iron knife = 863
         let state = 'banking';
         let outsideRoomToBankPath = [[2565, 3356], [2581, 3351], [2582, 3367], [2606, 3365], [2614, 3350], [2615, 3332]];
         let bankToOutsideRoomPath = outsideRoomToBankPath.toReversed();
         let roomBounds = [2560, 2564, 3355, 3358]; // W, E, S, N
         let needle = 'Chaos druid';
         let insideGateP = [2564, 3356];
-        let insideCowPenP = insideGateP;
-        let rangeAmmoId = 863;
         let pickupItems = [
             526, // bones
             563, // lawrune
@@ -12095,7 +12750,6 @@ export class Client extends GameShell {
                 this.addChat(0, 'Finished banking state', '');
             }
             await this.handleRunEnergyThrottled(1);
-            await this.clickInventoryThrottled(1);
             if (!this.anyNPCafterMe()) {
                 // Eat if HP is low
                 if (this.statEffectiveLevel[3] < minHP) {
