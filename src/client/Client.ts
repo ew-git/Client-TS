@@ -554,6 +554,7 @@ export class Client extends GameShell {
     }
 
     // Custom client modifications
+    private logUseMenu: boolean = true; // Every time we use a right click menu, log info to console.
     private stopLoop: boolean = false;
     private inventoryComponentId: number = 3214; // \Server\engine\data\symbols\component.sym
     private bankComponentId: number = 5382;
@@ -8767,6 +8768,10 @@ export class Client extends GameShell {
         const a: number = this.menuParamA[optionId];
         const b: number = this.menuParamB[optionId];
         const c: number = this.menuParamC[optionId];
+        
+        if (this.logUseMenu) {
+            console.log(`Using menu item ${optionId} with action=${action}, a=${a}, b=${b}, c=${c}`);
+        }
 
         if (action >= MenuAction._PRIORITY) {
             action -= MenuAction._PRIORITY;
@@ -12525,11 +12530,11 @@ export class Client extends GameShell {
                 let c = 3214;
                 let b = slot;
                 let a = itemId;
-                Client.oplogic3 += a;
-                if (Client.oplogic3 >= 97) {
-                    this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC3);
-                    this.out.p3(14953816);
-                }
+                // Client.oplogic3 += a;
+                // if (Client.oplogic3 >= 97) {
+                //     this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC3);
+                //     this.out.p3(14953816);
+                // }
 
                 this.out.pIsaac(ClientProt.OPHELD1);
                 this.out.p2(a);
@@ -12548,6 +12553,10 @@ export class Client extends GameShell {
                 if (IfType.list[c].layerId === this.chatLayerId) {
                     this.selectedArea = 3;
                 }
+
+                this.objSelected = 0;
+                this.spellSelected = 0;
+                this.redrawSidebar = true;
                 await sleep(1300);
             }
         }
@@ -12678,7 +12687,7 @@ export class Client extends GameShell {
         let needle = 'Chaos druid';
         let insideGateP = [2564, 3356];
         let pickupItems = [
-            // 526, // bones
+            526, // bones
             563, // lawrune
             556, // airrune
             559, // bodyrune
