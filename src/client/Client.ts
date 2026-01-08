@@ -12664,7 +12664,9 @@ export class Client extends GameShell {
     }
 
     async onF1Pressed_killChaosDruidsArdyRange() {
+        this.addChat(0, 'Beginning onF1Pressed_killChaosDruidsArdyRange', '');
         this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.RANGED, 60_000, 'Ranged');
         let minHP = 25;
         let foodId = 361; // Tuna == 361
         let bonesId = 526; // Bones == 526
