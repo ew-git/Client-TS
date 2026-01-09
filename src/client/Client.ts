@@ -559,6 +559,7 @@ export class Client extends GameShell {
     private inventoryComponentId: number = 3214; // \Server\engine\data\symbols\component.sym
     private bankComponentId: number = 5382;
     private lastCheckRunTime: number | null = null;
+    private lastLogoutTime: number = performance.now();
     private logArray = [[0, 0]];
     private f1FunctionIndex: number = 0;
     private f1Functions = [
@@ -612,12 +613,13 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
-                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
-                this.logArray.push([globalX, globalZ]);
-                console.log(JSON.stringify(this.logArray));
+                this.useLogoutButton();
 
-                await this.depositAllExceptNoMouse([373]);
+                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
+                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
+                // this.logArray.push([globalX, globalZ]);
+                // console.log(JSON.stringify(this.logArray));
+
             }
         });
 
@@ -12660,6 +12662,56 @@ export class Client extends GameShell {
         return false;
     }
 
+    useLogoutButton() {
+        // Using menu item 1 with action=231, a=205, b=16, c=2458
+        let action = MenuAction.IF_BUTTON; // 231
+        let a = 205; // not used?
+        let b = 16; // not used?
+        let c = 2458;
+        const com: IfType = IfType.list[c];
+            let notify: boolean = true;
+
+            if (com.clientCode > 0) {
+                notify = this.handleInterfaceAction(com);
+            }
+
+            if (notify) {
+                this.out.pIsaac(ClientProt.IF_BUTTON);
+                this.out.p2(c);
+            }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    async logoutThenLogin() {
+        console.log('Attempting to log out');
+        // await this.logout();
+        this.useLogoutButton();
+        await sleep(10000);
+        console.log('Done waiting 10 seconds. Attempting to login.');
+        this.loginscreen = 2;
+        await this.login('player', 'player', false);
+        await sleep(10000);
+        console.log('Done waiting 10 seconds. Confirming ingame');
+        if (this.ingame) {
+            console.log('Confirmd in game');
+        } else {
+            console.error('Not in game, setting stopLoop');
+            this.stopLoop = true;
+        }
+    }
+
+    async logoutThenLoginThrottled(minutes: number) {
+        const currentTime = performance.now();
+        if (!this.lastLogoutTime || currentTime - this.lastLogoutTime >= minutes * 60 * 1000) {
+            await this.logoutThenLogin();
+            this.lastLogoutTime = performance.now();
+        } else {
+            console.log('Not enough time has elapsed for logout login');
+        }
+    }
+
     async onF1Pressed_killLesserDemonWizTower() {
         this.addChat(0, 'Beginning onF1Pressed_killLesserDemonWizTower', '');
         this.stopLoop = false;
@@ -12669,6 +12721,7 @@ export class Client extends GameShell {
         while (!this.stopLoop) {
             await this.attackNearestNPC(needle);
             await sleep(5000);
+            // No loginlogout here -- did I ever run into the issue?
         }
     }
 
@@ -12739,6 +12792,9 @@ export class Client extends GameShell {
                 }
                 await this.walkToEndofPath(outsideRoomToBankPath);
                 await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(1000);
                 await this.depositAllExceptNoMouse([0]);
                 await sleep(600);
                 if (this.checkBankOpen()) {
