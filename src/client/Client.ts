@@ -613,7 +613,7 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                this.useLogoutButton();
+                this.setAttackRapid();
 
                 // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
                 // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
@@ -12360,6 +12360,29 @@ export class Client extends GameShell {
         }
     }
 
+    async setAttackRapid() {
+        // action=225, a=361, b=0, c=4453
+        let action = MenuAction.IF_BUTTON_SELECT; // 225
+        let a = 361; // not used?
+        let b = 0; // not used?
+        let c = 4453;
+        this.out.pIsaac(ClientProt.IF_BUTTON);
+        this.out.p2(c);
+
+        const com: IfType = IfType.list[c];
+        if (com.scripts && com.scripts[0] && com.scripts[0][0] === 5) {
+            const varp: number = com.scripts[0][1];
+            if (com.scriptOperand && this.var[varp] !== com.scriptOperand[0]) {
+                this.var[varp] = com.scriptOperand[0];
+                this.updateVarp(varp);
+                this.redrawSidebar = true;
+            }
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
     async handleRunEnergy(minenergy = 30): Promise<boolean> {
         if (this.runenergy > minenergy) {
             let c = 153;
@@ -12794,7 +12817,10 @@ export class Client extends GameShell {
                 await sleep(2000);
                 console.log('Just got back to the bank. Checking logout login');
                 await this.logoutThenLoginThrottled(60); // do it every hour
-                await sleep(1000);
+                await sleep(700);
+                // Reset attack method to "Rapid"
+                this.setAttackRapid();
+                await sleep(700);
                 await this.depositAllExceptNoMouse([0]);
                 await sleep(600);
                 if (this.checkBankOpen()) {
