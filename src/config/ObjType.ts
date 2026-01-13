@@ -18,8 +18,8 @@ export default class ObjType {
     static cache: (ObjType | null)[] | null = null;
     static cachePos: number = 0;
     static membersWorld: boolean = true;
-    static modelCache: LruCache | null = new LruCache(50);
-    static spriteCache: LruCache | null = new LruCache(200);
+    static modelCache: LruCache<Model> = new LruCache(50);
+    static spriteCache: LruCache<Pix32> = new LruCache(200);
 
     id: number = -1;
 
@@ -308,13 +308,9 @@ export default class ObjType {
             }
         }
 
-        let model = null;
-        if (ObjType.modelCache) {
-            model = ObjType.modelCache.get(BigInt(this.id)) as Model | null;
-
-            if (model) {
-                return model;
-            }
+        let model = ObjType.modelCache.get(BigInt(this.id));
+        if (model) {
+            return model;
         }
 
         model = Model.load(this.model);
@@ -335,10 +331,7 @@ export default class ObjType {
         model.calculateNormals(this.ambient + 64, this.contrast + 768, -50, -10, -50, true);
         model.useAABBMouseCheck = true;
 
-        if (ObjType.modelCache) {
-            ObjType.modelCache.put(BigInt(this.id), model);
-        }
-
+        ObjType.modelCache.put(BigInt(this.id), model);
         return model;
     }
 
@@ -372,8 +365,8 @@ export default class ObjType {
 
     // jag::oldscape::configdecoder::ObjType::GetSprite
     static getSprite(id: number, count: number, outlineRgb: number): Pix32 | null {
-        if (ObjType.spriteCache && outlineRgb === 0) {
-            let icon: Pix32 | null = ObjType.spriteCache.get(BigInt(id)) as Pix32 | null;
+        if (outlineRgb === 0) {
+            let icon = ObjType.spriteCache.get(BigInt(id));
 
             if (icon && icon.ohi !== count && icon.ohi !== -1) {
                 icon.unlink();
@@ -507,7 +500,7 @@ export default class ObjType {
             linkedIcon.ohi = h;
         }
 
-        if (ObjType.spriteCache && outlineRgb === 0) {
+        if (outlineRgb === 0) {
             ObjType.spriteCache.put(BigInt(id), icon);
         }
 
@@ -530,30 +523,30 @@ export default class ObjType {
 
     // jag::oldscape::configdecoder::ObjType::CheckWearModel
     checkWearModel(gender: number): boolean {
-		let wear = this.manwear;
-		let wear2 = this.manwear2;
-		let wear3 = this.manwear3;
-		if (gender == 1) {
-			wear = this.womanwear;
-			wear2 = this.womanwear2;
-			wear3 = this.womanwear3;
-		}
+        let wear = this.manwear;
+        let wear2 = this.manwear2;
+        let wear3 = this.manwear3;
+        if (gender == 1) {
+            wear = this.womanwear;
+            wear2 = this.womanwear2;
+            wear3 = this.womanwear3;
+        }
 
-		if (wear == -1) {
-			return true;
-		}
+        if (wear == -1) {
+            return true;
+        }
 
-		let ready = true;
-		if (!Model.requestDownload(wear)) {
-			ready = false;
-		}
-		if (wear2 != -1 && !Model.requestDownload(wear2)) {
-			ready = false;
-		}
-		if (wear3 != -1 && !Model.requestDownload(wear3)) {
-			ready = false;
-		}
-		return ready;
+        let ready = true;
+        if (!Model.requestDownload(wear)) {
+            ready = false;
+        }
+        if (wear2 != -1 && !Model.requestDownload(wear2)) {
+            ready = false;
+        }
+        if (wear3 != -1 && !Model.requestDownload(wear3)) {
+            ready = false;
+        }
+        return ready;
     }
 
     // jag::oldscape::configdecoder::ObjType::GetWearModelNoCheck
@@ -616,25 +609,25 @@ export default class ObjType {
 
     // jag::oldscape::configdecoder::ObjType::CheckHeadModel
     checkHeadModel(gender: number): boolean {
-		let head = this.manhead;
-		let head2 = this.manhead2;
-		if (gender == 1) {
-			head = this.womanhead;
-			head2 = this.womanhead2;
-		}
+        let head = this.manhead;
+        let head2 = this.manhead2;
+        if (gender == 1) {
+            head = this.womanhead;
+            head2 = this.womanhead2;
+        }
 
-		if (head == -1) {
-			return true;
-		}
+        if (head == -1) {
+            return true;
+        }
 
-		let ready = true;
-		if (!Model.requestDownload(head)) {
-			ready = false;
-		}
-		if (head2 != -1 && !Model.requestDownload(head2)) {
-			ready = false;
-		}
-		return ready;
+        let ready = true;
+        if (!Model.requestDownload(head)) {
+            ready = false;
+        }
+        if (head2 != -1 && !Model.requestDownload(head2)) {
+            ready = false;
+        }
+        return ready;
     }
 
     // jag::oldscape::configdecoder::ObjType::GetHeadModelNoCheck

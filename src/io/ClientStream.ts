@@ -37,20 +37,24 @@ export default class ClientStream {
         return parseInt(this.socket.url.split(':')[2], 10);
     }
 
+    // todo: Java throws IOException on failure
     get available(): number {
         return this.closed ? 0 : this.wsin.available;
     }
 
+    // todo: Java throws IOException on failure
     write(src: Uint8Array, len: number): void {
         if (!this.closed) {
             this.wsout.write(src, len);
         }
     }
 
+    // todo: Java throws IOException on failure
     async read(): Promise<number> {
         return this.closed ? 0 : await this.wsin.read();
     }
 
+    // todo: Java throws IOException on failure
     async readBytes(dst: Uint8Array, off: number, len: number): Promise<void> {
         if (this.closed) {
             return;
@@ -66,17 +70,19 @@ export default class ClientStream {
         this.wsout.close();
     }
 
-    private onclose = (event: CloseEvent): void => {
+    private onclose = (_event: CloseEvent): void => {
         if (this.closed) {
             return;
         }
+
         this.close();
     };
 
-    private onerror = (event: Event): void => {
+    private onerror = (_event: Event): void => {
         if (this.closed) {
             return;
         }
+
         this.ioerror = true;
         this.close();
     };
@@ -107,7 +113,7 @@ class WebSocketWriter {
         }
         try {
             this.socket.send(src.slice(0, len));
-        } catch (e) {
+        } catch (_e) {
             this.ioerror = true;
         }
     }

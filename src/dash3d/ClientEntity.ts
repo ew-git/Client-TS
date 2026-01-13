@@ -59,11 +59,13 @@ export default abstract class ClientEntity extends ModelSource {
     routeRun: boolean[] = new TypedArray1d(10, false);
     seqDelayMove: number = 0;
     preanimRouteLength: number = 0;
+    turnspeed: number = 32;
 
     // jag::oldscape::ClientEntity::Ready
     abstract isReady(): boolean;
 
     // jag::oldscape::ClientNpc::Teleport
+    // jag::oldscape::ClientPlayer::InstantMove (GPI)
     teleport(jump: boolean, x: number, z: number): void {
         if (this.primarySeqId !== -1 && SeqType.list[this.primarySeqId].postanim_move === PostanimMove.ABORTANIM) {
             this.primarySeqId = -1;
@@ -101,6 +103,7 @@ export default abstract class ClientEntity extends ModelSource {
     }
 
     // jag::oldscape::ClientNpc::MoveCode
+    // jag::oldscape::ClientPlayer::AddToRoute (GPI)
     moveCode(running: boolean, direction: number): void {
         let nextX: number = this.routeTileX[0];
         let nextZ: number = this.routeTileZ[0];

@@ -205,7 +205,7 @@ export default class ClientPlayer extends ClientEntity {
     baseId: bigint = 0n; // jag::oldscape::rs2lib::PlayerModel::CalcBaseId
     lowMemory: boolean = false;
     modelCacheKey: bigint = -1n;
-    static modelCache: LruCache | null = new LruCache(200); // jag::oldscape::rs2lib::PlayerModel::m_modelCache
+    static modelCache: LruCache<Model> = new LruCache(200); // jag::oldscape::rs2lib::PlayerModel::m_modelCache
     y: number = 0;
     locStartCycle: number = 0;
     locStopCycle: number = 0;
@@ -309,7 +309,7 @@ export default class ClientPlayer extends ClientEntity {
     }
 
     // jag::oldscape::ClientPlayer::GetTempModel
-    getTempModel(loopCycle: number): Model | null {
+    override getTempModel(loopCycle: number): Model | null {
         if (!this.ready) {
             return null;
         }
@@ -451,7 +451,7 @@ export default class ClientPlayer extends ClientEntity {
             }
         }
 
-        let model: Model | null = ClientPlayer.modelCache?.get(hash) as Model | null;
+        let model = ClientPlayer.modelCache.get(hash);
         if (!model) {
             let needsModel = false;
 
@@ -476,8 +476,8 @@ export default class ClientPlayer extends ClientEntity {
             }
 
             if (needsModel) {
-                if (this.modelCacheKey !== -1n && ClientPlayer.modelCache) {
-                    model = ClientPlayer.modelCache.get(this.baseId) as Model | null;
+                if (this.modelCacheKey !== -1n) {
+                    model = ClientPlayer.modelCache.get(this.baseId);
                 }
 
                 if (model == null) {
@@ -532,7 +532,7 @@ export default class ClientPlayer extends ClientEntity {
 
             model.prepareAnim();
             model.calculateNormals(64, 850, -30, -50, -30, true);
-            ClientPlayer.modelCache?.put(hash, model);
+            ClientPlayer.modelCache.put(hash, model);
             this.modelCacheKey = hash;
         }
 
@@ -561,23 +561,23 @@ export default class ClientPlayer extends ClientEntity {
             return null;
         }
 
-		let needsModel = false;
+        let needsModel = false;
 
-		for (let i = 0; i < 12; i++) {
-			const part = this.appearance[i];
+        for (let i = 0; i < 12; i++) {
+            const part = this.appearance[i];
 
-			if (part >= 0x100 && part < 0x200 && !IdkType.list[part - 0x100].checkHead()) {
-				needsModel = true;
-			}
+            if (part >= 0x100 && part < 0x200 && !IdkType.list[part - 0x100].checkHead()) {
+                needsModel = true;
+            }
 
-			if (part >= 0x200 && !ObjType.get(part - 0x200).checkHeadModel(this.gender)) {
-				needsModel = true;
-			}
-		}
+            if (part >= 0x200 && !ObjType.get(part - 0x200).checkHeadModel(this.gender)) {
+                needsModel = true;
+            }
+        }
 
-		if (needsModel) {
-			return null;
-		}
+        if (needsModel) {
+            return null;
+        }
 
         const models: (Model | null)[] = new TypedArray1d(12, null);
         let modelCount: number = 0;

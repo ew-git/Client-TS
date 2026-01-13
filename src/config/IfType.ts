@@ -36,8 +36,8 @@ export const enum ButtonType {
 
 export default class IfType {
     static list: IfType[] = []; // jag::oldscape::rs2lib::IfType::m_list
-    static modelCache: LruCache = new LruCache(30); // jag::oldscape::rs2lib::IfType::m_modelCache
-    static spriteCache: LruCache | null = null; // jag::oldscape::rs2lib::IfType::m_spriteCache
+    static modelCache: LruCache<Model> = new LruCache(30); // jag::oldscape::rs2lib::IfType::m_modelCache
+    static spriteCache: LruCache<Pix32> | null = null; // jag::oldscape::rs2lib::IfType::m_spriteCache
 
     seqFrame: number = 0;
     seqCycle: number = 0;
@@ -345,12 +345,12 @@ export default class IfType {
         }
 
         let tmp = this.linkObjType[src];
-		this.linkObjType[src] = this.linkObjType[dst];
-		this.linkObjType[dst] = tmp;
+        this.linkObjType[src] = this.linkObjType[dst];
+        this.linkObjType[dst] = tmp;
 
-		tmp = this.linkObjCount[src];
-		this.linkObjCount[src] = this.linkObjCount[dst];
-		this.linkObjCount[dst] = tmp;
+        tmp = this.linkObjCount[src];
+        this.linkObjCount[src] = this.linkObjCount[dst];
+        this.linkObjCount[dst] = tmp;
     }
 
     // jag::oldscape::rs2lib::IfType::GetTempModel
@@ -388,7 +388,7 @@ export default class IfType {
     }
 
     loadModel(type: number, id: number, localPlayer: ClientPlayer | null): Model | null {
-        let model = IfType.modelCache.get(BigInt((type << 16) + id)) as Model | null;
+        let model = IfType.modelCache.get(BigInt((type << 16) + id));
         if (model) {
             return model;
         }
@@ -426,7 +426,7 @@ export default class IfType {
         const uid: bigint = (JString.hashCode(name) << 8n) | BigInt(spriteIndex);
 
         if (this.spriteCache) {
-            const image: Pix32 | null = this.spriteCache.get(uid) as Pix32 | null;
+            const image = this.spriteCache.get(uid);
             if (image) {
                 return image;
             }
@@ -436,7 +436,7 @@ export default class IfType {
             const image = Pix32.load(media, name, spriteIndex);
             this.spriteCache?.put(uid, image);
             return image;
-        } catch (e) {
+        } catch (_e) {
             return null;
         }
     }
