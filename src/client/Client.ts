@@ -13025,7 +13025,7 @@ export class Client extends GameShell {
                 let objs = this.objStacks[this.minusedlevel][x][z];
                 if (!objs) continue;
                 for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
-                    const type: ObjType = ObjType.get(obj.index);
+                    const type: ObjType = ObjType.get(obj.id);
                     foundIds.add(type.id);
                 }
             }
@@ -13048,14 +13048,14 @@ export class Client extends GameShell {
                 let objs = this.objStacks[this.minusedlevel][x][z];
                 if (!objs) continue;
                 for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
-                    const type: ObjType = ObjType.get(obj.index);
+                    const type: ObjType = ObjType.get(obj.id);
                     if (type.id == targetid) {
                         let dist = this.manhattanDist(playerX, playerZ, x, z);
                         if (dist < closestDist) {
                             closestDist = dist;
                             closestX = x;
                             closestZ = z;
-                            closestObjIndex = obj.index;
+                            closestObjIndex = obj.id;
                         }
                     }
                 }
