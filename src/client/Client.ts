@@ -571,6 +571,10 @@ export class Client extends GameShell {
             'description': 'Kill chaos druids with ranged. SET RAPID.',
             'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdyRange();}
         },
+        {
+            'description': 'Kill moss giants with ranged. SET RAPID.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killMossGiantsArdyRange();}
+        },
     ];
     private uidHerbIds = [199,201,203,205,207,209,211,213,215,2485,217];
     private rareTableIds = [
@@ -613,12 +617,12 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                this.setAttackRapid();
+                console.log(`Current HP is: ${this.statEffectiveLevel[3]}`);
 
-                // let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
-                // let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
-                // this.logArray.push([globalX, globalZ]);
-                // console.log(JSON.stringify(this.logArray));
+                let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
+                let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
+                this.logArray.push([globalX, globalZ]);
+                console.log(JSON.stringify(this.logArray));
 
             }
         });
@@ -12226,8 +12230,56 @@ export class Client extends GameShell {
         return closestNpc;
     }
 
+    getNearestNPCInBounds(needle: string, west: number, east: number, south: number, north: number, maxdist: number) {
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
+
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npc[this.npcIds[index]];
+            if (!entity) {
+                continue;
+            }
+            let npcsi = this.npcIds[index];
+            const npc: ClientNpc = entity as ClientNpc;
+            let npcname: string = '' + npc.type?.name;
+            let npcx = (npc?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
+            let npcz = (npc?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
+            if (npcx < west || npcx > east || npcz > north || npcz < south) {
+                continue;
+            }
+            if (npcname.match(needle) && this.localPlayer) {
+                const dx = this.localPlayer?.routeTileX[0] - npc.routeTileX[0];
+                const dz = this.localPlayer?.routeTileZ[0] - npc.routeTileZ[0];
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < closestDist && dist < maxdist) {
+                    closestDist = dist;
+                    closestNpc = { x: npc.routeTileX[0], z: npc.routeTileZ[0], entity, npc, npcsIndex: npcsi };
+                }
+            }
+        }
+        return closestNpc;
+    }
+
     async attackNearestNPC(needle: string) {
         let nearestNPC = this.getNearestNPC(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npc[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeTileX[0], this.localPlayer.routeTileZ[0], npc.routeTileX[0], npc.routeTileZ[0], 2, 1, 1, 0, 0, 0, false);
+                let action = 542;
+                if (action === 542) {
+                    this.out.pIsaac(ClientProt.OPNPC2);
+                }
+                this.out.p2(a);
+            }
+        }
+        await sleep(200);
+    }
+
+    async attackNearestNPCInBounds(needle: string, west: number, east: number, south: number, north: number, maxdist: number) {
+        let nearestNPC = this.getNearestNPCInBounds(needle, west, east, south, north, maxdist);
         if (nearestNPC && this.localPlayer) {
             let a = nearestNPC.npcsIndex;
             const npc: ClientNpc | null = this.npc[a];
@@ -12895,6 +12947,142 @@ export class Client extends GameShell {
                     await sleep(300);
                 }
             } else {
+                await this.attackNearestNPCAfterMe(needle);
+            }
+            await sleep(1200);
+        }
+    }
+
+    async onF1Pressed_killMossGiantsArdyRange() {
+        this.addChat(0, 'Beginning onF1Pressed_killChaosDruidsArdyRange', '');
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.RANGED, 60_000, 'Ranged');
+        let minHP = 50;
+        let foodId = 361; // Tuna == 361
+        let bonesId = 532; // Bones == 532
+        let rangeAmmoId = 863; // iron knife = 863
+        let state = 'banking';
+        let needle = 'Moss giant';
+        let safeSpot = [2552, 3407];
+        let safeSpotToBankPath = [[2552,3407],[2560,3396],[2570,3387],[2583,3380],[2592,3373],[2604,3366],[2613,3353],[2616,3338],[2615,3332]];
+        let bankToSafeSpotPath = safeSpotToBankPath.toReversed();
+        let safeSpotBounds = [2552, 2552, 3407, 3407]; // W, E, S, N
+        let attackNPCBounds = [2544, 2560, 3405, 3412]; // W, E, S, N
+
+        let pickupItems = [
+            532, // big bones
+            563, // lawrune
+            556, // airrune
+            559, // bodyrune
+            557, // earthrune
+            558, // mindrune
+            561, // naturerune
+            995, // coins
+            2353, // steel bar
+            453, // coal
+            562, // chaosrune
+            564, // cosmicrune
+            560, // deathrune
+            565, // bloodrune
+            884, // iron arrow
+            886, // steel arrow
+            rangeAmmoId,
+        ];
+        pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+
+        if (this.playerIsInBounds(safeSpotBounds)) {
+            state = 'not banking';
+        }
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(safeSpotToBankPath);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                // Reset attack method to "Rapid"
+                this.setAttackRapid();
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw5NoMouse(foodId);
+                }
+                await sleep(1200);
+                if (this.invCount() == 0) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(bankToSafeSpotPath);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            await this.handleRunEnergyThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.statEffectiveLevel[3] < minHP) {
+                    let foundFood = this.eatFoodInv(foodId);
+                    if (!foundFood) {
+                        // out of food, need to bank
+                        state = 'banking';
+                        this.addChat(0, 'Entering banking state', '');
+                        continue;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                let items = this.filterGroundItemsIds(pickupItems);
+                while (items.length > 0) {
+                    const item = items.shift();
+                    if (item != null) {
+                        await this.pickupNearestIdValidated(item);
+                        if (this.countInvById(bonesId) > 0) {
+                            await this.buryBones([bonesId]);
+                            await sleep(700);
+                        }
+                    }
+                    if (this.invFull()) {
+                        break;
+                    }
+                    items = this.filterGroundItemsIds(pickupItems);
+                }
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    this.equipItemInv(rangeAmmoId);
+                    await sleep(700);
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'banking';
+                        this.addChat(0, 'Entering banking state', '');
+                        continue;
+                    }
+                }
+                console.log('About to attack npc in bounds');
+                await this.attackNearestNPCInBounds(needle, attackNPCBounds[0], attackNPCBounds[1], attackNPCBounds[2], attackNPCBounds[3], 20);
+                // Wait until we're actually in combat.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 20) {
+                    iter++;
+                    await sleep(300);
+                }
+                // Run to safe spot
+                await this.walkToEndofPath([safeSpot]);
+                await sleep(700);
+            } else {
+                if (!this.playerIsInBounds(safeSpotBounds)) {
+                    await this.walkToEndofPath([safeSpot]);
+                    await sleep(700);
+                }
                 await this.attackNearestNPCAfterMe(needle);
             }
             await sleep(1200);
