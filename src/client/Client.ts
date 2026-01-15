@@ -571,6 +571,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Smith iron knives in Varrock. GET HAMMER.',
+            'fn': (obj: Client) => {obj.onF1Pressed_smithIronKnivesVarrock();}
+        },
+        {
             'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
             'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
         },
@@ -616,13 +620,13 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                console.log(`Current HP is: ${this.statEffectiveLevel[3]}`);
 
                 let globalX = (this.localPlayer?.routeTileX[0] ?? 0) + this.mapBuildBaseX;
                 let globalZ = (this.localPlayer?.routeTileZ[0] ?? 0) + this.mapBuildBaseZ;
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
-
+            } else if (event.key === 'F7') {
+                this.blinkIfNPCLowHP('King black dragon', 20);
             }
         });
 
@@ -13165,6 +13169,176 @@ export class Client extends GameShell {
         }
     }
 
+    selectInvSingleSlot(slot: number, itemId: number) {
+        // Using menu item 3 with action=102, a=2351, b=1, c=3214
+        let action = MenuAction.OPHELDT_START; // 102
+        let a = itemId;
+        let b = slot;
+        let c = 3214;
+        this.objSelected = 1;
+        this.objSelectedSlot = b;
+        this.objSelectedLayerId = c;
+        this.objLayerId = a;
+        this.objSelectedName = ObjType.get(a).name;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    selectFirstInv(itemId: number) {
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (inv.linkObjType[slot] == 0) continue; // Skip empty slots
+            let objId = inv.linkObjType[slot] - 1;
+            if (itemId == objId) {
+                this.selectInvSingleSlot(slot, itemId);
+                break;
+            }
+        }
+        return true;
+    }
+
+    /* NOT TESTED */
+    getNearestObject(objId: number) {
+        if (this.localPlayer == null) {
+            return null;
+        }
+        let playerX = this.localPlayer.routeTileX[0];
+        let playerZ = this.localPlayer.routeTileZ[0];
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestX = -1;
+        let closestZ = -1;
+        let closestFullType = -1;
+        let s = this.world;
+        if (!s) {return null;}
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                let tile = s.sceneType(this.minusedlevel, x, z);
+                if (tile == 0) {
+                    continue;
+                }
+                let type = (tile >> 14) & 32767;
+                if (type == objId) {
+                    let dist = this.manhattanDist(playerX, playerZ, x, z);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closestX = x;
+                        closestZ = z;
+                        closestFullType = tile;
+                    }
+                    console.log(`Found tile ${tile} at ${[this.minusedlevel, x, z]} with type ${type}.`);
+                }
+            }
+        }
+        if (closestX == -1 || closestZ == -1 || !this.localPlayer) {
+            return null;
+        } else {
+            return {level: this.minusedlevel, x: closestX, z: closestZ, fullType: closestFullType};
+        }
+    }
+
+    useOnNearestObj(objId: number) {
+        let nearestObj = this.getNearestObjectFromArray([objId]);
+        if (!nearestObj) {
+            return false;
+        }
+        let a = nearestObj.fullType;
+        let b = nearestObj.x;
+        let c = nearestObj.z;
+        if (this.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
+            this.out.p2(this.objLayerId);
+            this.out.p2(this.objSelectedSlot);
+            this.out.p2(this.objSelectedLayerId);
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    selectAndUseOnNearest(itemId: number, objId: number) {
+        this.selectFirstInv(itemId);
+        this.useOnNearestObj(objId);
+    }
+    
+    useInvButton3(a: number, b: number, c: number) {
+        this.out.pIsaac(ClientProt.INV_BUTTON3);
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+    }
+
+    async blinkBackground(times = 10) {
+        for (let _ = 0; _ < times; _++) {
+            document.body.style.backgroundColor = 'red';
+            await sleep(200);
+            document.body.style.backgroundColor = ''; // Reset to original
+            await sleep(200);
+        }
+    }
+
+    getHPNearestNPCAfterMe(needle: string) {
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestNpc: ClientNpc | null = null;
+
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npc[this.npcIds[index]];
+            if (!entity) {
+                continue;
+            }
+            let npcsi = this.npcIds[index];
+            const npc: ClientNpc = entity as ClientNpc;
+            let npcname: string = '' + npc.type?.name;
+            if (npcname.match(needle) && this.localPlayer && this.afterMe(npc)) {
+                const dx = this.localPlayer?.routeTileX[0] - npc.routeTileX[0];
+                const dz = this.localPlayer?.routeTileZ[0] - npc.routeTileZ[0];
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestNpc = npc;
+                }
+            }
+        }
+        if (closestNpc != null) {
+            return closestNpc.health;
+        } else {
+            return 0;
+        }
+    }
+
+    async blinkIfNPCLowHP(needle: string, lowHP: number = 15) {
+        this.stopLoop = false;
+        while (!this.stopLoop) {
+            await sleep(600);
+            let currentHP = this.getHPNearestNPCAfterMe(needle);
+            if (currentHP === 0) {
+                continue;
+            }
+            this.addChat(0, `HP of ${needle} is ${currentHP}`, '');
+            if (currentHP < lowHP) {
+                await this.blinkBackground();
+            }
+        }
+    }
+
     async onF1Pressed_killLesserDemonWizTower() {
         this.addChat(0, 'Beginning onF1Pressed_killLesserDemonWizTower', '');
         this.stopLoop = false;
@@ -13463,6 +13637,57 @@ export class Client extends GameShell {
                 }
                 await this.attackNearestNPCAfterMe(needle);
             }
+            await sleep(1200);
+        }
+    }
+
+    async onF1Pressed_smithIronKnivesVarrock() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.SMITHING, 60_000, 'Smithing');
+        let state = 'banking';
+        let bankSpot = [3185, 3436];
+        let anvilSpot = [3188, 3427];
+        let hammerId = 2347;
+        let ironBarId = 2351;
+        let anvilId = 2783;
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath([bankSpot]);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                await this.depositAllExceptNoMouse([hammerId]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdrawAllNoMouse(ironBarId);
+                }
+                await sleep(1200);
+                if (this.invCount() < 28) {
+                    console.log('Do not have full inv of bars. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath([anvilSpot]);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            await this.handleRunEnergyThrottled(1);
+            for (let _ = 0; _ < 2; _++) {
+                this.selectAndUseOnNearest(ironBarId, anvilId);
+                await sleep(700);
+                // Make 10 Iron Knives; Using menu item 2 with action=555, a=863, b=2, c=1123
+                this.useInvButton3(863, 2, 1123);
+                await sleep(32000);
+            }
+            this.selectAndUseOnNearest(ironBarId, anvilId);
+            await sleep(700);
+            this.useInvButton3(863, 2, 1123);
+            await sleep(25000);
+            state = 'banking';
             await sleep(1200);
         }
     }
