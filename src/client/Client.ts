@@ -16764,6 +16764,8 @@ export class Client extends GameShell {
                     await sleep(1000);
                     continue; // Restart the outer while loop.
                 }
+                // re-equip any ammo
+                this.equipItemInv(rangeAmmoId);
                 await sleep(1400); // wait for NPC death animation.
                 // Try to pick up any items on the ground.
                 let items = this.filterGroundItemsIds(pickupItems);
