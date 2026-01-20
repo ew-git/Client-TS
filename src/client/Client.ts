@@ -15983,12 +15983,17 @@ export class Client extends GameShell {
         }
     }
 
-    async setAttackRapid() {
+    async setAttackRapid(weaponType = 'knife') {
         // action=225, a=361, b=0, c=4453
         let action = MenuAction.IF_BUTTON_SELECT; // 225
         let a = 361; // not used?
         let b = 0; // not used?
         let c = 4453;
+        if (weaponType == 'knife') {
+            c = 4453;
+        } else if (weaponType == 'shortbow') {
+            c = 1771;
+        }
         this.out.pIsaac(ClientProt.IF_BUTTON);
         this.out.p2(c);
 
@@ -16698,7 +16703,8 @@ export class Client extends GameShell {
         let minHP = 50;
         let foodId = 361; // Tuna == 361
         let bonesId = 532; // Bones == 532
-        let rangeAmmoId = 863; // iron knife = 863
+        let rangeAmmoId = this.itemIds['bronze_arrow']; // iron knife = 863
+        let weaponType = 'shortbow'; // shortbow or knife
         let state = 'banking';
         let needle = 'Moss giant';
         let safeSpot = [2552, 3407];
@@ -16731,7 +16737,7 @@ export class Client extends GameShell {
                 await this.logoutThenLoginThrottled(60); // do it every hour
                 await sleep(700);
                 // Reset attack method to "Rapid"
-                this.setAttackRapid();
+                this.setAttackRapid('shortbow');
                 await sleep(700);
                 await this.depositAllExceptNoMouse([0]);
                 await sleep(600);
@@ -16797,6 +16803,8 @@ export class Client extends GameShell {
                         continue;
                     }
                 }
+                // Run to safe spot, THEN attack.
+                await this.walkToEndofPath([safeSpot]);
                 console.log('About to attack npc in bounds');
                 await this.attackNearestNPCInBounds(needle, attackNPCBounds[0], attackNPCBounds[1], attackNPCBounds[2], attackNPCBounds[3], 20);
                 // Wait until we're actually in combat.
