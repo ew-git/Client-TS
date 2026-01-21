@@ -576,6 +576,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Mine near Ardy. Start in bank. Get pickaxe.',
+            'fn': (obj: Client) => {obj.onF1Pressed_mineIronCoalArdy();}
+        },
+        {
             'description': 'Smith iron knives in Varrock. GET HAMMER.',
             'fn': (obj: Client) => {obj.onF1Pressed_smithIronKnivesVarrock();}
         },
@@ -16458,6 +16462,21 @@ export class Client extends GameShell {
         this.selectFirstInv(itemId);
         this.useOnNearestObj(objId);
     }
+
+    doOPLOC1OnNearestObjFromArray(objIds: number[]) {
+        let nearestObj = this.getNearestObjectFromArray(objIds);
+        if (!nearestObj) {
+            return false;
+        }
+        let a = nearestObj.fullType;
+        let b = nearestObj.x;
+        let c = nearestObj.z;
+        this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+        return true;
+    }
     
     useInvButton3(a: number, b: number, c: number) {
         this.out.pIsaac(ClientProt.INV_BUTTON3);
@@ -16875,6 +16894,50 @@ export class Client extends GameShell {
             await sleep(25000);
             state = 'banking';
             await sleep(1200);
+        }
+    }
+
+    async onF1Pressed_mineIronCoalArdy() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.MINING, 60_000, 'Mining');
+        let state = 'banking';
+        let pathToBank = [[2704,3329],[2694,3318],[2688,3305],[2672,3303],[2664,3292],[2655,3286]]
+        let pathToMine = pathToBank.toReversed();
+        let coalRockIds = [2096, 2097]
+        let ironRockIds = [2092, 2093]; // prioritized list of rocks to mine. Prefer coal
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathToBank);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                await this.handleRunEnergyThrottled(1); // switch to run while at bank.
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(600);
+                await this.walkToEndofPath(pathToMine);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+
+            while (this.invCount() < 28) {
+                let foundCoal = this.doOPLOC1OnNearestObjFromArray(coalRockIds);
+                if (!foundCoal) {
+                    this.doOPLOC1OnNearestObjFromArray(ironRockIds);
+                }
+                let startInv = this.invCount();
+                // Wait until we got another item in our inventory (could be gem)
+                let iter = 0;
+                while (this.invCount() == startInv && iter < 2*60) {
+                    iter++;
+                    await sleep(500);
+                }
+            }
+            state = 'banking';
+            await sleep(700);
         }
     }
 }
