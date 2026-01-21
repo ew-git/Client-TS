@@ -17036,9 +17036,9 @@ export class Client extends GameShell {
         */
        this.stopLoop = false;
        let state = 'logging in';
-       let lastBronzeBuy = performance.now();
-       let lastIronBuy = performance.now();
-       let lastSteelBuy = performance.now();
+       let lastBronzeBuy = performance.now() - 10 * 12 * 1000;
+       let lastIronBuy = performance.now() - 10 * 12 * 1000;
+       let lastSteelBuy = performance.now() - 10 * 12 * 1000;
        while (!this.stopLoop) {
             if (state == 'logging in') {
                 console.log('Just logged in, need to trade with Lowe');
@@ -17046,13 +17046,13 @@ export class Client extends GameShell {
                 await sleep(600);
                 this.doOPNPC3Nearest('Lowe');
                 await sleep(5000);
-                lastBronzeBuy = performance.now();
-                lastIronBuy = performance.now();
-                lastSteelBuy = performance.now();
+                lastBronzeBuy = performance.now() - 10 * 12 * 1000;
+                lastIronBuy = performance.now() - 10 * 12 * 1000;
+                lastSteelBuy = performance.now() - 10 * 12 * 1000;
                 state = 'buying';
             }
 
-            const currentTime = performance.now();
+            let currentTime = performance.now();
             if (!this.lastLogoutTime || currentTime - this.lastLogoutTime >= 60 * 60 * 1000) {
                 await this.logoutThenLogin();
                 this.lastLogoutTime = performance.now();
@@ -17063,11 +17063,11 @@ export class Client extends GameShell {
                     this.useInvButton4(882, 0, 3900); // buy 10
                     lastBronzeBuy = currentTime;
                 }
-                if (currentTime - lastIronBuy > 10 * 6 * 1000) {
+                if (currentTime - lastIronBuy > 10 * 9 * 1000) {
                     this.useInvButton4(884, 1, 3900);
                     lastIronBuy = currentTime;
                 }
-                if (currentTime - lastSteelBuy > 10 * 6 * 1000) {
+                if (currentTime - lastSteelBuy > 10 * 12 * 1000) {
                     this.useInvButton4(886, 2, 3900);
                     lastSteelBuy = currentTime;
                 }
