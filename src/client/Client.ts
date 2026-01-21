@@ -576,6 +576,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Buy arrows in Varrock. Need cash on hand.',
+            'fn': (obj: Client) => {obj.onF1Pressed_buyArrowsVarrock();}
+        },
+        {
             'description': 'Mine near Ardy. Start in bank. Get pickaxe.',
             'fn': (obj: Client) => {obj.onF1Pressed_mineIronCoalArdy();}
         },
@@ -3811,11 +3815,12 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
+                this.doOPNPC3Nearest('Lowe');
 
-                let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
-                let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
-                this.logArray.push([globalX, globalZ]);
-                console.log(JSON.stringify(this.logArray));
+                // let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
+                // let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
+                // this.logArray.push([globalX, globalZ]);
+                // console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
                 this.blinkIfNPCLowHP('King black dragon', 20);
             }
@@ -16496,6 +16501,68 @@ export class Client extends GameShell {
         if (IfType.list[c].layerId === this.chatLayerId) {
             this.selectedArea = 3;
         }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    useInvButton4(a: number, b: number, c: number) {
+        this.out.pIsaac(ClientProt.INV_BUTTON4);
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    /*
+    a = item id
+    b = slot (0 indexed)
+    c = 3900
+    */
+    useInvButton1(a: number, b: number, c: number) {
+        if ((a & 0x3) == 0) {
+            Client.oplogic6++;
+        }
+        if (Client.oplogic6 >= 133) {
+            this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC6);
+            this.out.p2(6118);
+        }
+
+        this.out.pIsaac(ClientProt.INV_BUTTON1);
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
     }
 
     async blinkBackground(times = 10) {
@@ -16548,6 +16615,26 @@ export class Client extends GameShell {
             this.addChat(0, `HP of ${needle} is ${currentHP}`, '');
             if (currentHP < lowHP) {
                 await this.blinkBackground();
+            }
+        }
+    }
+
+    doOPNPC3Nearest(needle: string) {
+        let nearestNPC = this.getNearestNPC(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npc[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], 2, 1, 1, 0, 0, 0, false);
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+                this.out.pIsaac(ClientProt.OPNPC3);
+                this.out.p2(a);
+                this.objSelected = 0;
+                this.spellSelected = 0;
+                this.redrawSidebar = true;
             }
         }
     }
@@ -16938,6 +17025,54 @@ export class Client extends GameShell {
             }
             state = 'banking';
             await sleep(700);
+        }
+    }
+
+    async onF1Pressed_buyArrowsVarrock() {
+        /*
+        bronze arrows (6s per) (10t)
+        iron arrows (9s per) (15t)
+        steel arrows (12s per) (20t)
+        */
+       this.stopLoop = false;
+       let state = 'logging in';
+       let lastBronzeBuy = performance.now();
+       let lastIronBuy = performance.now();
+       let lastSteelBuy = performance.now();
+       while (!this.stopLoop) {
+            if (state == 'logging in') {
+                console.log('Just logged in, need to trade with Lowe');
+                this.handleRunEnergy(10);
+                await sleep(600);
+                this.doOPNPC3Nearest('Lowe');
+                await sleep(5000);
+                lastBronzeBuy = performance.now();
+                lastIronBuy = performance.now();
+                lastSteelBuy = performance.now();
+                state = 'buying';
+            }
+
+            const currentTime = performance.now();
+            if (!this.lastLogoutTime || currentTime - this.lastLogoutTime >= 60 * 60 * 1000) {
+                await this.logoutThenLogin();
+                this.lastLogoutTime = performance.now();
+                state = 'logging in';
+                await sleep(7000);
+            } else {
+                if (currentTime - lastBronzeBuy > 10 * 6 * 1000) {
+                    this.useInvButton4(882, 0, 3900); // buy 10
+                    lastBronzeBuy = currentTime;
+                }
+                if (currentTime - lastIronBuy > 10 * 6 * 1000) {
+                    this.useInvButton4(884, 1, 3900);
+                    lastIronBuy = currentTime;
+                }
+                if (currentTime - lastSteelBuy > 10 * 6 * 1000) {
+                    this.useInvButton4(886, 2, 3900);
+                    lastSteelBuy = currentTime;
+                }
+            }
+            await sleep(600);
         }
     }
 }
