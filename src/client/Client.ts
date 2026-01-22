@@ -3815,7 +3815,7 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                this.doOPNPC3Nearest('Lowe');
+                console.log(`Spec energy: ${this.getSpecEnergy()}; Spec selected: ${this.isSpecSelected()}`);
 
                 // let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
                 // let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
@@ -15992,7 +15992,7 @@ export class Client extends GameShell {
         }
     }
 
-    async setAttackRapid(weaponType = 'knife') {
+    setAttackRapid(weaponType = 'knife') {
         // action=225, a=361, b=0, c=4453
         let action = MenuAction.IF_BUTTON_SELECT; // 225
         let a = 361; // not used?
@@ -16020,7 +16020,32 @@ export class Client extends GameShell {
         this.redrawSidebar = true;
     }
 
-    async handleRunEnergy(minenergy = 30): Promise<boolean> {
+    useSpec(weaponType = 'magic_shortbow') {
+        // Using menu item 1 with action=231, a=361, b=0, c=7537
+        let action = MenuAction.IF_BUTTON;
+        let a = 361; // not used?
+        let b = 0; // not used?
+        let c = 7537;
+        if (weaponType == 'magic_shortbow') {
+            c = 7537;
+        } else {
+            console.error(`Trying to spec unknown weaponType ${weaponType}`);
+        }
+        const com: IfType = IfType.list[c];
+        let notify: boolean = true;
+        if (com.clientCode > 0) {
+            notify = this.handleInterfaceAction(com);
+        }
+        if (notify) {
+            this.out.pIsaac(ClientProt.IF_BUTTON);
+            this.out.p2(c);
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    handleRunEnergy(minenergy = 30) {
         if (this.runenergy > minenergy) {
             let c = 153;
 
@@ -16044,10 +16069,10 @@ export class Client extends GameShell {
         return false;
     }
 
-    async handleRunEnergyThrottled(minutes: number) {
+    handleRunEnergyThrottled(minutes: number) {
         const now = Date.now();
         if (!this.lastCheckRunTime || now - this.lastCheckRunTime >= minutes * 60 * 1000) {
-            await this.handleRunEnergy();
+            this.handleRunEnergy();
             this.lastCheckRunTime = now;
         }
     }
@@ -16637,6 +16662,18 @@ export class Client extends GameShell {
                 this.redrawSidebar = true;
             }
         }
+    }
+
+    /*
+    Returns an integer from 0 to 100
+    sa_energy varp = 300
+    */
+    getSpecEnergy() {
+        return Math.floor(this.var[300] / 10);
+    }
+
+    isSpecSelected() {
+        return (this.var[301] == 1);
     }
 
     async onF1Pressed_killLesserDemonWizTower() {
