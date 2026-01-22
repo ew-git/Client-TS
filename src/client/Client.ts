@@ -16880,7 +16880,7 @@ export class Client extends GameShell {
                 await this.logoutThenLoginThrottled(60); // do it every hour
                 await sleep(700);
                 // Reset attack method to "Rapid"
-                this.setAttackRapid('shortbow');
+                this.setAttackRapid(weaponType);
                 await sleep(700);
                 await this.depositAllExceptNoMouse([0]);
                 await sleep(600);
@@ -16899,7 +16899,7 @@ export class Client extends GameShell {
                 state = 'not banking';
                 this.addChat(0, 'Finished banking state', '');
             }
-            await this.handleRunEnergyThrottled(1);
+            this.handleRunEnergyThrottled(2);
             if (!this.anyNPCafterMe()) {
                 // Eat if HP is low
                 if (this.statEffectiveLevel[3] < minHP) {
@@ -16948,6 +16948,11 @@ export class Client extends GameShell {
                 }
                 // Run to safe spot, THEN attack.
                 await this.walkToEndofPath([safeSpot]);
+                await sleep(700);
+                if (weaponType == 'shortbow' && this.getSpecEnergy() >= 55) {
+                    this.useSpec('magic_shortbow');
+                }
+                await sleep(100);
                 console.log('About to attack npc in bounds');
                 await this.attackNearestNPCInBounds(needle, attackNPCBounds[0], attackNPCBounds[1], attackNPCBounds[2], attackNPCBounds[3], 20);
                 // Wait until we're actually in combat.
