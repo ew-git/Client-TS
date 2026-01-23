@@ -16493,8 +16493,8 @@ export class Client extends GameShell {
         this.useOnNearestObj(objId);
     }
 
-    doOPLOC1OnNearestObjFromArray(objIds: number[]) {
-        let nearestObj = this.getNearestObjectFromArray(objIds);
+    doOPLOC1OnNearestObjFromArray(objIds: number[], maxdist = 1000) {
+        let nearestObj = this.getNearestObjectFromArray(objIds, maxdist);
         if (!nearestObj) {
             return false;
         }
@@ -17034,6 +17034,10 @@ export class Client extends GameShell {
         let pathToMine = pathToBank.toReversed();
         let coalRockIds = [2096, 2097]
         let ironRockIds = [2092, 2093]; // prioritized list of rocks to mine. Prefer coal
+        if (!this.playerIsInBounds([2655-5,2655+5,3286-5,3286+5])) {
+            state = 'not banking';
+        }
+        this.handleRunEnergyThrottled(1);
 
         while (!this.stopLoop) {
             if (state == 'banking') {
@@ -17042,7 +17046,7 @@ export class Client extends GameShell {
                 console.log('Just got back to the bank. Checking logout login');
                 await this.logoutThenLoginThrottled(60); // do it every hour
                 await sleep(700);
-                await this.handleRunEnergyThrottled(1); // switch to run while at bank.
+                this.handleRunEnergyThrottled(1); // switch to run while at bank.
                 await sleep(700);
                 await this.walkToEndofPath(pathToBank);
                 await sleep(700);
@@ -17055,9 +17059,9 @@ export class Client extends GameShell {
             }
 
             while (this.invCount() < 28) {
-                let foundCoal = this.doOPLOC1OnNearestObjFromArray(coalRockIds);
+                let foundCoal = this.doOPLOC1OnNearestObjFromArray(coalRockIds, 9);
                 if (!foundCoal) {
-                    this.doOPLOC1OnNearestObjFromArray(ironRockIds);
+                    this.doOPLOC1OnNearestObjFromArray(ironRockIds, 10);
                 }
                 let startInv = this.invCount();
                 // Wait until we got another item in our inventory (could be gem)
@@ -17066,6 +17070,7 @@ export class Client extends GameShell {
                     iter++;
                     await sleep(500);
                 }
+                await sleep(700); // additionally wait so finding nearest object isn't immediate.
             }
             state = 'banking';
             await sleep(700);
