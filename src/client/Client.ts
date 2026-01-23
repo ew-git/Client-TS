@@ -17044,6 +17044,8 @@ export class Client extends GameShell {
                 await sleep(700);
                 await this.handleRunEnergyThrottled(1); // switch to run while at bank.
                 await sleep(700);
+                await this.walkToEndofPath(pathToBank);
+                await sleep(700);
                 await this.depositAllExceptNoMouse([0]);
                 await sleep(600);
                 await this.walkToEndofPath(pathToMine);
