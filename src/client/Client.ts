@@ -576,6 +576,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Make steel bars in AlKharid; start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makeSteelBarsAlKharid();}
+        },
+        {
             'description': 'Buy arrows in Varrock. Need cash on hand.',
             'fn': (obj: Client) => {obj.onF1Pressed_buyArrowsVarrock();}
         },
@@ -3815,12 +3819,13 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                console.log(`Spec energy: ${this.getSpecEnergy()}; Spec selected: ${this.isSpecSelected()}`);
+                // let foundLoc = this.getNearestObjectFromArray([2781]);
+                // console.log(foundLoc);
 
-                // let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
-                // let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
-                // this.logArray.push([globalX, globalZ]);
-                // console.log(JSON.stringify(this.logArray));
+                let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
+                let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
+                this.logArray.push([globalX, globalZ]);
+                console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
                 this.blinkIfNPCLowHP('King black dragon', 20);
             }
@@ -15725,6 +15730,31 @@ export class Client extends GameShell {
         }
     }
 
+    withdraw10SingleSlot(slot: number, itemId: number){
+        // Using menu item 4 with action=555, a=440, b=99, c=5382 // MenuAction.INV_BUTTON3
+        let action: number = 596;
+        const a: number = itemId;
+        const b: number = slot;
+        const c: number = 5382;
+        this.out.pIsaac(ClientProt.INV_BUTTON3);
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+    }
+
     async withdraw5NoMouse(id: number) {
         let inv = IfType.list[this.bankComponentId];
         if (!inv || !inv.linkObjType) {
@@ -15734,6 +15764,22 @@ export class Client extends GameShell {
         for (let slot = 0; slot < inv.linkObjType.length; slot++) {
             if (id == (inv.linkObjType[slot] - 1)) {
                 this.withdraw5SingleSlot(slot, id);
+                await sleep(700);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    async withdraw10NoMouse(id: number) {
+        let inv = IfType.list[this.bankComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (id == (inv.linkObjType[slot] - 1)) {
+                this.withdraw10SingleSlot(slot, id);
                 await sleep(700);
                 return true;
             }
@@ -17122,6 +17168,56 @@ export class Client extends GameShell {
                 }
             }
             await sleep(600);
+        }
+    }
+
+    async onF1Pressed_makeSteelBarsAlKharid() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.SMITHING, 60_000, 'Smithing');
+        let state = 'banking';
+        let pathToFurnace = [[3269,3167],[3279,3178],[3275,3186]];
+        let pathToBank = pathToFurnace.toReversed();
+        let ironOreId = this.itemIds['iron_ore'];
+        let coalOreId = this.itemIds['coal'];
+        let furnaceId = 2781;
+        if (this.invCount() == 28) {
+            state = 'not banking';
+        }
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathToBank);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw10NoMouse(ironOreId);
+                    await this.withdraw10NoMouse(coalOreId);
+                    await this.withdraw10NoMouse(coalOreId);
+                }
+                await sleep(1200);
+                if (this.invCount() < 28) {
+                    console.log('Do not have full inv. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(pathToFurnace);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            this.handleRunEnergyThrottled(1);
+            await sleep(200);
+            for (let _ = 0; _ < 10; _++) {
+                this.selectAndUseOnNearest(ironOreId, furnaceId);
+                await sleep(5*600+300);
+            }
+            state = 'banking';
+            await sleep(700);
         }
     }
 }
