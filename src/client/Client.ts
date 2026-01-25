@@ -576,6 +576,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makeCannonballsAlKharid();}
+        },
+        {
             'description': 'Make steel bars in AlKharid; start in bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_makeSteelBarsAlKharid();}
         },
@@ -17215,6 +17219,54 @@ export class Client extends GameShell {
             for (let _ = 0; _ < 10; _++) {
                 this.selectAndUseOnNearest(ironOreId, furnaceId);
                 await sleep(5*600+300);
+            }
+            state = 'banking';
+            await sleep(700);
+        }
+    }
+
+    async onF1Pressed_makeCannonballsAlKharid() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.SMITHING, 60_000, 'Smithing');
+        let state = 'banking';
+        let pathToFurnace = [[3269,3167],[3279,3178],[3275,3186]];
+        let pathToBank = pathToFurnace.toReversed();
+        let steelBarId = this.itemIds['steel_bar'];
+        let ammoMouldId = this.itemIds['ammo_mould'];
+        let furnaceId = 2781;
+        if (this.invCount() == 28) {
+            state = 'not banking';
+        }
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathToBank);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                await this.depositAllExceptNoMouse([ammoMouldId]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdrawAllNoMouse(steelBarId);
+                }
+                await sleep(1200);
+                if (this.invCount() < 28) {
+                    console.log('Do not have full inv. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(pathToFurnace);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            this.handleRunEnergyThrottled(1);
+            await sleep(200);
+            for (let _ = 0; _ < 27; _++) {
+                this.selectAndUseOnNearest(steelBarId, furnaceId);
+                await sleep(10*600+300);
             }
             state = 'banking';
             await sleep(700);
