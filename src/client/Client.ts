@@ -576,6 +576,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Make addy bars; start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makeAddyBarsAlKharid();}
+        },
+        {
             'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
             'fn': (obj: Client) => {obj.onF1Pressed_makeCannonballsAlKharid();}
         },
@@ -15708,6 +15712,38 @@ export class Client extends GameShell {
         return false;
     }
 
+    withdraw1SingleSlot(slot: number, itemId: number){
+        let action: number = 582;
+        const a: number = itemId;
+        const b: number = slot;
+        const c: number = 5382;
+        if ((a & 0x3) == 0) {
+            Client.oplogic6++;
+        }
+        if (Client.oplogic6 >= 133) {
+            this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC6);
+            this.out.p2(6118);
+        }
+
+        this.out.pIsaac(ClientProt.INV_BUTTON1);
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+    }
+
     withdraw5SingleSlot(slot: number, itemId: number){
         let action: number = 596;
         const a: number = itemId;
@@ -15757,6 +15793,22 @@ export class Client extends GameShell {
         if (IfType.list[c].layerId === this.chatLayerId) {
             this.selectedArea = 3;
         }
+    }
+
+    async withdraw1NoMouse(id: number) {
+        let inv = IfType.list[this.bankComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (id == (inv.linkObjType[slot] - 1)) {
+                this.withdraw1SingleSlot(slot, id);
+                await sleep(700);
+                return true;
+            }
+        }
+        return false;
     }
 
     async withdraw5NoMouse(id: number) {
@@ -17218,6 +17270,58 @@ export class Client extends GameShell {
             await sleep(200);
             for (let _ = 0; _ < 10; _++) {
                 this.selectAndUseOnNearest(ironOreId, furnaceId);
+                await sleep(5*600+300);
+            }
+            state = 'banking';
+            await sleep(700);
+        }
+    }
+
+    async onF1Pressed_makeAddyBarsAlKharid() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.SMITHING, 60_000, 'Smithing');
+        let state = 'banking';
+        let pathToFurnace = [[3269,3167],[3279,3178],[3275,3186]];
+        let pathToBank = pathToFurnace.toReversed();
+        let addyOreId = this.itemIds['adamantite_ore'];
+        let coalOreId = this.itemIds['coal'];
+        let furnaceId = 2781;
+        if (this.invCount() == 28) {
+            state = 'not banking';
+        }
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathToBank);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw1NoMouse(addyOreId);
+                    await this.withdraw1NoMouse(addyOreId);
+                    await this.withdraw1NoMouse(addyOreId);
+                    await this.withdraw1NoMouse(addyOreId);
+                    await this.withdrawAllNoMouse(coalOreId);
+                }
+                await sleep(1200);
+                if (this.invCount() < 28) {
+                    console.log('Do not have full inv. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(pathToFurnace);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            this.handleRunEnergyThrottled(1);
+            await sleep(200);
+            for (let _ = 0; _ < 4; _++) {
+                this.selectAndUseOnNearest(addyOreId, furnaceId);
                 await sleep(5*600+300);
             }
             state = 'banking';
