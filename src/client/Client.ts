@@ -3835,7 +3835,8 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                this.blinkIfNPCLowHP('King black dragon', 20);
+                this.blinkIfNPCLowHP('Kalphite Queen', 20);
+                this.kqLoop();
             }
         });
 
@@ -16094,6 +16095,9 @@ export class Client extends GameShell {
         }
     }
 
+    /*
+    knife, shortbow
+    */
     setAttackRapid(weaponType = 'knife') {
         // action=225, a=361, b=0, c=4453
         let action = MenuAction.IF_BUTTON_SELECT; // 225
@@ -16778,6 +16782,121 @@ export class Client extends GameShell {
         return (this.var[301] == 1);
     }
 
+    setAutoRetaliate(turnOn = true) {
+        // Using menu item 1 with action=225, a=440, b=0, c=150
+        let action=225;
+        let a=440;
+        let b=0;
+        let c=150;
+        if (!turnOn) {
+            c = 151;
+        }
+        this.out.pIsaac(ClientProt.IF_BUTTON);
+        this.out.p2(c);
+
+        const com: IfType = IfType.list[c];
+        if (com.scripts && com.scripts[0] && com.scripts[0][0] === 5) {
+            const varp: number = com.scripts[0][1];
+            if (com.scriptOperand && this.var[varp] !== com.scriptOperand[0]) {
+                this.var[varp] = com.scriptOperand[0];
+                this.updateVarp(varp);
+                this.redrawSidebar = true;
+            }
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    setMagePrayOn() {
+        // Using menu item 1 with action=435, a=2586, b=494, c=5621
+        let action=435;
+        let a=2586;
+        let b=494;
+        let c=5621;
+
+        this.out.pIsaac(ClientProt.IF_BUTTON);
+        this.out.p2(c);
+
+        const com: IfType = IfType.list[c];
+        if (com.scripts && com.scripts[0] && com.scripts[0][0] === 5) {
+            const varp: number = com.scripts[0][1];
+            this.var[varp] = 1 - this.var[varp];
+            this.updateVarp(varp);
+            this.redrawSidebar = true;
+        }
+    }
+
+    drinkPotSingleSlot(slot:number, itemId: number) {
+        // Using menu item 4 with action=694, a=2434, b=0, c=3214
+        let action=MenuAction.OPHELD1; // 694
+        let a=itemId; // 4doseprayerrestore 139,141,143,2434
+        let b=slot;
+        let c=3214;
+
+        this.out.pIsaac(ClientProt.OPHELD1);
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
+    drinkFirstPrayerPot() {
+        let ppots = [139,141,143,2434];
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (inv.linkObjType[slot] == 0) continue; // Skip empty slots
+            let objId = inv.linkObjType[slot] - 1;
+            if (ppots.includes(objId)) {
+                this.drinkPotSingleSlot(slot, objId);
+                break;
+            }
+        }
+        return true;
+    }
+
+    async kqLoop() {
+        this.stopLoop = false;
+
+        this.handleRunEnergy(0);
+        this.setAutoRetaliate();
+        this.setAttackRapid('shortbow');
+        this.setMagePrayOn();
+        while (!this.stopLoop) {
+            if (this.getSpecEnergy() >= 55) {
+                this.useSpec('magic_shortbow');
+                await sleep(700);
+            }
+
+            let currentPrayer = this.statEffectiveLevel[PlayerStat.PRAYER];
+            if (currentPrayer < 40) {
+                this.drinkFirstPrayerPot();
+            }
+            await sleep(1300);
+        }
+    }
+
     async onF1Pressed_killLesserDemonWizTower() {
         this.addChat(0, 'Beginning onF1Pressed_killLesserDemonWizTower', '');
         this.stopLoop = false;
@@ -17132,7 +17251,7 @@ export class Client extends GameShell {
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.MINING, 60_000, 'Mining');
         let state = 'banking';
-        let pathToBank = [[2704,3329],[2694,3318],[2688,3305],[2672,3303],[2664,3292],[2655,3286]]
+        let pathToBank = [[2704,3329],[2694,3318],[2688,3305],[2672,3303],[2664,3292],[2651,3289],[2655,3286]]
         let pathToMine = pathToBank.toReversed();
         let coalRockIds = [2096, 2097]
         let ironRockIds = [2092, 2093]; // prioritized list of rocks to mine. Prefer coal
