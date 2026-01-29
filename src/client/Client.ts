@@ -576,6 +576,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Get snape grass.',
+            'fn': (obj: Client) => {obj.onF1Pressed_getSnapeGrass();}
+        },
+        {
             'description': 'Make addy bars; start in bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_makeAddyBarsAlKharid();}
         },
@@ -16371,7 +16375,27 @@ export class Client extends GameShell {
         return items.filter(item => foundIds.has(item));
     }
 
-    async pickupNearestIdNoMouse(targetid: number) {
+    filterGroundItemsIdsNearby(items: number[], maxDist = 100): number[] {
+        let localX = (this.localPlayer?.routeX[0] ?? 0);
+        let localZ = (this.localPlayer?.routeZ[0] ?? 0);
+        const foundIds = new Set<number>();
+        for (let x = 0; x < CollisionConstants.SIZE; x++) {
+            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+                if (Math.abs(x - localX) > maxDist || Math.abs(z - localZ) > maxDist) {
+                    continue;
+                }
+                let objs = this.objStacks[this.minusedlevel][x][z];
+                if (!objs) continue;
+                for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
+                    const type: ObjType = ObjType.get(obj.id);
+                    foundIds.add(type.id);
+                }
+            }
+        }
+        return items.filter(item => foundIds.has(item));
+    }
+
+    async pickupNearestIdNoMouse(targetid: number, maxDist = 100) {
         if (this.localPlayer == null) {
             return false;
         }
@@ -16400,6 +16424,8 @@ export class Client extends GameShell {
             }
         }
         if (closestX == -1 || closestZ == -1 || closestObjIndex == -1 || !this.localPlayer) {
+            return false;
+        } else if (closestDist > maxDist) {
             return false;
         }
 
@@ -16436,13 +16462,13 @@ export class Client extends GameShell {
         return true;
     }
 
-    async pickupNearestIdValidated(targetid: number, waitseconds: number = 20) {
+    async pickupNearestIdValidated(targetid: number, waitseconds: number = 20, maxDist = 100) {
         // Check we have at least one free inventory space
         if (this.invFull()) {return false;}
         // Count current number of objects in inventory (what if stackable?), save in variable
         const originalCount = this.countInvById(targetid);
         // Try pickup
-        let pickupAttempted = await this.pickupNearestIdNoMouse(targetid);
+        let pickupAttempted = await this.pickupNearestIdNoMouse(targetid, maxDist);
         if (!pickupAttempted) {return false;}
         // Wait until latest count of items is greater than saved variable, or X secs has passed and fail
         for (let i = 0; i < waitseconds; i++) {
@@ -17492,6 +17518,53 @@ export class Client extends GameShell {
                 await sleep(10*600+300);
             }
             state = 'banking';
+            await sleep(700);
+        }
+    }
+
+    async onF1Pressed_getSnapeGrass() {
+        this.stopLoop = false;
+        let state = 'banking';
+        // last elt is the northern double grass spawn
+        let pathToGrass = [[3012,3355],[3006,3349],[3006,3333],[2999,3318],[2987,3306],[2976,3294],[2964,3284],[2957,3270],[2940,3269],[2926,3266],[2916,3274],[2911,3282],[2907,3295]];
+        let pathToBank = pathToGrass.toReversed();
+        let snapeId = this.itemIds['snape_grass'];
+        // If we have something already, probably not banking
+        if (this.invCount() > 0) {
+            state = 'not banking';
+        }
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathToBank);
+                await sleep(2000);
+                this.handleRunEnergy(10);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(700);
+                await this.walkToEndofPath(pathToGrass);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            } else {
+                let items = this.filterGroundItemsIdsNearby([snapeId], 5);
+                while (items.length > 0) {
+                    const item = items.shift();
+                    if (item != null) {
+                        await this.pickupNearestIdValidated(item, 10, 10); // only get the close snape grasses
+                    }
+                    if (this.invFull()) {
+                        break;
+                    }
+                    items = this.filterGroundItemsIdsNearby([snapeId], 5);
+                }
+                if (this.invFull()) {
+                    state = 'banking';
+                    this.handleRunEnergy(50);
+                    this.addChat(0, 'Entering banking state', '');
+                }
+            }
             await sleep(700);
         }
     }
