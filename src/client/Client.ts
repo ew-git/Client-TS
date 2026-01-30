@@ -576,6 +576,14 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Clean herbs, then make prayer potions, then collect snape grass.',
+            'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbsAndThen();}
+        },
+        {
+            'description': 'Clean herbs.',
+            'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbs();}
+        },
+        {
             'description': 'Get snape grass.',
             'fn': (obj: Client) => {obj.onF1Pressed_getSnapeGrass();}
         },
@@ -3831,8 +3839,7 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                // let foundLoc = this.getNearestObjectFromArray([2781]);
-                // console.log(foundLoc);
+                this.closeBankWindow();
 
                 let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
                 let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
@@ -16544,6 +16551,37 @@ export class Client extends GameShell {
         this.redrawSidebar = true;
     }
 
+    useOnInvSlot(slot: number, itemId: number) {
+        let action = MenuAction.OPHELDU;
+        let a = itemId;
+        let b = slot;
+        let c = 3214;
+        this.out.pIsaac(ClientProt.OPHELDU);
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+        this.out.p2(this.objLayerId);
+        this.out.p2(this.objSelectedSlot);
+        this.out.p2(this.objSelectedLayerId);
+
+        this.selectedCycle = 0;
+        this.selectedLayerId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainLayerId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatLayerId) {
+            this.selectedArea = 3;
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+
+    }
+
     selectFirstInv(itemId: number) {
         let inv = IfType.list[this.inventoryComponentId];
         if (!inv || !inv.linkObjType) {
@@ -16853,6 +16891,11 @@ export class Client extends GameShell {
         }
     }
 
+    /**
+     * Also used for cleaning herbs.
+     * @param slot 
+     * @param itemId 
+     */
     drinkPotSingleSlot(slot:number, itemId: number) {
         // Using menu item 4 with action=694, a=2434, b=0, c=3214
         let action=MenuAction.OPHELD1; // 694
@@ -16921,6 +16964,28 @@ export class Client extends GameShell {
             }
             await sleep(1300);
         }
+    }
+
+    getBankCount(id: number) {
+        let inv = IfType.list[this.bankComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return 0;
+        }
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (id == (inv.linkObjType[slot] - 1) && inv.linkObjCount != null) {
+                return inv.linkObjCount[slot];
+            }
+        }
+        return 0;
+    }
+
+    closeBankWindow() {
+        // Using menu item 1 with action=737, a=562, b=7, c=5384 // MenuAction.CLOSE_MODAL
+        this.closeModal();
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
     }
 
     async onF1Pressed_killLesserDemonWizTower() {
@@ -17564,6 +17629,106 @@ export class Client extends GameShell {
                     this.handleRunEnergy(50);
                     this.addChat(0, 'Entering banking state', '');
                 }
+            }
+            await sleep(700);
+        }
+    }
+
+    async onF1Pressed_cleanHerbs(herbNames = ['unidentified_guam', 'unidentified_marentill', 'unidentified_tarromin', 'unidentified_harralander', 'unidentified_ranarr', 'unidentified_irit']) {
+        this.stopLoop = false;
+        for (let h = 0; h < herbNames.length; h++) {
+            const herbName = herbNames[h];
+            let herbId = this.itemIds[herbName];
+            while (!this.stopLoop) {
+                await this.depositAllExceptNoMouse([0]);
+                if (this.getBankCount(herbId) < 30) {
+                    break;
+                }
+                this.withdrawAllNoMouse(herbId);
+                await sleep(700);
+                this.closeBankWindow();
+                for (let slot = 0; slot < 28; slot++) {
+                    this.drinkPotSingleSlot(slot, herbId);
+                    await sleep(50);
+                }
+                await sleep(700);
+            }
+        }
+    }
+
+    async onF1Pressed_cleanHerbsAndThen(herbNames = ['unidentified_guam', 'unidentified_marentill', 'unidentified_tarromin', 'unidentified_harralander', 'unidentified_ranarr', 'unidentified_irit']) {
+        this.stopLoop = false;
+        for (let h = 0; h < herbNames.length; h++) {
+            const herbName = herbNames[h];
+            let herbId = this.itemIds[herbName];
+            while (!this.stopLoop) {
+                await this.depositAllExceptNoMouse([0]);
+                if (this.getBankCount(herbId) < 30) {
+                    break;
+                }
+                this.withdrawAllNoMouse(herbId);
+                await sleep(700);
+                this.closeBankWindow();
+                for (let slot = 0; slot < 28; slot++) {
+                    this.drinkPotSingleSlot(slot, herbId);
+                    await sleep(50);
+                }
+                await sleep(700);
+            }
+        }
+        console.log('Finished cleaning herbs, trying to make prayer potions now.');
+        await this.onF1Pressed_makePotion('ranarr', 'snape_grass');
+        console.log('Finished making prayer potions. Trying to get more snape grass now.');
+        this.onF1Pressed_getSnapeGrass();
+    }
+
+    async onF1Pressed_makePotion(herbName = 'guam', secondaryName = 'eye_of_newt') {
+        let herbToFullName: {[name: string]: string} = {
+            'guam': 'guam_leaf',
+            'marentill': 'marentill',
+            'tarromin': 'tarromin',
+            'harralander': 'harralander',
+            'ranarr': 'ranarr_weed',
+            'irit': 'irit_leaf',
+            'avantoe': 'avantoe',
+            'kwuarm': 'kwuarm',
+            'cadantine': 'cadantine',
+            'dwarf_weed': 'dwarf_weed',
+            'torstol': 'torstol',
+        }
+        this.stopLoop = false;
+        let herbId = this.itemIds[herbToFullName[herbName]];
+        let secondaryId = this.itemIds[secondaryName];
+        let vialWaterId = this.itemIds['vial_water'];
+        let herbPotionId = this.itemIds[herbName + 'vial'];
+        while (!this.stopLoop) {
+            await this.depositAllExceptNoMouse([0]);
+            if (this.getBankCount(herbId) < 20 || this.getBankCount(secondaryId) < 20) {
+                this.stopLoop = true;
+                break;
+            }
+            this.withdraw10NoMouse(herbId);
+            this.withdraw1NoMouse(herbId);
+            this.withdraw1NoMouse(herbId);
+            this.withdraw1NoMouse(herbId);
+            this.withdraw1NoMouse(herbId);
+            this.withdrawAllNoMouse(vialWaterId);
+            await sleep(700);
+            this.closeBankWindow();
+            for (let slot = 0; slot < 14; slot++) {
+                // select herb and use on vial (slot + 14)
+                this.selectInvSingleSlot(slot, herbId);
+                this.useOnInvSlot(slot + 14, vialWaterId);
+                await sleep(700);
+            }
+            this.depositAllExceptNoMouse([herbPotionId]);
+            await sleep(700);
+            this.withdrawAllNoMouse(secondaryId);
+            for (let slot = 0; slot < 14; slot++) {
+                // select herbpotion and use on secondary (slot + 14)
+                this.selectInvSingleSlot(slot, herbPotionId);
+                this.useOnInvSlot(slot + 14, secondaryId);
+                await sleep(700);
             }
             await sleep(700);
         }
