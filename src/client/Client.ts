@@ -17649,7 +17649,7 @@ export class Client extends GameShell {
                 this.closeBankWindow();
                 for (let slot = 0; slot < 28; slot++) {
                     this.drinkPotSingleSlot(slot, herbId);
-                    await sleep(50);
+                    await sleep(150);
                 }
                 await sleep(700);
             }
@@ -17662,6 +17662,8 @@ export class Client extends GameShell {
             const herbName = herbNames[h];
             let herbId = this.itemIds[herbName];
             while (!this.stopLoop) {
+                await this.logoutThenLoginThrottled(5);
+                await sleep(2000);
                 await this.depositAllExceptNoMouse([0]);
                 if (this.getBankCount(herbId) < 30) {
                     break;
@@ -17671,7 +17673,7 @@ export class Client extends GameShell {
                 this.closeBankWindow();
                 for (let slot = 0; slot < 28; slot++) {
                     this.drinkPotSingleSlot(slot, herbId);
-                    await sleep(50);
+                    await sleep(150);
                 }
                 await sleep(700);
             }
