@@ -17807,6 +17807,7 @@ export class Client extends GameShell {
                 if (this.checkBankOpen()) {
                     // withdraw immediately
                     await this.withdraw10NoMouse(foodId);
+                    await this.withdraw5NoMouse(foodId);
                 }
                 await sleep(1200);
                 if (this.invCount() == 0) {
