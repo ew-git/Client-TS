@@ -17769,6 +17769,7 @@ export class Client extends GameShell {
         this.addChat(0, 'Beginning onF1Pressed_killShadowWarriors', '');
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.ATTACK, 60_000, 'Attack');
+        let killCount = 0; // based on bones buried
         let minHP = 70;
         let foodId = 361; // Tuna == 361
         let bonesId = 526; // Bones == 526
@@ -17858,7 +17859,6 @@ export class Client extends GameShell {
                     await sleep(1000);
                     continue; // Restart the outer while loop.
                 }
-                await sleep(1400); // wait for NPC death animation.
                 // Try to pick up any items on the ground.
                 let items = this.filterGroundItemsIds(pickupItems);
                 while (items.length > 0) {
@@ -17880,6 +17880,8 @@ export class Client extends GameShell {
                     await sleep(700);
                     if (this.countInvById(bonesId) > 0) {
                         await this.buryBones([bonesId]);
+                        killCount++;
+                        this.addChat(0, `Kill count: ${killCount}`, '');
                         continue;
                     } else {
                         // No bones, so inv full of other stuff, need to bank.
