@@ -3843,6 +3843,8 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
+                let foundFood = this.eatFoodInv(361);
+                console.log(`foundFood is ${foundFood}`);
 
                 let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
                 let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
@@ -16252,19 +16254,12 @@ export class Client extends GameShell {
     }
 
     eatFoodSingleSlot(slot: number, itemId: number) {
-        let action = 405;
+        let action = MenuAction.OPHELD1;
         let a = itemId;
         let b = slot;
         let c = 3214;
 
-        Client.oplogic3 += a;
-        if (Client.oplogic3 >= 97) {
-            this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC3);
-            this.out.p3(14953816);
-        }
-
         this.out.pIsaac(ClientProt.OPHELD1);
-
         this.out.p2(a);
         this.out.p2(b);
         this.out.p2(c);
@@ -17774,11 +17769,11 @@ export class Client extends GameShell {
         this.addChat(0, 'Beginning onF1Pressed_killShadowWarriors', '');
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.ATTACK, 60_000, 'Attack');
-        let minHP = 40;
+        let minHP = 70;
         let foodId = 361; // Tuna == 361
         let bonesId = 526; // Bones == 526
         let state = 'banking';
-        let warriorAreaBounds = [2691, 2564, 9761, 9784]; // W, E, S, N
+        let warriorAreaBounds = [2691, 2708, 9761, 9784]; // W, E, S, N
 
         let bottomOfStairsToWarriorPath = [[2727,9774],[2725,9760],[2714,9747],[2709,9736],[2706,9748],[2705,9760],[2702,9770]];
         let warriorToBottomOfStairsPath = bottomOfStairsToWarriorPath.toReversed();
@@ -17862,37 +17857,37 @@ export class Client extends GameShell {
                     await sleep(1000);
                     continue; // Restart the outer while loop.
                 }
-                if (!this.anyNPCafterMe()) {
-                    await sleep(1400); // wait for NPC death animation.
-                    // Try to pick up any items on the ground.
-                    let items = this.filterGroundItemsIds(pickupItems);
-                    while (items.length > 0) {
-                        const item = items.shift();
-                        if (item != null) {
-                            await this.pickupNearestIdValidated(item);
-                            if (this.countInvById(bonesId) > 0) {
-                                await this.buryBones([bonesId]);
-                                await sleep(700);
-                            }
-                        }
-                        if (this.invFull()) {
-                            break;
-                        }
-                        items = this.filterGroundItemsIds(pickupItems);
-                    }
-                    if (this.invFull()) {
-                        // Handle full inventory, maybe bank.
-                        await sleep(700);
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                let items = this.filterGroundItemsIds(pickupItems);
+                while (items.length > 0) {
+                    const item = items.shift();
+                    if (item != null) {
+                        await this.pickupNearestIdValidated(item);
                         if (this.countInvById(bonesId) > 0) {
                             await this.buryBones([bonesId]);
-                            continue;
-                        } else {
-                            // No bones, so inv full of other stuff, need to bank.
-                            state = 'go to bank';
-                            this.addChat(0, 'Full inventory, need to go to bank', '');
-                            continue;
+                            await sleep(700);
                         }
                     }
+                    if (this.invFull()) {
+                        break;
+                    }
+                    items = this.filterGroundItemsIds(pickupItems);
+                }
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    await sleep(700);
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'go to bank';
+                        this.addChat(0, 'Full inventory, need to go to bank', '');
+                        continue;
+                    }
+                }
+                if (!this.anyNPCafterMe()) {
                     await this.attackNearestNPC(needle);
                     // Wait until we're actually in combat until trying to loop again.
                     let iter = 0;
