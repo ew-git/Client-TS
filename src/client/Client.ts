@@ -576,6 +576,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Kill shadow warriors in Legends Guild. Start at banker.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killShadowWarriors();}
+        },
+        {
             'description': 'Clean herbs, then make prayer potions, then collect snape grass.',
             'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbsAndThen();}
         },
@@ -3839,7 +3843,6 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                this.closeBankWindow();
 
                 let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
                 let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
@@ -6227,7 +6230,7 @@ export class Client extends GameShell {
                         }
                     }
 
-                    this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name;
+                    this.menuOption[this.menuSize] = 'Examine @cya@' + loc.name + ' (' + loc.id + ')';
                     this.menuAction[this.menuSize] = MenuAction.OPLOC6;
                     this.menuParamA[this.menuSize] = typecode;
                     this.menuParamB[this.menuSize] = x;
@@ -15610,6 +15613,12 @@ export class Client extends GameShell {
         for (var _ = 0; _ < 10 && !this.checkBankOpen(); _++) await sleep(500);
     }
 
+    async openBanker(bankerNeedle = 'Banker') {
+        this.doOPNPC3Nearest(bankerNeedle);
+        await sleep(2000);
+        for (var _ = 0; _ < 10 && !this.checkBankOpen(); _++) await sleep(500);
+    }
+
     /**
      * Pass the actual ids, not +1
     */
@@ -15651,6 +15660,28 @@ export class Client extends GameShell {
     async depositAllExceptNoMouse(itemIds: number[]) {
         // Pass the actual ids, not +1
         await this.openBankNoMouse();
+
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType) {
+            console.error('Inventory data not available');
+            return false;
+        }
+        
+        // (+1 offset)
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (inv.linkObjType[slot] == 0) continue; // Skip empty slots
+            let objId = inv.linkObjType[slot] - 1;
+            if (!itemIds.includes(objId)) {
+                this.depositAllSingleSlot(slot, objId);
+                await sleep(300);
+            }
+        }
+        return true;
+    }
+
+    async depositAllExceptNPC(itemIds: number[]) {
+        // Pass the actual ids, not +1
+        await this.openBanker();
 
         let inv = IfType.list[this.inventoryComponentId];
         if (!inv || !inv.linkObjType) {
@@ -17644,7 +17675,7 @@ export class Client extends GameShell {
                 if (this.getBankCount(herbId) < 30) {
                     break;
                 }
-                this.withdrawAllNoMouse(herbId);
+                await this.withdrawAllNoMouse(herbId);
                 await sleep(700);
                 this.closeBankWindow();
                 for (let slot = 0; slot < 28; slot++) {
@@ -17668,7 +17699,7 @@ export class Client extends GameShell {
                 if (this.getBankCount(herbId) < 30) {
                     break;
                 }
-                this.withdrawAllNoMouse(herbId);
+                await this.withdrawAllNoMouse(herbId);
                 await sleep(700);
                 this.closeBankWindow();
                 for (let slot = 0; slot < 28; slot++) {
@@ -17704,6 +17735,7 @@ export class Client extends GameShell {
         let vialWaterId = this.itemIds['vial_water'];
         let herbPotionId = this.itemIds[herbName + 'vial'];
         while (!this.stopLoop) {
+            await this.logoutThenLoginThrottled(5);
             await this.depositAllExceptNoMouse([0]);
             if (this.getBankCount(herbId) < 20 || this.getBankCount(secondaryId) < 20) {
                 this.stopLoop = true;
@@ -17717,15 +17749,17 @@ export class Client extends GameShell {
             this.withdrawAllNoMouse(vialWaterId);
             await sleep(700);
             this.closeBankWindow();
+            await sleep(700);
             for (let slot = 0; slot < 14; slot++) {
                 // select herb and use on vial (slot + 14)
                 this.selectInvSingleSlot(slot, herbId);
                 this.useOnInvSlot(slot + 14, vialWaterId);
                 await sleep(700);
             }
-            this.depositAllExceptNoMouse([herbPotionId]);
+            await this.depositAllExceptNoMouse([herbPotionId]);
             await sleep(700);
-            this.withdrawAllNoMouse(secondaryId);
+            await this.withdrawAllNoMouse(secondaryId);
+            await sleep(700);
             for (let slot = 0; slot < 14; slot++) {
                 // select herbpotion and use on secondary (slot + 14)
                 this.selectInvSingleSlot(slot, herbPotionId);
@@ -17733,6 +17767,146 @@ export class Client extends GameShell {
                 await sleep(700);
             }
             await sleep(700);
+        }
+    }
+
+    async onF1Pressed_killShadowWarriors() {
+        this.addChat(0, 'Beginning onF1Pressed_killShadowWarriors', '');
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.ATTACK, 60_000, 'Attack');
+        let minHP = 40;
+        let foodId = 361; // Tuna == 361
+        let bonesId = 526; // Bones == 526
+        let state = 'banking';
+        let warriorAreaBounds = [2691, 2564, 9761, 9784]; // W, E, S, N
+
+        let bottomOfStairsToWarriorPath = [[2727,9774],[2725,9760],[2714,9747],[2709,9736],[2706,9748],[2705,9760],[2702,9770]];
+        let warriorToBottomOfStairsPath = bottomOfStairsToWarriorPath.toReversed();
+        let needle = 'Shadow warrior';
+
+        let pickupItems = [
+            526, // bones
+            995, // coins
+            this.itemIds['mithril_bar'],
+            this.itemIds['weapon_poison'],
+        ];
+        pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+        pickupItems = pickupItems.concat(this.rangedAmmoIds);
+        pickupItems = pickupItems.concat(this.magicRunesIds);
+        
+
+        if (this.playerIsInBounds(warriorAreaBounds)) {
+            state = 'fighting';
+        }
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                // TODO: set combat style to strength if needed
+                await sleep(700);
+                await this.depositAllExceptNPC([0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw10NoMouse(foodId);
+                }
+                await sleep(1200);
+                if (this.invCount() == 0) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                this.closeBankWindow();
+                await sleep(700);
+                // go down ladder 1
+                this.doOPLOC1OnNearestObjFromArray([1746]);
+                await sleep(4000);
+                // go down stairs 2
+                this.doOPLOC1OnNearestObjFromArray([1726]);
+                await sleep(8000);
+                // go down stairs 3
+                this.doOPLOC1OnNearestObjFromArray([1733]);
+                await sleep(12000);
+                // walk to shadow warrior area
+                await this.walkToEndofPath(bottomOfStairsToWarriorPath);
+                await sleep(700);
+                state = 'fighting';
+                this.addChat(0, 'Finished banking state', '');
+            } else if (state == 'go to bank') {
+                this.handleRunEnergy(10);
+                await sleep(700);
+                await this.walkToEndofPath(warriorToBottomOfStairsPath);
+                await sleep(2000);
+                this.doOPLOC1OnNearestObjFromArray([1734]);
+                await sleep(3000);
+                this.doOPLOC1OnNearestObjFromArray([1725]);
+                await sleep(13000);
+                this.doOPLOC1OnNearestObjFromArray([1747]);
+                await sleep(8000);
+                this.addChat(0, 'Got to bank', '');
+                state = 'banking';
+            } else if (state == 'fighting') {
+                this.handleRunEnergyThrottled(4);
+                // Eat if HP is low
+                if (this.statEffectiveLevel[3] < minHP) {
+                    let foundFood = this.eatFoodInv(foodId);
+                    if (!foundFood) {
+                        // out of food, need to bank
+                        state = 'go to bank';
+                        this.addChat(0, 'Out of food, need to go to bank', '');
+                        continue;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                if (!this.anyNPCafterMe()) {
+                    await sleep(1400); // wait for NPC death animation.
+                    // Try to pick up any items on the ground.
+                    let items = this.filterGroundItemsIds(pickupItems);
+                    while (items.length > 0) {
+                        const item = items.shift();
+                        if (item != null) {
+                            await this.pickupNearestIdValidated(item);
+                            if (this.countInvById(bonesId) > 0) {
+                                await this.buryBones([bonesId]);
+                                await sleep(700);
+                            }
+                        }
+                        if (this.invFull()) {
+                            break;
+                        }
+                        items = this.filterGroundItemsIds(pickupItems);
+                    }
+                    if (this.invFull()) {
+                        // Handle full inventory, maybe bank.
+                        await sleep(700);
+                        if (this.countInvById(bonesId) > 0) {
+                            await this.buryBones([bonesId]);
+                            continue;
+                        } else {
+                            // No bones, so inv full of other stuff, need to bank.
+                            state = 'go to bank';
+                            this.addChat(0, 'Full inventory, need to go to bank', '');
+                            continue;
+                        }
+                    }
+                    await this.attackNearestNPC(needle);
+                    // Wait until we're actually in combat until trying to loop again.
+                    let iter = 0;
+                    while (!this.anyNPCafterMe() && iter < 20) {
+                        iter++;
+                        await sleep(300);
+                    }
+                } else {
+                    await this.attackNearestNPCAfterMe(needle);
+                }
+            } else {
+                console.error(`Invalid state ${state}`);
+            }
+            await sleep(1200);
         }
     }
 }
