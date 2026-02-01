@@ -16139,7 +16139,7 @@ export class Client extends GameShell {
         }
     }
 
-    /*
+    /**
     knife, shortbow
     */
     setAttackRapid(weaponType = 'knife') {
@@ -16170,6 +16170,37 @@ export class Client extends GameShell {
         this.redrawSidebar = true;
     }
 
+        /**
+    knife, shortbow
+    */
+    setAttackStrength(weaponType = 'dragon_mace') {
+        //  Using menu item 1 with action=225, a=2485, b=0, c=3805
+        let action = MenuAction.IF_BUTTON_SELECT; // 225
+        let a = 2485; // not used?
+        let b = 0; // not used?
+        let c = 3805;
+        if (weaponType == 'dragon_mace') {
+            c = 3805;
+        } else {
+            console.error(`Trying to set strength with unknown weaponType ${weaponType}`);
+        }
+        this.out.pIsaac(ClientProt.IF_BUTTON);
+        this.out.p2(c);
+
+        const com: IfType = IfType.list[c];
+        if (com.scripts && com.scripts[0] && com.scripts[0][0] === 5) {
+            const varp: number = com.scripts[0][1];
+            if (com.scriptOperand && this.var[varp] !== com.scriptOperand[0]) {
+                this.var[varp] = com.scriptOperand[0];
+                this.updateVarp(varp);
+                this.redrawSidebar = true;
+            }
+        }
+        this.objSelected = 0;
+        this.spellSelected = 0;
+        this.redrawSidebar = true;
+    }
+
     useSpec(weaponType = 'magic_shortbow') {
         // Using menu item 1 with action=231, a=361, b=0, c=7537
         let action = MenuAction.IF_BUTTON;
@@ -16178,6 +16209,8 @@ export class Client extends GameShell {
         let c = 7537;
         if (weaponType == 'magic_shortbow') {
             c = 7537;
+        } else if (weaponType == 'dragon_mace') {
+            c = 7612;
         } else {
             console.error(`Trying to spec unknown weaponType ${weaponType}`);
         }
@@ -17769,6 +17802,7 @@ export class Client extends GameShell {
         this.addChat(0, 'Beginning onF1Pressed_killShadowWarriors', '');
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.ATTACK, 60_000, 'Attack');
+        this.setAttackStrength();
         let killCount = 0; // based on bones buried
         let minHP = 70;
         let foodId = 361; // Tuna == 361
@@ -17801,7 +17835,7 @@ export class Client extends GameShell {
                 console.log('Just got back to the bank. Checking logout login');
                 await this.logoutThenLoginThrottled(60); // do it every hour
                 await sleep(700);
-                // TODO: set combat style to strength if needed
+                this.setAttackStrength();
                 await sleep(700);
                 await this.depositAllExceptNPC([0]);
                 await sleep(600);
@@ -17847,6 +17881,9 @@ export class Client extends GameShell {
                 state = 'banking';
             } else if (state == 'fighting') {
                 this.handleRunEnergyThrottled(4);
+                if (this.getSpecEnergy() >= 25) {
+                    this.useSpec('dragon_mace');
+                }
                 // Eat if HP is low
                 if (this.statEffectiveLevel[3] < minHP) {
                     let foundFood = this.eatFoodInv(foodId);
@@ -17867,6 +17904,8 @@ export class Client extends GameShell {
                         await this.pickupNearestIdValidated(item);
                         if (this.countInvById(bonesId) > 0) {
                             await this.buryBones([bonesId]);
+                            killCount++;
+                            this.addChat(0, `Kill count: ${killCount}`, '');
                             await sleep(700);
                         }
                     }
