@@ -17801,9 +17801,10 @@ export class Client extends GameShell {
     async onF1Pressed_killShadowWarriors() {
         this.addChat(0, 'Beginning onF1Pressed_killShadowWarriors', '');
         this.stopLoop = false;
-        this.reportXPOnInterval(PlayerStat.ATTACK, 60_000, 'Attack');
+        this.reportXPOnInterval(PlayerStat.STRENGTH, 60_000, 'STRENGTH');
         this.setAttackStrength();
         let killCount = 0; // based on bones buried
+        let megaRaresFound = 0; // check 1247, 2366, 1249 when picking up items
         let minHP = 70;
         let foodId = 361; // Tuna == 361
         let bonesId = 526; // Bones == 526
@@ -17901,11 +17902,14 @@ export class Client extends GameShell {
                 while (items.length > 0) {
                     const item = items.shift();
                     if (item != null) {
+                        if ([1247, 2366, 1249].includes(item)) {
+                            megaRaresFound++;
+                        }
                         await this.pickupNearestIdValidated(item);
                         if (this.countInvById(bonesId) > 0) {
                             await this.buryBones([bonesId]);
                             killCount++;
-                            this.addChat(0, `Kill count: ${killCount}`, '');
+                            this.addChat(0, `Kill count: ${killCount}. Megarares found: ${megaRaresFound}`, '');
                             await sleep(700);
                         }
                     }
@@ -17920,7 +17924,7 @@ export class Client extends GameShell {
                     if (this.countInvById(bonesId) > 0) {
                         await this.buryBones([bonesId]);
                         killCount++;
-                        this.addChat(0, `Kill count: ${killCount}`, '');
+                        this.addChat(0, `Kill count: ${killCount}. Megarares found: ${megaRaresFound}`, '');
                         continue;
                     } else {
                         // No bones, so inv full of other stuff, need to bank.
