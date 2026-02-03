@@ -257,8 +257,8 @@ export class Client extends GameShell {
     private loginSelect: number = 0;
     private loginMes1: string = '';
     private loginMes2: string = '';
-    private loginUser: string = '';
-    private loginPass: string = '';
+    private loginUser: string = 'player';
+    private loginPass: string = 'player';
 
     private imageRunes: Pix8[] = [];
     private flameActive: boolean = false;
