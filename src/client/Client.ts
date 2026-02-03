@@ -17766,6 +17766,8 @@ export class Client extends GameShell {
         let warriorToBottomOfStairsPath = bottomOfStairsToWarriorPath.toReversed();
         let needle = 'Shadow warrior';
 
+        let lastNPCAfterMeTime = performance.now(); // Used to wait for death animation.
+
         let pickupItems = [
             526, // bones
             995, // coins
@@ -17884,7 +17886,7 @@ export class Client extends GameShell {
                         continue;
                     }
                 }
-                if (!this.anyNPCafterMe()) {
+                if (!this.anyNPCafterMe() && performance.now() - lastNPCAfterMeTime > 1900) {
                     await this.attackNearestNPC(needle);
                     // Wait until we're actually in combat until trying to loop again.
                     let iter = 0;
@@ -17892,7 +17894,10 @@ export class Client extends GameShell {
                         iter++;
                         await sleep(300);
                     }
+                } else if (!this.anyNPCafterMe()) {
+                    // no op, just wait for death animation
                 } else {
+                    lastNPCAfterMeTime = performance.now();
                     await this.attackNearestNPCAfterMe(needle);
                 }
             } else {
