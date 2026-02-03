@@ -15547,16 +15547,28 @@ export class Client extends GameShell {
         let b = nearestObj.x;
         let c = nearestObj.z;
         if (n == 1) {
-            this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            this.interactWithLoc(b, c, a, ClientProt.OPLOC1);
         } else if (n == 2) {
-            this.interactWithLoc(ClientProt.OPLOC2, b, c, a);
+            Client.oplogic1 += c;
+            if (Client.oplogic1 >= 139) {
+                this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC1);
+                this.out.p4(0);
+            }
+
+            this.interactWithLoc(b, c, a, ClientProt.OPLOC2);
         } else if (n == 3) {
-            this.interactWithLoc(ClientProt.OPLOC3, b, c, a);
+            Client.oplogic2++;
+            if (Client.oplogic2 >= 124) {
+                this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC2);
+                this.out.p2(37954);
+            }
+
+            this.interactWithLoc(b, c, a, ClientProt.OPLOC3);
         } else {
             console.error(`Invalid n=${n} call to useNearestObjOPN.`);
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
         return true;
     }
@@ -15587,36 +15599,26 @@ export class Client extends GameShell {
      * Pass the actual ids, not +1
     */
     depositAllSingleSlot(slot: number, itemId: number){
-        let action: number = 892;
+        let action: number = MenuAction.INV_BUTTON4;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 2006;
-        if (action === 892) {
-            if ((b & 0x3) === 0) {
-                Client.oplogic9++;
-            }
 
-            if (Client.oplogic9 >= 130) {
-                this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC9);
-                this.out.p1(177);
-            }
-
-            this.out.pIsaac(ClientProt.INV_BUTTON4);
-        }
+        this.out.pIsaac(ClientProt.INV_BUTTON4);
         this.out.p2(a);
         this.out.p2(b);
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
     }
@@ -15669,36 +15671,26 @@ export class Client extends GameShell {
      * Pass the actual ids, not +1
     */
     withdrawAllSingleSlot(slot: number, itemId: number){
-        let action: number = 892;
+        let action: number = MenuAction.INV_BUTTON4;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 5382;
-        if (action === 892) {
-            if ((b & 0x3) === 0) {
-                Client.oplogic9++;
-            }
 
-            if (Client.oplogic9 >= 130) {
-                this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC9);
-                this.out.p1(177);
-            }
-
-            this.out.pIsaac(ClientProt.INV_BUTTON4);
-        }
+        this.out.pIsaac(ClientProt.INV_BUTTON4);
         this.out.p2(a);
         this.out.p2(b);
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
     }
@@ -15720,7 +15712,7 @@ export class Client extends GameShell {
     }
 
     withdraw1SingleSlot(slot: number, itemId: number){
-        let action: number = 582;
+        let action: number = MenuAction.INV_BUTTON1;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 5382;
@@ -15738,48 +15730,46 @@ export class Client extends GameShell {
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
     }
 
     withdraw5SingleSlot(slot: number, itemId: number){
-        let action: number = 596;
+        let action: number = MenuAction.INV_BUTTON2;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 5382;
-        if (action === 596) {
-            this.out.pIsaac(ClientProt.INV_BUTTON2);
-        }
+        this.out.pIsaac(ClientProt.INV_BUTTON2);
         this.out.p2(a);
         this.out.p2(b);
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
     }
 
     withdraw10SingleSlot(slot: number, itemId: number){
         // Using menu item 4 with action=555, a=440, b=99, c=5382 // MenuAction.INV_BUTTON3
-        let action: number = 596;
+        let action: number = MenuAction.INV_BUTTON3;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 5382;
@@ -15789,15 +15779,15 @@ export class Client extends GameShell {
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
     }
@@ -15872,13 +15862,13 @@ export class Client extends GameShell {
     countInvById(id: number): number {
         var cnt = 0;
         let inv = IfType.list[this.inventoryComponentId];
-        if (!inv || !inv.linkObjType || !inv.linkObjCount) {
+        if (!inv || !inv.linkObjType || !inv.linkObjNumber) {
             this.addChat?.(0, 'Inventory data not available', '');
             return 0;
         }
         for (let slot = 0; slot < inv.linkObjType.length; slot++) {
             if (id == (inv.linkObjType[slot] - 1)) {
-                cnt = cnt + inv.linkObjCount[slot];
+                cnt = cnt + inv.linkObjNumber[slot];
             }
         }
         return cnt;
@@ -15956,8 +15946,8 @@ export class Client extends GameShell {
             let a = nearestNPC.npcsIndex;
             const npc: ClientNpc | null = this.npc[a];
             if (npc && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], 2, 1, 1, 0, 0, 0, false);
-                let action = 542;
+                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
+                let action = 542; // probably MenuAction.OPNPC2 now
                 if (action === 542) {
                     this.out.pIsaac(ClientProt.OPNPC2);
                 }
@@ -15973,8 +15963,8 @@ export class Client extends GameShell {
             let a = nearestNPC.npcsIndex;
             const npc: ClientNpc | null = this.npc[a];
             if (npc && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], 2, 1, 1, 0, 0, 0, false);
-                let action = 542;
+                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
+                let action = 542; // probably MenuAction.OPNPC2 now
                 if (action === 542) {
                     this.out.pIsaac(ClientProt.OPNPC2);
                 }
@@ -16016,8 +16006,8 @@ export class Client extends GameShell {
             let a = nearestNPC.npcsIndex;
             const npc: ClientNpc | null = this.npc[a];
             if (npc && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], 2, 1, 1, 0, 0, 0, false);
-                let action = 542;
+                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
+                let action = 542; // probably MenuAction.OPNPC2
                 if (action === 542) {
                     this.out.pIsaac(ClientProt.OPNPC2);
                 }
@@ -16080,7 +16070,7 @@ export class Client extends GameShell {
             let p = path[i];
             if (this.localPlayer.routeX[0] != p[0] - this.mapBuildBaseX || this.localPlayer.routeZ[0] != p[1] - this.mapBuildBaseZ) {
                 console.log(`Trying to move to ${p[0] - this.mapBuildBaseX}, ${p[1] - this.mapBuildBaseZ}; ${i+1} / ${path.length}`);
-                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], p[0] - this.mapBuildBaseX, p[1] - this.mapBuildBaseZ, 0, 0, 0, 0, 0, 0, true)
+                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], p[0] - this.mapBuildBaseX, p[1] - this.mapBuildBaseZ, true, 0, 0, 0, 0, 0, 2);
                 // Wait until we've started moving
                 for (let i = 0; i < 15; i++) {
                     await sleep(100);
@@ -16123,12 +16113,12 @@ export class Client extends GameShell {
             const varp: number = com.scripts[0][1];
             if (com.scriptOperand && this.var[varp] !== com.scriptOperand[0]) {
                 this.var[varp] = com.scriptOperand[0];
-                this.updateVarp(varp);
+                this.clientVar(varp);
                 this.redrawSidebar = true;
             }
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16154,12 +16144,12 @@ export class Client extends GameShell {
             const varp: number = com.scripts[0][1];
             if (com.scriptOperand && this.var[varp] !== com.scriptOperand[0]) {
                 this.var[varp] = com.scriptOperand[0];
-                this.updateVarp(varp);
+                this.clientVar(varp);
                 this.redrawSidebar = true;
             }
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16179,14 +16169,14 @@ export class Client extends GameShell {
         const com: IfType = IfType.list[c];
         let notify: boolean = true;
         if (com.clientCode > 0) {
-            notify = this.handleInterfaceAction(com);
+            notify = this.clientButton(com);
         }
         if (notify) {
             this.out.pIsaac(ClientProt.IF_BUTTON);
             this.out.p2(c);
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16202,12 +16192,12 @@ export class Client extends GameShell {
                 const varp: number = com.scripts[0][1];
                 if (com.scriptOperand && this.var[varp] !== com.scriptOperand[0]) {
                     this.var[varp] = com.scriptOperand[0];
-                    this.updateVarp(varp);
+                    this.clientVar(varp);
                     this.redrawSidebar = true;
                 }
             }
-            this.objSelected = 0;
-            this.spellSelected = 0;
+            this.useMode = 0;
+            this.targetMode = 0;
             this.redrawSidebar = true;
             return true;
         }
@@ -16224,7 +16214,7 @@ export class Client extends GameShell {
 
     afterMe(npc: ClientEntity) {
         if (npc && this.localPlayer) {
-            if (npc.faceEntity - 32768 == this.localPid) {
+            if (npc.faceEntity - 32768 == this.selfSlot) {
                 return true;
             } else {
                 return false;
@@ -16260,19 +16250,19 @@ export class Client extends GameShell {
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16307,19 +16297,19 @@ export class Client extends GameShell {
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16367,20 +16357,20 @@ export class Client extends GameShell {
                 this.out.p2(c);
 
                 this.selectedCycle = 0;
-                this.selectedLayerId = c;
+                this.selectedComId = c;
                 this.selectedItem = b;
                 this.selectedArea = 2;
 
-                if (IfType.list[c].layerId === this.mainLayerId) {
+                if (IfType.list[c].layerId === this.mainModalId) {
                     this.selectedArea = 1;
                 }
 
-                if (IfType.list[c].layerId === this.chatLayerId) {
+                if (IfType.list[c].layerId === this.chatComId) {
                     this.selectedArea = 3;
                 }
 
-                this.objSelected = 0;
-                this.spellSelected = 0;
+                this.useMode = 0;
+                this.targetMode = 0;
                 this.redrawSidebar = true;
                 await sleep(1300);
             }
@@ -16392,10 +16382,10 @@ export class Client extends GameShell {
         const foundIds = new Set<number>();
         for (let x = 0; x < CollisionConstants.SIZE; x++) {
             for (let z = 0; z < CollisionConstants.SIZE; z++) {
-                let objs = this.objStacks[this.minusedlevel][x][z];
+                let objs = this.groundObj[this.minusedlevel][x][z];
                 if (!objs) continue;
                 for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
-                    const type: ObjType = ObjType.get(obj.id);
+                    const type: ObjType = ObjType.list(obj.id);
                     foundIds.add(type.id);
                 }
             }
@@ -16412,10 +16402,10 @@ export class Client extends GameShell {
                 if (Math.abs(x - localX) > maxDist || Math.abs(z - localZ) > maxDist) {
                     continue;
                 }
-                let objs = this.objStacks[this.minusedlevel][x][z];
+                let objs = this.groundObj[this.minusedlevel][x][z];
                 if (!objs) continue;
                 for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
-                    const type: ObjType = ObjType.get(obj.id);
+                    const type: ObjType = ObjType.list(obj.id);
                     foundIds.add(type.id);
                 }
             }
@@ -16435,10 +16425,10 @@ export class Client extends GameShell {
         let closestObjIndex = -1;
         for (let x = 0; x < CollisionConstants.SIZE; x++) {
             for (let z = 0; z < CollisionConstants.SIZE; z++) {
-                let objs = this.objStacks[this.minusedlevel][x][z];
+                let objs = this.groundObj[this.minusedlevel][x][z];
                 if (!objs) continue;
                 for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
-                    const type: ObjType = ObjType.get(obj.id);
+                    const type: ObjType = ObjType.list(obj.id);
                     if (type.id == targetid) {
                         let dist = this.manhattanDist(playerX, playerZ, x, z);
                         if (dist < closestDist) {
@@ -16462,9 +16452,9 @@ export class Client extends GameShell {
         let b = closestX;
         let c = closestZ;
         console.log(`${action}, ${a}, Trying to move with the following: ${[this.localPlayer.routeX[0], this.localPlayer.routeZ[0], b, c]}`);
-        const success: boolean = this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], b, c, 2, 0, 0, 0, 0, 0, false);
+        const success: boolean = this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], b, c, false, 0, 0, 0, 0, 0, 2);
         if (!success) {
-            this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], b, c, 2, 1, 1, 0, 0, 0, false);
+            this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], b, c, false, 1, 1, 0, 0, 0, 2);
         }
 
         this.crossX = this.mouseClickX;
@@ -16517,15 +16507,15 @@ export class Client extends GameShell {
             let notify: boolean = true;
 
             if (com.clientCode > 0) {
-                notify = this.handleInterfaceAction(com);
+                notify = this.clientButton(com);
             }
 
             if (notify) {
                 this.out.pIsaac(ClientProt.IF_BUTTON);
                 this.out.p2(c);
             }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16563,12 +16553,12 @@ export class Client extends GameShell {
         let a = itemId;
         let b = slot;
         let c = 3214;
-        this.objSelected = 1;
+        this.useMode = 1;
         this.objSelectedSlot = b;
-        this.objSelectedLayerId = c;
-        this.objLayerId = a;
-        this.objSelectedName = ObjType.get(a).name;
-        this.spellSelected = 0;
+        this.objSelectedComId = c;
+        this.objComId= a;
+        this.objSelectedName = ObjType.list(a).name;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16581,24 +16571,24 @@ export class Client extends GameShell {
         this.out.p2(a);
         this.out.p2(b);
         this.out.p2(c);
-        this.out.p2(this.objLayerId);
+        this.out.p2(this.objComId);
         this.out.p2(this.objSelectedSlot);
-        this.out.p2(this.objSelectedLayerId);
+        this.out.p2(this.objSelectedComId);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
 
     }
@@ -16670,12 +16660,12 @@ export class Client extends GameShell {
         let b = nearestObj.x;
         let c = nearestObj.z;
         if (this.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
-            this.out.p2(this.objLayerId);
+            this.out.p2(this.objComId);
             this.out.p2(this.objSelectedSlot);
-            this.out.p2(this.objSelectedLayerId);
+            this.out.p2(this.objSelectedComId);
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16693,8 +16683,8 @@ export class Client extends GameShell {
         let b = nearestObj.x;
         let c = nearestObj.z;
         this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
         return true;
     }
@@ -16706,19 +16696,19 @@ export class Client extends GameShell {
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16729,19 +16719,19 @@ export class Client extends GameShell {
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16765,19 +16755,19 @@ export class Client extends GameShell {
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16841,15 +16831,15 @@ export class Client extends GameShell {
             let a = nearestNPC.npcsIndex;
             const npc: ClientNpc | null = this.npc[a];
             if (npc && this.localPlayer) {
-                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], 2, 1, 1, 0, 0, 0, false);
+                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
                 this.crossX = this.mouseClickX;
                 this.crossY = this.mouseClickY;
                 this.crossMode = 2;
                 this.crossCycle = 0;
                 this.out.pIsaac(ClientProt.OPNPC3);
                 this.out.p2(a);
-                this.objSelected = 0;
-                this.spellSelected = 0;
+                this.useMode = 0;
+                this.targetMode = 0;
                 this.redrawSidebar = true;
             }
         }
@@ -16884,12 +16874,12 @@ export class Client extends GameShell {
             const varp: number = com.scripts[0][1];
             if (com.scriptOperand && this.var[varp] !== com.scriptOperand[0]) {
                 this.var[varp] = com.scriptOperand[0];
-                this.updateVarp(varp);
+                this.clientVar(varp);
                 this.redrawSidebar = true;
             }
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16907,7 +16897,7 @@ export class Client extends GameShell {
         if (com.scripts && com.scripts[0] && com.scripts[0][0] === 5) {
             const varp: number = com.scripts[0][1];
             this.var[varp] = 1 - this.var[varp];
-            this.updateVarp(varp);
+            this.clientVar(varp);
             this.redrawSidebar = true;
         }
     }
@@ -16930,19 +16920,19 @@ export class Client extends GameShell {
         this.out.p2(c);
 
         this.selectedCycle = 0;
-        this.selectedLayerId = c;
+        this.selectedComId = c;
         this.selectedItem = b;
         this.selectedArea = 2;
 
-        if (IfType.list[c].layerId === this.mainLayerId) {
+        if (IfType.list[c].layerId === this.mainModalId) {
             this.selectedArea = 1;
         }
 
-        if (IfType.list[c].layerId === this.chatLayerId) {
+        if (IfType.list[c].layerId === this.chatComId) {
             this.selectedArea = 3;
         }
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -16994,8 +16984,8 @@ export class Client extends GameShell {
             return 0;
         }
         for (let slot = 0; slot < inv.linkObjType.length; slot++) {
-            if (id == (inv.linkObjType[slot] - 1) && inv.linkObjCount != null) {
-                return inv.linkObjCount[slot];
+            if (id == (inv.linkObjType[slot] - 1) && inv.linkObjNumber != null) {
+                return inv.linkObjNumber[slot];
             }
         }
         return 0;
@@ -17004,8 +16994,8 @@ export class Client extends GameShell {
     closeBankWindow() {
         // Using menu item 1 with action=737, a=562, b=7, c=5384 // MenuAction.CLOSE_MODAL
         this.closeModal();
-        this.objSelected = 0;
-        this.spellSelected = 0;
+        this.useMode = 0;
+        this.targetMode = 0;
         this.redrawSidebar = true;
     }
 
@@ -17060,8 +17050,8 @@ export class Client extends GameShell {
             let c = 3356 - obj.mapBuildBaseZ;
             let a = obj.world?.wallType(obj.minusedlevel, b, c) ?? 0;
             obj.interactWithLoc(ClientProt.OPLOC2, b, c, a);
-            obj.objSelected = 0;
-            obj.spellSelected = 0;
+            obj.useMode = 0;
+            obj.targetMode = 0;
             obj.redrawSidebar = true;
         }
 
@@ -17071,8 +17061,8 @@ export class Client extends GameShell {
             let c = 3356 - obj.mapBuildBaseZ;
             let a = obj.world?.wallType(obj.minusedlevel, b, c) ?? 0;
             obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
-            obj.objSelected = 0;
-            obj.spellSelected = 0;
+            obj.useMode = 0;
+            obj.targetMode = 0;
             obj.redrawSidebar = true;
         }
         
