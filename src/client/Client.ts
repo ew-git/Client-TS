@@ -3871,8 +3871,7 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                let foundFood = this.eatFoodInv(361);
-                console.log(`foundFood is ${foundFood}`);
+                console.log(this.getNearestObjectFromArray([1746]));
 
                 let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
                 let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
@@ -12888,7 +12887,7 @@ export class Client extends GameShell {
                         }
                     }
 
-                    this.menuOption[this.menuNumEntries] = 'Examine @cya@' + loc.name;
+                    this.menuOption[this.menuNumEntries] = 'Examine @cya@' + loc.name + ' (' + loc.id + ')';
                     this.menuAction[this.menuNumEntries] = MenuAction.OPLOC6;
                     this.menuParamA[this.menuNumEntries] = typecode;
                     this.menuParamB[this.menuNumEntries] = x;
@@ -16659,7 +16658,7 @@ export class Client extends GameShell {
         let a = nearestObj.fullType;
         let b = nearestObj.x;
         let c = nearestObj.z;
-        if (this.interactWithLoc(ClientProt.OPLOCU, b, c, a)) {
+        if (this.interactWithLoc(b, c, a, ClientProt.OPLOCU)) {
             this.out.p2(this.objComId);
             this.out.p2(this.objSelectedSlot);
             this.out.p2(this.objSelectedComId);
@@ -16682,7 +16681,7 @@ export class Client extends GameShell {
         let a = nearestObj.fullType;
         let b = nearestObj.x;
         let c = nearestObj.z;
-        this.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+        this.interactWithLoc(b, c, a, ClientProt.OPLOC1);
         this.useMode = 0;
         this.targetMode = 0;
         this.redrawSidebar = true;
@@ -17049,7 +17048,7 @@ export class Client extends GameShell {
             let b = 2565 - obj.mapBuildBaseX;
             let c = 3356 - obj.mapBuildBaseZ;
             let a = obj.world?.wallType(obj.minusedlevel, b, c) ?? 0;
-            obj.interactWithLoc(ClientProt.OPLOC2, b, c, a);
+            obj.interactWithLoc(b, c, a, ClientProt.OPLOC2);
             obj.useMode = 0;
             obj.targetMode = 0;
             obj.redrawSidebar = true;
@@ -17060,7 +17059,7 @@ export class Client extends GameShell {
             let b = 2565 - obj.mapBuildBaseX;
             let c = 3356 - obj.mapBuildBaseZ;
             let a = obj.world?.wallType(obj.minusedlevel, b, c) ?? 0;
-            obj.interactWithLoc(ClientProt.OPLOC1, b, c, a);
+            obj.interactWithLoc(b, c, a, ClientProt.OPLOC1);
             obj.useMode = 0;
             obj.targetMode = 0;
             obj.redrawSidebar = true;
