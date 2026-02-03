@@ -20,23 +20,22 @@ import Model from '#/dash3d/Model.js';
 
 import { Int32Array3d, TypedArray1d, TypedArray2d, TypedArray3d, TypedArray4d } from '#/util/Arrays.js';
 import type ModelSource from '#/dash3d/ModelSource.js';
-import type VertexNormal from '#/dash3d/VertexNormal.js';
+import type PointNormal from '#/dash3d/PointNormal.js';
 
-// jag::oldscape::dash3d::world
 export default class World {
-    static readonly PRETAB: Uint8Array = Uint8Array.of(19, 55, 38, 155, 255, 110, 137, 205, 76); // jag::oldscape::dash3d::world::PRETAB
-    static readonly MIDTAB: Uint8Array = Uint8Array.of(160, 192, 80, 96, 0, 144, 80, 48, 160); // jag::oldscape::dash3d::world::MIDTAB
-    static readonly POSTTAB: Uint8Array = Uint8Array.of(76, 8, 137, 4, 0, 1, 38, 2, 19); // jag::oldscape::dash3d::world::POSTTAB
+    static readonly PRETAB: Uint8Array = Uint8Array.of(19, 55, 38, 155, 255, 110, 137, 205, 76);
+    static readonly MIDTAB: Uint8Array = Uint8Array.of(160, 192, 80, 96, 0, 144, 80, 48, 160);
+    static readonly POSTTAB: Uint8Array = Uint8Array.of(76, 8, 137, 4, 0, 1, 38, 2, 19);
 
-    static readonly MIDDEP_16: Int8Array = Int8Array.of(0, 0, 2, 0, 0, 2, 1, 1, 0); // jag::oldscape::dash3d::world::MIDDEP_16
-    static readonly MIDDEP_32: Int8Array = Int8Array.of(2, 0, 0, 2, 0, 0, 0, 4, 4); // jag::oldscape::dash3d::world::MIDDEP_32
-    static readonly MIDDEP_64: Int8Array = Int8Array.of(0, 4, 4, 8, 0, 0, 8, 0, 0); // jag::oldscape::dash3d::world::MIDDEP_64
-    static readonly MIDDEP_128: Int8Array = Int8Array.of(1, 1, 0, 0, 0, 8, 0, 0, 8); // jag::oldscape::dash3d::world::MIDDEP_128
+    static readonly MIDDEP_16: Int8Array = Int8Array.of(0, 0, 2, 0, 0, 2, 1, 1, 0);
+    static readonly MIDDEP_32: Int8Array = Int8Array.of(2, 0, 0, 2, 0, 0, 0, 4, 4);
+    static readonly MIDDEP_64: Int8Array = Int8Array.of(0, 4, 4, 8, 0, 0, 8, 0, 0);
+    static readonly MIDDEP_128: Int8Array = Int8Array.of(1, 1, 0, 0, 0, 8, 0, 0, 8);
 
-    static readonly WALL_DECORATION_INSET_X: Int8Array = Int8Array.of(53, -53, -53, 53);
-    static readonly WALL_DECORATION_INSET_Z: Int8Array = Int8Array.of(-53, -53, 53, 53);
-    static readonly WALL_DECORATION_OUTSET_X: Int8Array = Int8Array.of(-45, 45, 45, -45);
-    static readonly WALL_DECORATION_OUTSET_Z: Int8Array = Int8Array.of(45, 45, -45, -45);
+    static readonly DECORXOF: Int8Array = Int8Array.of(53, -53, -53, 53);
+    static readonly DECORZOF: Int8Array = Int8Array.of(-53, -53, 53, 53);
+    static readonly DECORXOF2: Int8Array = Int8Array.of(-45, 45, 45, -45);
+    static readonly DECORZOF2: Int8Array = Int8Array.of(45, 45, -45, -45);
 
     // prettier-ignore
     static readonly MINIMAP_SHAPE: Int8Array[] = [
@@ -53,7 +52,7 @@ export default class World {
         Int8Array.of(1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0), // FAN_SMALL_SHAPE
         Int8Array.of(0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1), // FAN_BIG_SHAPE
         Int8Array.of(0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1)  // TRAPEZIUM_SHAPE
-    ]; // jag::oldscape::dash3d::world::MINIMAP_SHAPE
+    ];
 
     // prettier-ignore
     static readonly MINIMAP_ROTATE: Int8Array[] = [
@@ -61,7 +60,7 @@ export default class World {
         Int8Array.of(12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3),
         Int8Array.of(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
         Int8Array.of(3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12),
-    ]; // jag::oldscape::dash3d::world::MINIMAP_ROTATE
+    ];
 
     // prettier-ignore
     static readonly TEXTURE_HSL: Int32Array = Int32Array.of(
@@ -74,36 +73,36 @@ export default class World {
         41, 41
     );
 
-    static lowMem: boolean = true; // jag::oldscape::dash3d::world::m_lowMem
+    static lowMem: boolean = true;
 
-    private static cameraSinX: number = 0; // jag::oldscape::dash3d::world::m_cameraSinX
-    private static cameraCosX: number = 0; // jag::oldscape::dash3d::world::m_cameraCosX
-    private static cameraSinY: number = 0; // jag::oldscape::dash3d::world::m_cameraSinY
-    private static cameraCosY: number = 0; // jag::oldscape::dash3d::world::m_cameraCosY
+    private static cameraSinX: number = 0;
+    private static cameraCosX: number = 0;
+    private static cameraSinY: number = 0;
+    private static cameraCosY: number = 0;
 
-    private static fillLeft: number = 0; // jag::oldscape::dash3d::world::m_fillLeft
+    private static fillLeft: number = 0;
     private static fillQueue: LinkList<Square> = new LinkList();
 
-    static maxLevel: number = 0; // jag::oldscape::dash3d::world::m_maxLevel
+    static maxLevel: number = 0;
 
-    private static cycleNo: number = 0; // jag::oldscape::dash3d::world::m_cycleNo
+    private static cycleNo: number = 0;
 
-    private static minX: number = 0; // jag::oldscape::dash3d::world::m_minX
-    private static maxX: number = 0; // jag::oldscape::dash3d::world::m_maxX
-    private static minZ: number = 0; // jag::oldscape::dash3d::world::m_minZ
-    private static maxZ: number = 0; // jag::oldscape::dash3d::world::m_maxZ
+    private static minX: number = 0;
+    private static maxX: number = 0;
+    private static minZ: number = 0;
+    private static maxZ: number = 0;
 
-    private static gx: number = 0; // jag::oldscape::dash3d::world::m_gx
-    private static gz: number = 0; // jag::oldscape::dash3d::world::m_gz
-    private static cx: number = 0; // jag::oldscape::dash3d::world::m_cx
-    private static cy: number = 0; // jag::oldscape::dash3d::world::m_cy
-    private static cz: number = 0; // jag::oldscape::dash3d::world::m_cz
+    private static gx: number = 0;
+    private static gz: number = 0;
+    private static cx: number = 0;
+    private static cy: number = 0;
+    private static cz: number = 0;
 
-    private static click: boolean = false; // jag::oldscape::dash3d::world::m_click
-    static clickX: number = 0; // jag::oldscape::dash3d::world::m_clickX
-    static clickY: number = 0; // jag::oldscape::dash3d::world::m_clickY
-    static groundX: number = -1; // jag::oldscape::dash3d::world::m_groundX
-    static groundZ: number = -1; // jag::oldscape::dash3d::world::m_groundZ
+    private static click: boolean = false;
+    static clickX: number = 0;
+    static clickY: number = 0;
+    static groundX: number = -1;
+    static groundZ: number = -1;
 
     private static visibilityMatrix: boolean[][][][] = new TypedArray4d(8, 32, 51, 51, false);
     private static visibilityMap: boolean[][] | null = null;
@@ -120,117 +119,25 @@ export default class World {
     private static viewportTop: number = 0;
     private static viewportRight: number = 0;
     private static viewportBottom: number = 0;
-    private static viewportCenterX: number = 0;
-    private static viewportCenterY: number = 0;
+    private static viewportCentreX: number = 0;
+    private static viewportCentreY: number = 0;
 
-    static init(viewportWidth: number, viewportHeight: number, frustumStart: number, frustumEnd: number, pitchDistance: Int32Array): void {
-        this.viewportLeft = 0;
-        this.viewportTop = 0;
-        this.viewportRight = viewportWidth;
-        this.viewportBottom = viewportHeight;
-        this.viewportCenterX = (viewportWidth / 2) | 0;
-        this.viewportCenterY = (viewportHeight / 2) | 0;
-
-        const matrix: boolean[][][][] = new TypedArray4d(9, 32, 53, 53, false);
-        for (let pitch: number = 128; pitch <= 384; pitch += 32) {
-            for (let yaw: number = 0; yaw < 2048; yaw += 64) {
-                this.cameraSinX = Pix3D.sinTable[pitch];
-                this.cameraCosX = Pix3D.cosTable[pitch];
-                this.cameraSinY = Pix3D.sinTable[yaw];
-                this.cameraCosY = Pix3D.cosTable[yaw];
-
-                const pitchLevel: number = ((pitch - 128) / 32) | 0;
-                const yawLevel: number = (yaw / 64) | 0;
-                for (let dx: number = -26; dx <= 26; dx++) {
-                    for (let dz: number = -26; dz <= 26; dz++) {
-                        const x: number = dx * 128;
-                        const z: number = dz * 128;
-
-                        let visible: boolean = false;
-                        for (let y: number = -frustumStart; y <= frustumEnd; y += 128) {
-                            if (this.testPoint(x, z, pitchDistance[pitchLevel] + y)) {
-                                visible = true;
-                                break;
-                            }
-                        }
-
-                        matrix[pitchLevel][yawLevel][dx + 25 + 1][dz + 25 + 1] = visible;
-                    }
-                }
-            }
-        }
-
-        for (let pitchLevel: number = 0; pitchLevel < 8; pitchLevel++) {
-            for (let yawLevel: number = 0; yawLevel < 32; yawLevel++) {
-                for (let x: number = -25; x < 25; x++) {
-                    for (let z: number = -25; z < 25; z++) {
-                        let visible: boolean = false;
-                        check_areas: for (let dx: number = -1; dx <= 1; dx++) {
-                            for (let dz: number = -1; dz <= 1; dz++) {
-                                if (matrix[pitchLevel][yawLevel][x + dx + 25 + 1][z + dz + 25 + 1]) {
-                                    visible = true;
-                                    break check_areas;
-                                }
-
-                                if (matrix[pitchLevel][(yawLevel + 1) % 31][x + dx + 25 + 1][z + dz + 25 + 1]) {
-                                    visible = true;
-                                    break check_areas;
-                                }
-
-                                if (matrix[pitchLevel + 1][yawLevel][x + dx + 25 + 1][z + dz + 25 + 1]) {
-                                    visible = true;
-                                    break check_areas;
-                                }
-
-                                if (matrix[pitchLevel + 1][(yawLevel + 1) % 31][x + dx + 25 + 1][z + dz + 25 + 1]) {
-                                    visible = true;
-                                    break check_areas;
-                                }
-                            }
-                        }
-                        this.visibilityMatrix[pitchLevel][yawLevel][x + 25][z + 25] = visible;
-                    }
-                }
-            }
-        }
-    }
-
-    // jag::oldscape::dash3d::world::SetOcclude
-    static setOcclude(level: number, type: number, minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number): void {
-        World.levelOccluders[level][World.levelOccluderCount[level]++] = new Occlude((minX / 128) | 0, (maxX / 128) | 0, (minZ / 128) | 0, (maxZ / 128) | 0, type, minX, maxX, minZ, maxZ, minY, maxY);
-    }
-
-    private static testPoint(x: number, z: number, y: number): boolean {
-        const px: number = (z * this.cameraSinY + x * this.cameraCosY) >> 16;
-        const tmp: number = (z * this.cameraCosY - x * this.cameraSinY) >> 16;
-        const pz: number = (y * this.cameraSinX + tmp * this.cameraCosX) >> 16;
-        const py: number = (y * this.cameraCosX - tmp * this.cameraSinX) >> 16;
-
-        if (pz < 50 || pz > 3500) {
-            return false;
-        }
-
-        const viewportX: number = this.viewportCenterX + (((px << 9) / pz) | 0);
-        const viewportY: number = this.viewportCenterY + (((py << 9) / pz) | 0);
-        return viewportX >= this.viewportLeft && viewportX <= this.viewportRight && viewportY >= this.viewportTop && viewportY <= this.viewportBottom;
-    }
-
-    private readonly maxLevel: number;
+    private readonly maxTileLevel: number;
     private readonly maxTileX: number;
     private readonly maxTileZ: number;
     private readonly groundh: Int32Array[][];
     private readonly levelTiles: (Square | null)[][][];
     private readonly dynamicSprites: (Sprite | null)[];
     private readonly occlusionCycle: Int32Array[][];
-    private readonly mergeIndexA: Int32Array;
-    private readonly mergeIndexB: Int32Array;
+    private readonly shareTickA: Int32Array;
+    private readonly shareTickB: Int32Array;
 
     private dynamicCount: number = 0;
     private minLevel: number = 0;
-    private tmpMergeIndex: number = 0;
+    private shareTic: number = 0;
 
     constructor(levelHeightmaps: Int32Array[][], maxTileZ: number, maxLevel: number, maxTileX: number) {
-        this.maxLevel = maxLevel;
+        this.maxTileLevel = maxLevel;
         this.maxTileX = maxTileX;
         this.maxTileZ = maxTileZ;
         this.levelTiles = new TypedArray3d(maxLevel, maxTileX, maxTileZ, null);
@@ -238,15 +145,14 @@ export default class World {
         this.groundh = levelHeightmaps;
 
         this.dynamicSprites = new TypedArray1d(5000, null);
-        this.mergeIndexA = new Int32Array(10000);
-        this.mergeIndexB = new Int32Array(10000);
+        this.shareTickA = new Int32Array(10000);
+        this.shareTickB = new Int32Array(10000);
 
         this.resetMap();
     }
 
-    // jag::oldscape::dash3d::world::ResetMap(void)
     resetMap(): void {
-        for (let level: number = 0; level < this.maxLevel; level++) {
+        for (let level: number = 0; level < this.maxTileLevel; level++) {
             for (let x: number = 0; x < this.maxTileX; x++) {
                 for (let z: number = 0; z < this.maxTileZ; z++) {
                     this.levelTiles[level][x][z] = null;
@@ -271,7 +177,6 @@ export default class World {
         World.spriteBuffer.fill(null);
     }
 
-    // jag::oldscape::dash3d::world::FillBaseLevel
     fillBaseLevel(level: number): void {
         this.minLevel = level;
 
@@ -282,7 +187,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::PushDown
     pushDown(stx: number, stz: number): void {
         const below: Square | null = this.levelTiles[0][stx][stz];
 
@@ -307,7 +211,10 @@ export default class World {
         this.levelTiles[3][stx][stz] = null;
     }
 
-    // jag::oldscape::dash3d::world::SetLayer
+    static setOcclude(level: number, type: number, minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number): void {
+        World.levelOccluders[level][World.levelOccluderCount[level]++] = new Occlude((minX / 128) | 0, (maxX / 128) | 0, (minZ / 128) | 0, (maxZ / 128) | 0, type, minX, maxX, minZ, maxZ, minY, maxY);
+    }
+
     setLayer(level: number, stx: number, stz: number, drawLevel: number): void {
         const tile: Square | null = this.levelTiles[level][stx][stz];
         if (!tile) {
@@ -317,7 +224,6 @@ export default class World {
         tile.drawLevel = drawLevel;
     }
 
-    // jag::oldscape::dash3d::world::SetGround
     setGround(
         level: number, x: number, z: number,
         shape: number, rotation: number,
@@ -381,7 +287,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::SetGroundDecor
     setGroundDecor(model: ModelSource | null, tileLevel: number, tileX: number, tileZ: number, y: number, typecode: number, typecode2: number): void {
         if (!this.levelTiles[tileLevel][tileX][tileZ]) {
             this.levelTiles[tileLevel][tileX][tileZ] = new Square(tileLevel, tileX, tileZ);
@@ -393,7 +298,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::DelGroundDecor
     delGroundDecor(level: number, x: number, z: number): void {
         const tile: Square | null = this.levelTiles[level][x][z];
         if (!tile) {
@@ -403,7 +307,6 @@ export default class World {
         tile.groundDecor = null;
     }
 
-    // jag::oldscape::dash3d::world::SetObj
     setObj(stx: number, stz: number, y: number, level: number, typecode: number, topObj: ModelSource | null, middleObj: ModelSource | null, bottomObj: ModelSource | null): void {
         let stackOffset: number = 0;
 
@@ -430,7 +333,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::DelObj
     delObj(level: number, x: number, z: number): void {
         const tile: Square | null = this.levelTiles[level][x][z];
         if (!tile) {
@@ -440,7 +342,6 @@ export default class World {
         tile.groundObject = null;
     }
 
-    // jag::oldscape::dash3d::world::SetWall
     setWall(level: number, tileX: number, tileZ: number, y: number, angle1: number, angle2: number, model1: ModelSource | null, model2: ModelSource | null, typecode1: number, typecode2: number): void {
         if (!model1 && !model2) {
             return;
@@ -458,7 +359,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::DelWall
     delWall(level: number, x: number, z: number): void {
         const tile: Square | null = this.levelTiles[level][x][z];
         if (!tile) {
@@ -468,7 +368,6 @@ export default class World {
         tile.wall = null;
     }
 
-    // jag::oldscape::dash3d::world::SetDecor
     setDecor(level: number, tileX: number, tileZ: number, y: number, offsetX: number, offsetZ: number, typecode: number, model: ModelSource | null, info: number, angle: number, type: number): void {
         if (!model) {
             return;
@@ -486,7 +385,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::DelDecor
     delDecor(level: number, x: number, z: number): void {
         const tile: Square | null = this.levelTiles[level][x][z];
         if (!tile) {
@@ -586,7 +484,6 @@ export default class World {
         wall.model2 = modelB;
     }
 
-    // jag::oldscape::dash3d::world::AddScenery
     addScenery(level: number, tileX: number, tileZ: number, y: number, model: ModelSource | null, typecode: number, info: number, width: number, length: number, yaw: number): boolean {
         if (!model) {
             return true;
@@ -597,7 +494,6 @@ export default class World {
         return this.setSprite(sceneX, sceneZ, y, level, tileX, tileZ, width, length, model, typecode, info, yaw, false);
     }
 
-    // jag::oldscape::dash3d::world::AddDynamic
     addDynamic(level: number, x: number, y: number, z: number, model: ModelSource | null, typecode: number, yaw: number, padding: number, forwardPadding: boolean): boolean {
         if (!model) {
             return true;
@@ -631,12 +527,10 @@ export default class World {
         return this.setSprite(x, z, y, level, x0, z0, x1 + 1 - x0, z1 - z0 + 1, model, typecode, 0, yaw, true);
     }
 
-    // jag::oldscape::dash3d::world::AddDynamic
     addDynamic2(level: number, x: number, y: number, z: number, minTileX: number, minTileZ: number, maxTileX: number, maxTileZ: number, model: ModelSource | null, typecode: number, yaw: number): boolean {
         return !model || this.setSprite(x, z, y, level, minTileX, minTileZ, maxTileX + 1 - minTileX, maxTileZ - minTileZ + 1, model, typecode, 0, yaw, true);
     }
 
-    // jag::oldscape::dash3d::world::DelLoc
     delLoc(level: number, x: number, z: number): void {
         const tile: Square | null = this.levelTiles[level][x][z];
         if (!tile) {
@@ -652,7 +546,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::RemoveSprites
     removeSprites(): void {
         for (let i: number = 0; i < this.dynamicCount; i++) {
             const sprite: Sprite | null = this.dynamicSprites[i];
@@ -666,19 +559,16 @@ export default class World {
         this.dynamicCount = 0;
     }
 
-    // jag::oldscape::dash3d::world::WallType
     wallType(level: number, x: number, z: number): number {
         const tile: Square | null = this.levelTiles[level][x][z];
         return !tile || !tile.wall ? 0 : tile.wall.typecode;
     }
 
-    // jag::oldscape::dash3d::world::DecorType
     decorType(level: number, z: number, x: number): number {
         const tile: Square | null = this.levelTiles[level][x][z];
         return !tile || !tile.decor ? 0 : tile.decor.typecode;
     }
 
-    // jag::oldscape::dash3d::world::SceneType
     sceneType(level: number, x: number, z: number): number {
         const tile: Square | null = this.levelTiles[level][x][z];
         if (!tile) {
@@ -695,25 +585,21 @@ export default class World {
         return 0;
     }
 
-    // jag::oldscape::dash3d::world::GdType
     gdType(level: number, x: number, z: number): number {
         const tile: Square | null = this.levelTiles[level][x][z];
         return !tile || !tile.groundDecor ? 0 : tile.groundDecor.typecode;
     }
 
-    // jag::oldscape::dash3d::world::GetWall
     getWall(level: number, x: number, z: number): Wall | null {
         const tile: Square | null = this.levelTiles[level][x][z];
         return !tile || !tile.wall ? null : tile.wall;
     }
 
-    // jag::oldscape::dash3d::world::GetDecor
     getDecor(level: number, z: number, x: number): Decor | null {
         const tile: Square | null = this.levelTiles[level][x][z];
         return !tile || !tile.decor ? null : tile.decor;
     }
 
-    // jag::oldscape::dash3d::world::GetScene
     getScene(level: number, x: number, z: number): Sprite | null {
         const tile: Square | null = this.levelTiles[level][x][z];
         if (!tile) {
@@ -730,14 +616,12 @@ export default class World {
         return null;
     }
 
-    // jag::oldscape::dash3d::world::GetGd
     getGd(level: number, x: number, z: number): GroundDecor | null {
         const tile: Square | null = this.levelTiles[level][x][z];
         return !tile || !tile.groundDecor ? null : tile.groundDecor;
     }
 
-    // jag::oldscape::dash3d::world::TypeCode2
-    typecode2(level: number, x: number, z: number, typecode: number): number {
+    typeCode2(level: number, x: number, z: number, typecode: number): number {
         const tile: Square | null = this.levelTiles[level][x][z];
         if (!tile) {
             return -1;
@@ -758,12 +642,11 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::ShareLight
-    shareLight(lightAmbient: number, lightAttenuation: number, lightSrcX: number, lightSrcY: number, lightSrcZ: number): void {
+    shareLight(ambient: number, contrast: number, lightSrcX: number, lightSrcY: number, lightSrcZ: number): void {
         const lightMagnitude: number = Math.sqrt(lightSrcX * lightSrcX + lightSrcY * lightSrcY + lightSrcZ * lightSrcZ) | 0;
-        const attenuation: number = (lightAttenuation * lightMagnitude) >> 8;
+        const attenuation: number = (contrast * lightMagnitude) >> 8;
 
-        for (let level: number = 0; level < this.maxLevel; level++) {
+        for (let level: number = 0; level < this.maxTileLevel; level++) {
             for (let tileX: number = 0; tileX < this.maxTileX; tileX++) {
                 for (let tileZ: number = 0; tileZ < this.maxTileZ; tileZ++) {
                     const tile: Square | null = this.levelTiles[level][tileX][tileZ];
@@ -773,34 +656,33 @@ export default class World {
 
                     const wall: Wall | null = tile.wall;
                     if (wall && wall.model1 && wall.model1.vertexNormal) {
-                        this.shareLightLoc(level, tileX, tileZ, 1, 1, (wall.model1 as Model));
+                        this.shareLightLoc(level, tileX, tileZ, 1, 1, wall.model1 as Model);
                         if (wall.model2 && wall.model2.vertexNormal) {
-                            this.shareLightLoc(level, tileX, tileZ, 1, 1, (wall.model2 as Model));
-                            this.modelShareLight((wall.model1 as Model), (wall.model2 as Model), 0, 0, 0, false);
-                            (wall.model2 as Model).light(lightAmbient, attenuation, lightSrcX, lightSrcY, lightSrcZ);
+                            this.shareLightLoc(level, tileX, tileZ, 1, 1, wall.model2 as Model);
+                            this.modelShareLight(wall.model1 as Model, wall.model2 as Model, 0, 0, 0, false);
+                            (wall.model2 as Model).light(ambient, attenuation, lightSrcX, lightSrcY, lightSrcZ);
                         }
-                        (wall.model1 as Model).light(lightAmbient, attenuation, lightSrcX, lightSrcY, lightSrcZ);
+                        (wall.model1 as Model).light(ambient, attenuation, lightSrcX, lightSrcY, lightSrcZ);
                     }
 
                     for (let i: number = 0; i < tile.spriteCount; i++) {
                         const sprite: Sprite | null = tile.sprites[i];
                         if (sprite && sprite.model && sprite.model.vertexNormal) {
-                            this.shareLightLoc(level, tileX, tileZ, sprite.maxTileX + 1 - sprite.minTileX, sprite.maxTileZ - sprite.minTileZ + 1, (sprite.model as Model));
-                            (sprite.model as Model).light(lightAmbient, attenuation, lightSrcX, lightSrcY, lightSrcZ);
+                            this.shareLightLoc(level, tileX, tileZ, sprite.maxTileX + 1 - sprite.minTileX, sprite.maxTileZ - sprite.minTileZ + 1, sprite.model as Model);
+                            (sprite.model as Model).light(ambient, attenuation, lightSrcX, lightSrcY, lightSrcZ);
                         }
                     }
 
                     const decor: GroundDecor | null = tile.groundDecor;
                     if (decor && decor.model && decor.model.vertexNormal) {
-                        this.shareLightGd(level, tileX, tileZ, (decor.model as Model));
-                        (decor.model as Model).light(lightAmbient, attenuation, lightSrcX, lightSrcY, lightSrcZ);
+                        this.shareLightGd(level, tileX, tileZ, decor.model as Model);
+                        (decor.model as Model).light(ambient, attenuation, lightSrcX, lightSrcY, lightSrcZ);
                     }
                 }
             }
         }
     }
 
-    // jag::oldscape::dash3d::world::ShareLightGd
     shareLightGd(level: number, tileX: number, tileZ: number, model: Model): void {
         if (tileX < this.maxTileX) {
             const tile: Square | null = this.levelTiles[level][tileX + 1][tileZ];
@@ -831,7 +713,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::ShareLightLoc
     shareLightLoc(level: number, tileX: number, tileZ: number, tileSizeX: number, tileSizeZ: number, model: Model): void {
         let allowFaceRemoval: boolean = true;
 
@@ -841,7 +722,7 @@ export default class World {
         const maxTileZ: number = tileZ + tileSizeZ;
 
         for (let l: number = level; l <= level + 1; l++) {
-            if (l === this.maxLevel) {
+            if (l === this.maxTileLevel) {
                 continue;
             }
 
@@ -894,7 +775,7 @@ export default class World {
     }
 
     private modelShareLight(modelA: Model, modelB: Model, offsetX: number, offsetY: number, offsetZ: number, allowFaceRemoval: boolean): void {
-        this.tmpMergeIndex++;
+        this.shareTic++;
 
         let merged: number = 0;
         const vertexX: Int32Array = modelB.vertexX!;
@@ -902,8 +783,8 @@ export default class World {
 
         if (modelA.vertexNormal && modelA.vertexNormalOriginal) {
             for (let vertexA: number = 0; vertexA < modelA.vertexCount; vertexA++) {
-                const normalA: VertexNormal | null = modelA.vertexNormal[vertexA];
-                const originalNormalA: VertexNormal | null = modelA.vertexNormalOriginal[vertexA];
+                const normalA: PointNormal | null = modelA.vertexNormal[vertexA];
+                const originalNormalA: PointNormal | null = modelA.vertexNormalOriginal[vertexA];
 
                 if (originalNormalA && originalNormalA.w !== 0) {
                     const y: number = modelA.vertexY![vertexA] - offsetY;
@@ -923,8 +804,8 @@ export default class World {
 
                     if (modelB.vertexNormal && modelB.vertexNormalOriginal) {
                         for (let vertexB: number = 0; vertexB < vertexCountB; vertexB++) {
-                            const normalB: VertexNormal | null = modelB.vertexNormal[vertexB];
-                            const originalNormalB: VertexNormal | null = modelB.vertexNormalOriginal[vertexB];
+                            const normalB: PointNormal | null = modelB.vertexNormal[vertexB];
+                            const originalNormalB: PointNormal | null = modelB.vertexNormalOriginal[vertexB];
                             if (x !== vertexX[vertexB] || z !== modelB.vertexZ![vertexB] || y !== modelB.vertexY![vertexB] || (originalNormalB && originalNormalB.w === 0)) {
                                 continue;
                             }
@@ -941,8 +822,8 @@ export default class World {
                                 merged++;
                             }
 
-                            this.mergeIndexA[vertexA] = this.tmpMergeIndex;
-                            this.mergeIndexB[vertexB] = this.tmpMergeIndex;
+                            this.shareTickA[vertexA] = this.shareTic;
+                            this.shareTickB[vertexB] = this.shareTic;
                         }
                     }
                 }
@@ -953,24 +834,23 @@ export default class World {
             return;
         }
 
-        if (modelA.faceInfo) {
+        if (modelA.faceRenderType) {
             for (let i: number = 0; i < modelA.faceCount; i++) {
-                if (this.mergeIndexA[modelA.faceVertexA![i]] === this.tmpMergeIndex && this.mergeIndexA[modelA.faceVertexB![i]] === this.tmpMergeIndex && this.mergeIndexA[modelA.faceVertexC![i]] === this.tmpMergeIndex) {
-                    modelA.faceInfo[i] = -1;
+                if (this.shareTickA[modelA.faceVertexA![i]] === this.shareTic && this.shareTickA[modelA.faceVertexB![i]] === this.shareTic && this.shareTickA[modelA.faceVertexC![i]] === this.shareTic) {
+                    modelA.faceRenderType[i] = -1;
                 }
             }
         }
 
-        if (modelB.faceInfo) {
+        if (modelB.faceRenderType) {
             for (let i: number = 0; i < modelB.faceCount; i++) {
-                if (this.mergeIndexB[modelB.faceVertexA![i]] === this.tmpMergeIndex && this.mergeIndexB[modelB.faceVertexB![i]] === this.tmpMergeIndex && this.mergeIndexB[modelB.faceVertexC![i]] === this.tmpMergeIndex) {
-                    modelB.faceInfo[i] = -1;
+                if (this.shareTickB[modelB.faceVertexA![i]] === this.shareTic && this.shareTickB[modelB.faceVertexB![i]] === this.shareTic && this.shareTickB[modelB.faceVertexC![i]] === this.shareTic) {
+                    modelB.faceRenderType[i] = -1;
                 }
             }
         }
     }
 
-    // jag::oldscape::dash3d::world::Render2DGround
     render2DGround(level: number, x: number, z: number, dst: Int32Array, offset: number, step: number): void {
         const tile: Square | null = this.levelTiles[level][x][z];
         if (!tile) {
@@ -1031,7 +911,93 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::UpdateMousePickingRSeven
+    static init(pitchDistance: Int32Array, frustumStart: number, frustumEnd: number, viewportWidth: number, viewportHeight: number): void {
+        this.viewportLeft = 0;
+        this.viewportTop = 0;
+        this.viewportRight = viewportWidth;
+        this.viewportBottom = viewportHeight;
+        this.viewportCentreX = (viewportWidth / 2) | 0;
+        this.viewportCentreY = (viewportHeight / 2) | 0;
+
+        const matrix: boolean[][][][] = new TypedArray4d(9, 32, 53, 53, false);
+        for (let pitch: number = 128; pitch <= 384; pitch += 32) {
+            for (let yaw: number = 0; yaw < 2048; yaw += 64) {
+                this.cameraSinX = Pix3D.sinTable[pitch];
+                this.cameraCosX = Pix3D.cosTable[pitch];
+                this.cameraSinY = Pix3D.sinTable[yaw];
+                this.cameraCosY = Pix3D.cosTable[yaw];
+
+                const pitchLevel: number = ((pitch - 128) / 32) | 0;
+                const yawLevel: number = (yaw / 64) | 0;
+                for (let dx: number = -26; dx <= 26; dx++) {
+                    for (let dz: number = -26; dz <= 26; dz++) {
+                        const x: number = dx * 128;
+                        const z: number = dz * 128;
+
+                        let visible: boolean = false;
+                        for (let y: number = -frustumStart; y <= frustumEnd; y += 128) {
+                            if (this.testPoint(x, z, pitchDistance[pitchLevel] + y)) {
+                                visible = true;
+                                break;
+                            }
+                        }
+
+                        matrix[pitchLevel][yawLevel][dx + 25 + 1][dz + 25 + 1] = visible;
+                    }
+                }
+            }
+        }
+
+        for (let pitchLevel: number = 0; pitchLevel < 8; pitchLevel++) {
+            for (let yawLevel: number = 0; yawLevel < 32; yawLevel++) {
+                for (let x: number = -25; x < 25; x++) {
+                    for (let z: number = -25; z < 25; z++) {
+                        let visible: boolean = false;
+                        check_areas: for (let dx: number = -1; dx <= 1; dx++) {
+                            for (let dz: number = -1; dz <= 1; dz++) {
+                                if (matrix[pitchLevel][yawLevel][x + dx + 25 + 1][z + dz + 25 + 1]) {
+                                    visible = true;
+                                    break check_areas;
+                                }
+
+                                if (matrix[pitchLevel][(yawLevel + 1) % 31][x + dx + 25 + 1][z + dz + 25 + 1]) {
+                                    visible = true;
+                                    break check_areas;
+                                }
+
+                                if (matrix[pitchLevel + 1][yawLevel][x + dx + 25 + 1][z + dz + 25 + 1]) {
+                                    visible = true;
+                                    break check_areas;
+                                }
+
+                                if (matrix[pitchLevel + 1][(yawLevel + 1) % 31][x + dx + 25 + 1][z + dz + 25 + 1]) {
+                                    visible = true;
+                                    break check_areas;
+                                }
+                            }
+                        }
+                        this.visibilityMatrix[pitchLevel][yawLevel][x + 25][z + 25] = visible;
+                    }
+                }
+            }
+        }
+    }
+
+    private static testPoint(x: number, z: number, y: number): boolean {
+        const px: number = (z * this.cameraSinY + x * this.cameraCosY) >> 16;
+        const tmp: number = (z * this.cameraCosY - x * this.cameraSinY) >> 16;
+        const pz: number = (y * this.cameraSinX + tmp * this.cameraCosX) >> 16;
+        const py: number = (y * this.cameraCosX - tmp * this.cameraSinX) >> 16;
+
+        if (pz < 50 || pz > 3500) {
+            return false;
+        }
+
+        const viewportX: number = this.viewportCentreX + (((px << 9) / pz) | 0);
+        const viewportY: number = this.viewportCentreY + (((py << 9) / pz) | 0);
+        return viewportX >= this.viewportLeft && viewportX <= this.viewportRight && viewportY >= this.viewportTop && viewportY <= this.viewportBottom;
+    }
+
     updateMousePicking(mouseX: number, mouseY: number): void {
         World.click = true;
         World.clickX = mouseX;
@@ -1040,8 +1006,7 @@ export default class World {
         World.groundZ = -1;
     }
 
-    // jag::oldscape::dash3d::world::RenderAllSlow
-    renderAll(eyeX: number, eyeY: number, eyeZ: number, topLevel: number, eyeYaw: number, eyePitch: number, loopCycle: number): void {
+    renderAll(eyeX: number, eyeY: number, eyeZ: number, maxLevel: number, eyeYaw: number, eyePitch: number, loopCycle: number): void {
         if (eyeX < 0) {
             eyeX = 0;
         } else if (eyeX >= this.maxTileX * 128) {
@@ -1066,7 +1031,7 @@ export default class World {
         World.cz = eyeZ;
         World.gx = (eyeX / 128) | 0;
         World.gz = (eyeZ / 128) | 0;
-        World.maxLevel = topLevel;
+        World.maxLevel = maxLevel;
 
         World.minX = World.gx - 25;
         if (World.minX < 0) {
@@ -1091,7 +1056,7 @@ export default class World {
         this.calcOcclude();
         World.fillLeft = 0;
 
-        for (let level: number = this.minLevel; level < this.maxLevel; level++) {
+        for (let level: number = this.minLevel; level < this.maxTileLevel; level++) {
             const tiles: (Square | null)[][] = this.levelTiles[level];
             for (let x: number = World.minX; x < World.maxX; x++) {
                 for (let z: number = World.minZ; z < World.maxZ; z++) {
@@ -1100,7 +1065,7 @@ export default class World {
                         continue;
                     }
 
-                    if (tile.drawLevel <= topLevel && (World.visibilityMap[x + 25 - World.gx][z + 25 - World.gz] || this.groundh[level][x][z] - eyeY >= 2000)) {
+                    if (tile.drawLevel <= maxLevel && (World.visibilityMap[x + 25 - World.gx][z + 25 - World.gz] || this.groundh[level][x][z] - eyeY >= 2000)) {
                         tile.drawFront = true;
                         tile.drawBack = true;
                         tile.drawSprites = tile.spriteCount > 0;
@@ -1114,7 +1079,7 @@ export default class World {
             }
         }
 
-        for (let level: number = this.minLevel; level < this.maxLevel; level++) {
+        for (let level: number = this.minLevel; level < this.maxTileLevel; level++) {
             const tiles: (Square | null)[][] = this.levelTiles[level];
             for (let dx: number = -25; dx <= 0; dx++) {
                 const rightTileX: number = World.gx + dx;
@@ -1169,7 +1134,7 @@ export default class World {
             }
         }
 
-        for (let level: number = this.minLevel; level < this.maxLevel; level++) {
+        for (let level: number = this.minLevel; level < this.maxTileLevel; level++) {
             const tiles: (Square | null)[][] = this.levelTiles[level];
             for (let dx: number = -25; dx <= 0; dx++) {
                 const rightTileX: number = World.gx + dx;
@@ -1225,7 +1190,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::SetSprite
     private setSprite(
         x: number,
         z: number,
@@ -1298,7 +1262,6 @@ export default class World {
         return true;
     }
 
-    // jag::oldscape::dash3d::world::DelSprite
     private delSprite(sprite: Sprite): void {
         for (let tx: number = sprite.minTileX; tx <= sprite.maxTileX; tx++) {
             for (let tz: number = sprite.minTileZ; tz <= sprite.maxTileZ; tz++) {
@@ -1328,7 +1291,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::CalcOcclude
     private calcOcclude(): void {
         const count: number = World.levelOccluderCount[World.maxLevel];
         const occluders: (Occlude | null)[] = World.levelOccluders[World.maxLevel];
@@ -1478,7 +1440,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::Fill
     private fill(next: Square, checkAdjacent: boolean, loopCycle: number): void {
         World.fillQueue.push(next);
 
@@ -1486,7 +1447,7 @@ export default class World {
             let tile: Square | null;
 
             do {
-                tile = World.fillQueue.pop();
+                tile = World.fillQueue.popFront();
 
                 if (!tile) {
                     return;
@@ -1659,14 +1620,14 @@ export default class World {
                         }
 
                         if ((decor.wshape & 0x100) !== 0 && nearestZ < nearestX) {
-                            const drawX: number = x + World.WALL_DECORATION_INSET_X[angle];
-                            const drawZ: number = z + World.WALL_DECORATION_INSET_Z[angle];
+                            const drawX: number = x + World.DECORXOF[angle];
+                            const drawZ: number = z + World.DECORZOF[angle];
                             decor.model.worldRender(loopCycle, angle * 512 + 256, World.cameraSinX, World.cameraCosX, World.cameraSinY, World.cameraCosY, drawX, y, drawZ, decor.typecode);
                         }
 
                         if ((decor.wshape & 0x200) !== 0 && nearestZ > nearestX) {
-                            const drawX: number = x + World.WALL_DECORATION_OUTSET_X[angle];
-                            const drawZ: number = z + World.WALL_DECORATION_OUTSET_Z[angle];
+                            const drawX: number = x + World.DECORXOF2[angle];
+                            const drawZ: number = z + World.DECORZOF2[angle];
                             decor.model.worldRender(loopCycle, (angle * 512 + 1280) & 0x7ff, World.cameraSinX, World.cameraCosX, World.cameraSinY, World.cameraCosY, drawX, y, drawZ, decor.typecode);
                         }
                     }
@@ -1951,14 +1912,14 @@ export default class World {
                         }
 
                         if ((decor.wshape & 0x100) !== 0 && nearestZ >= nearestX) {
-                            const drawX: number = x + World.WALL_DECORATION_INSET_X[angle];
-                            const drawZ: number = z + World.WALL_DECORATION_INSET_Z[angle];
+                            const drawX: number = x + World.DECORXOF[angle];
+                            const drawZ: number = z + World.DECORZOF[angle];
                             decor.model.worldRender(loopCycle, angle * 512 + 256, World.cameraSinX, World.cameraCosX, World.cameraSinY, World.cameraCosY, drawX, y, drawZ, decor.typecode);
                         }
 
                         if ((decor.wshape & 0x200) !== 0 && nearestZ <= nearestX) {
-                            const drawX: number = x + World.WALL_DECORATION_OUTSET_X[angle];
-                            const drawZ: number = z + World.WALL_DECORATION_OUTSET_Z[angle];
+                            const drawX: number = x + World.DECORXOF2[angle];
+                            const drawZ: number = z + World.DECORZOF2[angle];
                             decor.model.worldRender(loopCycle, (angle * 512 + 1280) & 0x7ff, World.cameraSinX, World.cameraCosX, World.cameraSinY, World.cameraCosY, drawX, y, drawZ, decor.typecode);
                         }
                     }
@@ -1976,7 +1937,7 @@ export default class World {
                 }
             }
 
-            if (level < this.maxLevel - 1) {
+            if (level < this.maxTileLevel - 1) {
                 const above: Square | null = this.levelTiles[level + 1][tileX][tileZ];
                 if (above && above.drawBack) {
                     World.fillQueue.push(above);
@@ -2013,7 +1974,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::SoftwareWorldRenderer::RenderQuickGround
     private renderQuickGround(quick: QuickGround, level: number, tileX: number, tileZ: number, sinEyePitch: number, cosEyePitch: number, sinEyeYaw: number, cosEyeYaw: number): void {
         let x3: number;
         let x0: number = (x3 = (tileX << 7) - World.cx);
@@ -2077,19 +2037,19 @@ export default class World {
             return;
         }
 
-        const px0: number = Pix3D.projectionX + (((x0 << 9) / z0) | 0);
-        const py0: number = Pix3D.projectionY + (((y0 << 9) / z0) | 0);
-        const pz0: number = Pix3D.projectionX + (((x1 << 9) / z1) | 0);
-        const px1: number = Pix3D.projectionY + (((y1 << 9) / z1) | 0);
-        const py1: number = Pix3D.projectionX + (((x2 << 9) / z2) | 0);
-        const pz1: number = Pix3D.projectionY + (((y2 << 9) / z2) | 0);
-        const px3: number = Pix3D.projectionX + (((x3 << 9) / z3) | 0);
-        const py3: number = Pix3D.projectionY + (((y3 << 9) / z3) | 0);
+        const px0: number = Pix3D.originX + (((x0 << 9) / z0) | 0);
+        const py0: number = Pix3D.originY + (((y0 << 9) / z0) | 0);
+        const pz0: number = Pix3D.originX + (((x1 << 9) / z1) | 0);
+        const px1: number = Pix3D.originY + (((y1 << 9) / z1) | 0);
+        const py1: number = Pix3D.originX + (((x2 << 9) / z2) | 0);
+        const pz1: number = Pix3D.originY + (((y2 << 9) / z2) | 0);
+        const px3: number = Pix3D.originX + (((x3 << 9) / z3) | 0);
+        const py3: number = Pix3D.originY + (((y3 << 9) / z3) | 0);
 
         Pix3D.trans = 0;
 
         if ((py1 - px3) * (px1 - py3) - (pz1 - py3) * (pz0 - px3) > 0) {
-            Pix3D.hclip = py1 < 0 || px3 < 0 || pz0 < 0 || py1 > Pix2D.clipX || px3 > Pix2D.clipX || pz0 > Pix2D.clipX;
+            Pix3D.hclip = py1 < 0 || px3 < 0 || pz0 < 0 || py1 > Pix2D.sizeX || px3 > Pix2D.sizeX || pz0 > Pix2D.sizeX;
 
             if (World.click && this.insideTriangle(World.clickX, World.clickY, pz1, py3, px1, py1, px3, pz0)) {
                 World.groundX = tileX;
@@ -2111,7 +2071,7 @@ export default class World {
         }
 
         if ((px0 - pz0) * (py3 - px1) - (py0 - px1) * (px3 - pz0) > 0) {
-            Pix3D.hclip = px0 < 0 || pz0 < 0 || px3 < 0 || px0 > Pix2D.clipX || pz0 > Pix2D.clipX || px3 > Pix2D.clipX;
+            Pix3D.hclip = px0 < 0 || pz0 < 0 || px3 < 0 || px0 > Pix2D.sizeX || pz0 > Pix2D.sizeX || px3 > Pix2D.sizeX;
 
             if (World.click && this.insideTriangle(World.clickX, World.clickY, py0, px1, py3, px0, pz0, px3)) {
                 World.groundX = tileX;
@@ -2131,7 +2091,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::SoftwareWorldRenderer::RenderGround
     private renderGround(tileX: number, tileZ: number, ground: Ground, sinEyePitch: number, cosEyePitch: number, sinEyeYaw: number, cosEyeYaw: number): void {
         let vertexCount: number = ground.vertexX.length;
 
@@ -2158,8 +2117,8 @@ export default class World {
                 Ground.drawTextureVertexZ[i] = z;
             }
 
-            Ground.drawVertexX[i] = Pix3D.projectionX + (((x << 9) / z) | 0);
-            Ground.drawVertexY[i] = Pix3D.projectionY + (((y << 9) / z) | 0);
+            Ground.drawVertexX[i] = Pix3D.originX + (((x << 9) / z) | 0);
+            Ground.drawVertexY[i] = Pix3D.originY + (((y << 9) / z) | 0);
         }
 
         Pix3D.trans = 0;
@@ -2173,12 +2132,13 @@ export default class World {
             const x0: number = Ground.drawVertexX[a];
             const x1: number = Ground.drawVertexX[b];
             const x2: number = Ground.drawVertexX[c];
+
             const y0: number = Ground.drawVertexY[a];
             const y1: number = Ground.drawVertexY[b];
             const y2: number = Ground.drawVertexY[c];
 
             if ((x0 - x1) * (y2 - y1) - (y0 - y1) * (x2 - x1) > 0) {
-                Pix3D.hclip = x0 < 0 || x1 < 0 || x2 < 0 || x0 > Pix2D.clipX || x1 > Pix2D.clipX || x2 > Pix2D.clipX;
+                Pix3D.hclip = x0 < 0 || x1 < 0 || x2 < 0 || x0 > Pix2D.sizeX || x1 > Pix2D.sizeX || x2 > Pix2D.sizeX;
 
                 if (World.click && this.insideTriangle(World.clickX, World.clickY, y0, y1, y2, x0, x1, x2)) {
                     World.groundX = tileX;
@@ -2241,7 +2201,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::GroundoOcluded [sic]
     private groundOccluded(level: number, x: number, z: number): boolean {
         const cycle: number = this.occlusionCycle[level][x][z];
         if (cycle === -World.cycleNo) {
@@ -2266,7 +2225,6 @@ export default class World {
         }
     }
 
-    // jag::oldscape::dash3d::world::WallOccluded
     private wallOccluded(level: number, x: number, z: number, type: number): boolean {
         if (!this.groundOccluded(level, x, z)) {
             return false;
@@ -2385,7 +2343,6 @@ export default class World {
         return true;
     }
 
-    // jag::oldscape::dash3d::world::SpriteOccluded
     private spriteOccluded(level: number, tileX: number, tileZ: number, y: number): boolean {
         if (this.groundOccluded(level, tileX, tileZ)) {
             const x: number = tileX << 7;
@@ -2400,7 +2357,6 @@ export default class World {
         return false;
     }
 
-    // jag::oldscape::dash3d::world::SpriteOccluded
     private spriteOccluded2(level: number, minX: number, maxX: number, minZ: number, maxZ: number, y: number): boolean {
         let x: number;
         let z: number;
@@ -2446,7 +2402,6 @@ export default class World {
         return false;
     }
 
-    // jag::oldscape::dash3d::world::Occluded
     private occluded(x: number, y: number, z: number): boolean {
         for (let i: number = 0; i < World.activeOccluderCount; i++) {
             const occluder: Occlude | null = World.activeOccluders[i];
@@ -2514,7 +2469,6 @@ export default class World {
         return false;
     }
 
-    // jag::oldscape::dash3d::world::InsideTriangle
     private insideTriangle(x: number, y: number, y0: number, y1: number, y2: number, x0: number, x1: number, x2: number): boolean {
         if (y < y0 && y < y1 && y < y2) {
             return false;

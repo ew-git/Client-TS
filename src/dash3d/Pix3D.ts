@@ -4,16 +4,15 @@ import Pix8 from '#/graphics/Pix8.js';
 import Jagfile from '#/io/Jagfile.js';
 import { Int32Array2d, TypedArray1d } from '#/util/Arrays.js';
 
-// jag::oldscape::dash3d::Pix3D
 export default class Pix3D extends Pix2D {
     static lowMem: boolean = false;
-    static lowDetail: boolean = true; // jag::oldscape::dash3d::Pix3D::SetLowDetail
+    static lowDetail: boolean = true;
 
-    static divTable: Int32Array = new Int32Array(512); // jag::oldscape::dash3d::Pix3D::m_divTable
-    static divTable2: Int32Array = new Int32Array(2048); // jag::oldscape::dash3d::Pix3D::m_divTable2
-    static sinTable: Int32Array = new Int32Array(2048); // jag::oldscape::dash3d::Pix3D::m_sinTable
-    static cosTable: Int32Array = new Int32Array(2048); // jag::oldscape::dash3d::Pix3D::m_cosTable
-    static colourTable: Int32Array = new Int32Array(65536); // jag::oldscape::dash3d::Pix3D::m_colourTable
+    static divTable: Int32Array = new Int32Array(512);
+    static divTable2: Int32Array = new Int32Array(2048);
+    static sinTable: Int32Array = new Int32Array(2048);
+    static cosTable: Int32Array = new Int32Array(2048);
+    static colourTable: Int32Array = new Int32Array(65536);
 
     static textures: (Pix8 | null)[] = new TypedArray1d(50, null);
     private static textureTranslucent: boolean[] = new TypedArray1d(50, false);
@@ -22,16 +21,16 @@ export default class Pix3D extends Pix2D {
     static textureCycle: Int32Array = new Int32Array(50);
     static texPal: (Int32Array | null)[] = new TypedArray1d(50, null);
     static textureCount: number = 0;
-    static projectionX: number = 0;
-    static projectionY: number = 0;
+    static originX: number = 0;
+    static originY: number = 0;
     static texelPool: (Int32Array | null)[] | null = null;
     static poolSize: number = 0;
     private static opaque: boolean = false;
 
     static cycle: number = 0;
     static scanline: Int32Array = new Int32Array();
-    static hclip: boolean = false; // jag::oldscape::dash3d::Pix3D::SetHClip
-    static trans: number = 0; // jag::oldscape::dash3d::Pix3D::SetTrans
+    static hclip: boolean = false;
+    static trans: number = 0;
 
     static {
         for (let i: number = 1; i < 512; i++) {
@@ -50,22 +49,22 @@ export default class Pix3D extends Pix2D {
         }
     }
 
-    static init(): void {
+    static setRenderClipping(): void {
         this.scanline = new Int32Array(Pix2D.height);
         for (let y: number = 0; y < Pix2D.height; y++) {
             this.scanline[y] = Pix2D.width * y;
         }
-        this.projectionX = (Pix2D.width / 2) | 0;
-        this.projectionY = (Pix2D.height / 2) | 0;
+        this.originX = (Pix2D.width / 2) | 0;
+        this.originY = (Pix2D.height / 2) | 0;
     }
 
-    static initWH(width: number, height: number): void {
+    static override setClipping(width: number, height: number): void {
         this.scanline = new Int32Array(height);
         for (let y: number = 0; y < height; y++) {
             this.scanline[y] = width * y;
         }
-        this.projectionX = (width / 2) | 0;
-        this.projectionY = (height / 2) | 0;
+        this.originX = (width / 2) | 0;
+        this.originY = (height / 2) | 0;
     }
 
     static clearTexels(): void {
@@ -94,12 +93,14 @@ export default class Pix3D extends Pix2D {
 
         for (let i: number = 0; i < 50; i++) {
             try {
-                this.textures[i] = Pix8.load(textures, i.toString());
+                this.textures[i] = Pix8.depack(textures, i.toString());
+
                 if (this.lowMem && this.textures[i]?.owi === 128) {
                     this.textures[i]?.halveSize();
                 } else {
                     this.textures[i]?.trim();
                 }
+
                 this.textureCount++;
             } catch (_e) {
                 // empty
@@ -214,7 +215,6 @@ export default class Pix3D extends Pix2D {
         return texels;
     }
 
-    // jag::oldscape::dash3d::Pix3D::InitColourTable
     static initColourTable(brightness: number): void {
         const randomBrightness: number = brightness + Math.random() * 0.03 - 0.015;
 
@@ -310,7 +310,6 @@ export default class Pix3D extends Pix2D {
         }
     }
 
-    // jag::math::RunetekColour::GammaCorrectOSRS
     private static gammaCorrect(rgb: number, gamma: number): number {
         const r: number = (rgb >> 16) / 256.0;
         const g: number = ((rgb >> 8) & 0xff) / 256.0;
@@ -326,7 +325,6 @@ export default class Pix3D extends Pix2D {
         return (intR << 16) + (intG << 8) + intB;
     }
 
-    // jag::oldscape::dash3d::SoftwarePix3D::GouraudTriangle
     static gouraudTriangle(
         xA: number, xB: number, xC: number,
         yA: number, yB: number, yC: number,
@@ -354,16 +352,16 @@ export default class Pix3D extends Pix2D {
         }
 
         if (yA <= yB && yA <= yC) {
-            if (yA >= Pix2D.bottom) {
+            if (yA >= Pix2D.clipMaxY) {
                 return;
             }
 
-            if (yB > Pix2D.bottom) {
-                yB = Pix2D.bottom;
+            if (yB > Pix2D.clipMaxY) {
+                yB = Pix2D.clipMaxY;
             }
 
-            if (yC > Pix2D.bottom) {
-                yC = Pix2D.bottom;
+            if (yC > Pix2D.clipMaxY) {
+                yC = Pix2D.clipMaxY;
             }
 
             if (yB < yC) {
@@ -540,16 +538,16 @@ export default class Pix3D extends Pix2D {
                 }
             }
         } else if (yB <= yC) {
-            if (yB >= Pix2D.bottom) {
+            if (yB >= Pix2D.clipMaxY) {
                 return;
             }
 
-            if (yC > Pix2D.bottom) {
-                yC = Pix2D.bottom;
+            if (yC > Pix2D.clipMaxY) {
+                yC = Pix2D.clipMaxY;
             }
 
-            if (yA > Pix2D.bottom) {
-                yA = Pix2D.bottom;
+            if (yA > Pix2D.clipMaxY) {
+                yA = Pix2D.clipMaxY;
             }
 
             if (yC < yA) {
@@ -722,16 +720,16 @@ export default class Pix3D extends Pix2D {
                 }
             }
         } else {
-            if (yC >= Pix2D.bottom) {
+            if (yC >= Pix2D.clipMaxY) {
                 return;
             }
 
-            if (yA > Pix2D.bottom) {
-                yA = Pix2D.bottom;
+            if (yA > Pix2D.clipMaxY) {
+                yA = Pix2D.clipMaxY;
             }
 
-            if (yB > Pix2D.bottom) {
-                yB = Pix2D.bottom;
+            if (yB > Pix2D.clipMaxY) {
+                yB = Pix2D.clipMaxY;
             }
 
             if (yA < yB) {
@@ -902,7 +900,6 @@ export default class Pix3D extends Pix2D {
         }
     }
 
-    // jag::oldscape::dash3d::SoftwarePix3D::GouraudRaster
     private static gouraudRaster(
         xA: number, xB: number,
         colourA: number, colourB: number,
@@ -920,8 +917,8 @@ export default class Pix3D extends Pix2D {
                     colourStep = 0;
                 }
 
-                if (xB > Pix2D.clipX) {
-                    xB = Pix2D.clipX;
+                if (xB > Pix2D.sizeX) {
+                    xB = Pix2D.sizeX;
                 }
 
                 if (xA < 0) {
@@ -1014,8 +1011,8 @@ export default class Pix3D extends Pix2D {
             const colourStep: number = ((colourB - colourA) / (xB - xA)) | 0;
 
             if (this.hclip) {
-                if (xB > Pix2D.clipX) {
-                    xB = Pix2D.clipX;
+                if (xB > Pix2D.sizeX) {
+                    xB = Pix2D.sizeX;
                 }
 
                 if (xA < 0) {
@@ -1053,7 +1050,6 @@ export default class Pix3D extends Pix2D {
         }
     }
 
-    // jag::oldscape::dash3d::SoftwarePix3D::FlatTriangle
     static flatTriangle(
         xA: number, xB: number, xC: number,
         yA: number, yB: number, yC: number,
@@ -1075,16 +1071,16 @@ export default class Pix3D extends Pix2D {
         }
 
         if (yA <= yB && yA <= yC) {
-            if (yA >= Pix2D.bottom) {
+            if (yA >= Pix2D.clipMaxY) {
                 return;
             }
 
-            if (yB > Pix2D.bottom) {
-                yB = Pix2D.bottom;
+            if (yB > Pix2D.clipMaxY) {
+                yB = Pix2D.clipMaxY;
             }
 
-            if (yC > Pix2D.bottom) {
-                yC = Pix2D.bottom;
+            if (yC > Pix2D.clipMaxY) {
+                yC = Pix2D.clipMaxY;
             }
 
             if (yB < yC) {
@@ -1235,16 +1231,16 @@ export default class Pix3D extends Pix2D {
                 }
             }
         } else if (yB <= yC) {
-            if (yB >= Pix2D.bottom) {
+            if (yB >= Pix2D.clipMaxY) {
                 return;
             }
 
-            if (yC > Pix2D.bottom) {
-                yC = Pix2D.bottom;
+            if (yC > Pix2D.clipMaxY) {
+                yC = Pix2D.clipMaxY;
             }
 
-            if (yA > Pix2D.bottom) {
-                yA = Pix2D.bottom;
+            if (yA > Pix2D.clipMaxY) {
+                yA = Pix2D.clipMaxY;
             }
 
             if (yC < yA) {
@@ -1391,16 +1387,16 @@ export default class Pix3D extends Pix2D {
                 }
             }
         } else {
-            if (yC >= Pix2D.bottom) {
+            if (yC >= Pix2D.clipMaxY) {
                 return;
             }
 
-            if (yA > Pix2D.bottom) {
-                yA = Pix2D.bottom;
+            if (yA > Pix2D.clipMaxY) {
+                yA = Pix2D.clipMaxY;
             }
 
-            if (yB > Pix2D.bottom) {
-                yB = Pix2D.bottom;
+            if (yB > Pix2D.clipMaxY) {
+                yB = Pix2D.clipMaxY;
             }
 
             if (yA < yB) {
@@ -1545,15 +1541,14 @@ export default class Pix3D extends Pix2D {
         }
     }
 
-    // jag::oldscape::dash3d::SoftwarePix3D::FlatRaster
     private static flatRaster(
         xA: number, xB: number,
         dst: Int32Array, off: number,
         colour: number
     ): void {
         if (this.hclip) {
-            if (xB > Pix2D.clipX) {
-                xB = Pix2D.clipX;
+            if (xB > Pix2D.sizeX) {
+                xB = Pix2D.sizeX;
             }
 
             if (xA < 0) {
@@ -1621,7 +1616,6 @@ export default class Pix3D extends Pix2D {
         }
     }
 
-    // jag::oldscape::dash3d::SoftwarePix3D::TextureTriangle
     static textureTriangle(
         xA: number, xB: number, xC: number,
         yA: number, yB: number, yC: number,
@@ -1677,16 +1671,16 @@ export default class Pix3D extends Pix2D {
         }
 
         if (yA <= yB && yA <= yC) {
-            if (yA >= Pix2D.bottom) {
+            if (yA >= Pix2D.clipMaxY) {
                 return;
             }
 
-            if (yB > Pix2D.bottom) {
-                yB = Pix2D.bottom;
+            if (yB > Pix2D.clipMaxY) {
+                yB = Pix2D.clipMaxY;
             }
 
-            if (yC > Pix2D.bottom) {
-                yC = Pix2D.bottom;
+            if (yC > Pix2D.clipMaxY) {
+                yC = Pix2D.clipMaxY;
             }
 
             if (yB < yC) {
@@ -1710,7 +1704,7 @@ export default class Pix3D extends Pix2D {
                     yB = 0;
                 }
 
-                const dy: number = yA - this.projectionY;
+                const dy: number = yA - this.originY;
                 u += uStepVertical * dy;
                 v += vStepVertical * dy;
                 w += wStepVertical * dy;
@@ -1828,7 +1822,7 @@ export default class Pix3D extends Pix2D {
                     yC = 0;
                 }
 
-                const dy: number = yA - this.projectionY;
+                const dy: number = yA - this.originY;
                 u += uStepVertical * dy;
                 v += vStepVertical * dy;
                 w += wStepVertical * dy;
@@ -1927,16 +1921,16 @@ export default class Pix3D extends Pix2D {
                 }
             }
         } else if (yB <= yC) {
-            if (yB >= Pix2D.bottom) {
+            if (yB >= Pix2D.clipMaxY) {
                 return;
             }
 
-            if (yC > Pix2D.bottom) {
-                yC = Pix2D.bottom;
+            if (yC > Pix2D.clipMaxY) {
+                yC = Pix2D.clipMaxY;
             }
 
-            if (yA > Pix2D.bottom) {
-                yA = Pix2D.bottom;
+            if (yA > Pix2D.clipMaxY) {
+                yA = Pix2D.clipMaxY;
             }
 
             if (yC < yA) {
@@ -1960,7 +1954,7 @@ export default class Pix3D extends Pix2D {
                     yC = 0;
                 }
 
-                const dy: number = yB - this.projectionY;
+                const dy: number = yB - this.originY;
                 u += uStepVertical * dy;
                 v += vStepVertical * dy;
                 w += wStepVertical * dy;
@@ -2078,7 +2072,7 @@ export default class Pix3D extends Pix2D {
                     yA = 0;
                 }
 
-                const dy: number = yB - this.projectionY;
+                const dy: number = yB - this.originY;
                 u += uStepVertical * dy;
                 v += vStepVertical * dy;
                 w += wStepVertical * dy;
@@ -2173,16 +2167,16 @@ export default class Pix3D extends Pix2D {
                 }
             }
         } else {
-            if (yC >= Pix2D.bottom) {
+            if (yC >= Pix2D.clipMaxY) {
                 return;
             }
 
-            if (yA > Pix2D.bottom) {
-                yA = Pix2D.bottom;
+            if (yA > Pix2D.clipMaxY) {
+                yA = Pix2D.clipMaxY;
             }
 
-            if (yB > Pix2D.bottom) {
-                yB = Pix2D.bottom;
+            if (yB > Pix2D.clipMaxY) {
+                yB = Pix2D.clipMaxY;
             }
 
             if (yA < yB) {
@@ -2206,7 +2200,7 @@ export default class Pix3D extends Pix2D {
                     yA = 0;
                 }
 
-                const dy: number = yC - this.projectionY;
+                const dy: number = yC - this.originY;
                 u += uStepVertical * dy;
                 v += vStepVertical * dy;
                 w += wStepVertical * dy;
@@ -2320,7 +2314,7 @@ export default class Pix3D extends Pix2D {
                     yB = 0;
                 }
 
-                const dy: number = yC - this.projectionY;
+                const dy: number = yC - this.originY;
                 u += uStepVertical * dy;
                 v += vStepVertical * dy;
                 w += wStepVertical * dy;
@@ -2417,7 +2411,6 @@ export default class Pix3D extends Pix2D {
         }
     }
 
-    // jag::oldscape::dash3d::SoftwarePix3D::TextureRaster
     private static textureRaster(
         xA: number, xB: number,
         dst: Int32Array, off: number,
@@ -2440,8 +2433,8 @@ export default class Pix3D extends Pix2D {
         if (this.hclip) {
             shadeStrides = ((shadeB - shadeA) / (xB - xA)) | 0;
 
-            if (xB > Pix2D.clipX) {
-                xB = Pix2D.clipX;
+            if (xB > Pix2D.sizeX) {
+                xB = Pix2D.sizeX;
             }
 
             if (xA < 0) {
@@ -2480,7 +2473,7 @@ export default class Pix3D extends Pix2D {
             nextU = 0;
             nextV = 0;
 
-            dx = xA - this.projectionX;
+            dx = xA - this.originX;
             u = u + (uStride >> 3) * dx;
             v = v + (vStride >> 3) * dx;
             w = w + (wStride >> 3) * dx;
@@ -2696,7 +2689,7 @@ export default class Pix3D extends Pix2D {
             nextU = 0;
             nextV = 0;
 
-            dx = xA - this.projectionX;
+            dx = xA - this.originX;
             u = u + (uStride >> 3) * dx;
             v = v + (vStride >> 3) * dx;
             w = w + (wStride >> 3) * dx;

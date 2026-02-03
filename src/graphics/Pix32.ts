@@ -5,15 +5,14 @@ import Pix8 from '#/graphics/Pix8.js';
 import Jagfile from '#/io/Jagfile.js';
 import Packet from '#/io/Packet.js';
 
-// jag::oldscape::graphics::Pix32
 export default class Pix32 extends Pix2D {
     data: Int32Array;
-    owi: number; // jag::oldscape::graphics::pixloader::m_owi
-    ohi: number; // jag::oldscape::graphics::pixloader::m_ohi
-    xof: number; // jag::oldscape::graphics::pixloader::m_xof
-    yof: number; // jag::oldscape::graphics::pixloader::m_yof
-    wi: number; // jag::oldscape::graphics::pixloader::m_wi
-    hi: number; // jag::oldscape::graphics::pixloader::m_hi
+    wi: number; // width
+    hi: number; // height
+    xof: number; // x offset
+    yof: number; // y offset
+    owi: number; // original width
+    ohi: number; // original height
 
     constructor(width: number, height: number) {
         super();
@@ -24,7 +23,7 @@ export default class Pix32 extends Pix2D {
         this.xof = this.yof = 0;
     }
 
-    static async loadJpeg(archive: Jagfile, name: string): Promise<Pix32> {
+    static async fromJpeg(archive: Jagfile, name: string): Promise<Pix32> {
         const dat: Uint8Array | null = archive.read(name + '.dat');
         if (!dat) {
             throw new Error();
@@ -41,7 +40,7 @@ export default class Pix32 extends Pix2D {
         return image;
     }
 
-    static load(jag: Jagfile, name: string, sprite: number = 0): Pix32 {
+    static depack(jag: Jagfile, name: string, sprite: number = 0): Pix32 {
         const dat: Packet = new Packet(jag.read(name + '.dat'));
         const index: Packet = new Packet(jag.read('index.dat'));
 
@@ -101,7 +100,6 @@ export default class Pix32 extends Pix2D {
         Pix2D.setPixels(this.data, this.wi, this.hi);
     }
 
-    // jag::oldscape::graphics::Pix32::RgbAdjust
     rgbAdjust(r: number, g: number, b: number): void {
         for (let i: number = 0; i < this.data.length; i++) {
             const rgb: number = this.data[i];
@@ -136,7 +134,6 @@ export default class Pix32 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::Pix32::Trim
     trim(): void {
         const pixels = new Int32Array(this.owi * this.ohi);
         for (let y = 0; y < this.hi; y++) {
@@ -152,7 +149,41 @@ export default class Pix32 extends Pix2D {
         this.yof = 0;
     }
 
-    // jag::oldscape::graphics::NXTPix2D::QuickPlotSprite
+    hflip(): void {
+        const pixels: Int32Array = this.data;
+        const width: number = this.wi;
+        const height: number = this.hi;
+
+        for (let y: number = 0; y < height; y++) {
+            const div: number = (width / 2) | 0;
+            for (let x: number = 0; x < div; x++) {
+                const off1: number = x + y * width;
+                const off2: number = width - x - 1 + y * width;
+
+                const tmp: number = pixels[off1];
+                pixels[off1] = pixels[off2];
+                pixels[off2] = tmp;
+            }
+        }
+    }
+
+    vflip(): void {
+        const pixels: Int32Array = this.data;
+        const width: number = this.wi;
+        const height: number = this.hi;
+
+        for (let y: number = 0; y < ((height / 2) | 0); y++) {
+            for (let x: number = 0; x < width; x++) {
+                const off1: number = x + y * width;
+                const off2: number = x + (height - y - 1) * width;
+
+                const tmp: number = pixels[off1];
+                pixels[off1] = pixels[off2];
+                pixels[off2] = tmp;
+            }
+        }
+    }
+
     quickPlotSprite(x: number, y: number): void {
         x |= 0;
         y |= 0;
@@ -169,30 +200,30 @@ export default class Pix32 extends Pix2D {
         let dstStep: number = Pix2D.width - w;
         let srcStep: number = 0;
 
-        if (y < Pix2D.top) {
-            const cutoff: number = Pix2D.top - y;
+        if (y < Pix2D.clipMinY) {
+            const cutoff: number = Pix2D.clipMinY - y;
             h -= cutoff;
-            y = Pix2D.top;
+            y = Pix2D.clipMinY;
             srcOff += cutoff * w;
             dstOff += cutoff * Pix2D.width;
         }
 
-        if (y + h > Pix2D.bottom) {
-            h -= y + h - Pix2D.bottom;
+        if (y + h > Pix2D.clipMaxY) {
+            h -= y + h - Pix2D.clipMaxY;
         }
 
-        if (x < Pix2D.left) {
-            const cutoff: number = Pix2D.left - x;
+        if (x < Pix2D.clipMinX) {
+            const cutoff: number = Pix2D.clipMinX - x;
             w -= cutoff;
-            x = Pix2D.left;
+            x = Pix2D.clipMinX;
             srcOff += cutoff;
             dstOff += cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
         }
 
-        if (x + w > Pix2D.right) {
-            const cutoff: number = x + w - Pix2D.right;
+        if (x + w > Pix2D.clipMaxX) {
+            const cutoff: number = x + w - Pix2D.clipMaxX;
             w -= cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
@@ -203,7 +234,6 @@ export default class Pix32 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::PlotQuick
     private plotQuick(w: number, h: number, src: Int32Array, srcOff: number, srcStep: number, dst: Int32Array, dstOff: number, dstStep: number): void {
         const qw: number = -(w >> 2);
         w = -(w & 0x3);
@@ -225,7 +255,6 @@ export default class Pix32 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::PlotSprite
     plotSprite(x: number, y: number): void {
         x |= 0;
         y |= 0;
@@ -242,30 +271,30 @@ export default class Pix32 extends Pix2D {
         let dstStep: number = Pix2D.width - w;
         let srcStep: number = 0;
 
-        if (y < Pix2D.top) {
-            const cutoff: number = Pix2D.top - y;
+        if (y < Pix2D.clipMinY) {
+            const cutoff: number = Pix2D.clipMinY - y;
             h -= cutoff;
-            y = Pix2D.top;
+            y = Pix2D.clipMinY;
             srcOff += cutoff * w;
             dstOff += cutoff * Pix2D.width;
         }
 
-        if (y + h > Pix2D.bottom) {
-            h -= y + h - Pix2D.bottom;
+        if (y + h > Pix2D.clipMaxY) {
+            h -= y + h - Pix2D.clipMaxY;
         }
 
-        if (x < Pix2D.left) {
-            const cutoff: number = Pix2D.left - x;
+        if (x < Pix2D.clipMinX) {
+            const cutoff: number = Pix2D.clipMinX - x;
             w -= cutoff;
-            x = Pix2D.left;
+            x = Pix2D.clipMinX;
             srcOff += cutoff;
             dstOff += cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
         }
 
-        if (x + w > Pix2D.right) {
-            const cutoff: number = x + w - Pix2D.right;
+        if (x + w > Pix2D.clipMaxX) {
+            const cutoff: number = x + w - Pix2D.clipMaxX;
             w -= cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
@@ -276,7 +305,6 @@ export default class Pix32 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::PlotSprite
     private plot(w: number, h: number, src: Int32Array, srcOff: number, srcStep: number, dst: Int32Array, dstOff: number, dstStep: number): void {
         const qw: number = -(w >> 2);
         w = -(w & 0x3);
@@ -326,8 +354,7 @@ export default class Pix32 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::TransPlotSprite
-    transPlotSprite(alpha: number, x: number, y: number): void {
+    transPlotSprite(x: number, y: number, alpha: number): void {
         x |= 0;
         y |= 0;
 
@@ -341,42 +368,41 @@ export default class Pix32 extends Pix2D {
         let dstOff: number = Pix2D.width - w;
         let srcOff: number = 0;
 
-        if (y < Pix2D.top) {
-            const cutoff: number = Pix2D.top - y;
+        if (y < Pix2D.clipMinY) {
+            const cutoff: number = Pix2D.clipMinY - y;
             h -= cutoff;
-            y = Pix2D.top;
+            y = Pix2D.clipMinY;
             srcStep += cutoff * w;
             dstStep += cutoff * Pix2D.width;
         }
 
-        if (y + h > Pix2D.bottom) {
-            h -= y + h - Pix2D.bottom;
+        if (y + h > Pix2D.clipMaxY) {
+            h -= y + h - Pix2D.clipMaxY;
         }
 
-        if (x < Pix2D.left) {
-            const cutoff: number = Pix2D.left - x;
+        if (x < Pix2D.clipMinX) {
+            const cutoff: number = Pix2D.clipMinX - x;
             w -= cutoff;
-            x = Pix2D.left;
+            x = Pix2D.clipMinX;
             srcStep += cutoff;
             dstStep += cutoff;
             srcOff += cutoff;
             dstOff += cutoff;
         }
 
-        if (x + w > Pix2D.right) {
-            const cutoff: number = x + w - Pix2D.right;
+        if (x + w > Pix2D.clipMaxX) {
+            const cutoff: number = x + w - Pix2D.clipMaxX;
             w -= cutoff;
             srcOff += cutoff;
             dstOff += cutoff;
         }
 
         if (w > 0 && h > 0) {
-            this.tranSprite(w, h, this.data, srcStep, srcOff, Pix2D.pixels, dstStep, dstOff, alpha);
+            this.tranSprite(Pix2D.pixels, this.data, srcStep, dstStep, w, h, dstOff, srcOff, alpha);
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::TranSprite
-    private tranSprite(w: number, h: number, src: Int32Array, srcOff: number, srcStep: number, dst: Int32Array, dstOff: number, dstStep: number, alpha: number): void {
+    private tranSprite(dst: Int32Array, src: Int32Array, srcOff: number, dstOff: number, w: number, h: number, dstStep: number, srcStep: number, alpha: number): void {
         const invAlpha: number = 256 - alpha;
 
         for (let y: number = -h; y < 0; y++) {
@@ -395,45 +421,7 @@ export default class Pix32 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::Pix32::HFlip
-    hflip(): void {
-        const pixels: Int32Array = this.data;
-        const width: number = this.wi;
-        const height: number = this.hi;
-
-        for (let y: number = 0; y < height; y++) {
-            const div: number = (width / 2) | 0;
-            for (let x: number = 0; x < div; x++) {
-                const off1: number = x + y * width;
-                const off2: number = width - x - 1 + y * width;
-
-                const tmp: number = pixels[off1];
-                pixels[off1] = pixels[off2];
-                pixels[off2] = tmp;
-            }
-        }
-    }
-
-    // jag::oldscape::graphics::Pix32::VFlip
-    vflip(): void {
-        const pixels: Int32Array = this.data;
-        const width: number = this.wi;
-        const height: number = this.hi;
-
-        for (let y: number = 0; y < ((height / 2) | 0); y++) {
-            for (let x: number = 0; x < width; x++) {
-                const off1: number = x + y * width;
-                const off2: number = x + (height - y - 1) * width;
-
-                const tmp: number = pixels[off1];
-                pixels[off1] = pixels[off2];
-                pixels[off2] = tmp;
-            }
-        }
-    }
-
-    // jag::oldscape::graphics::NXTPix2D::ScanlineRotatePlotSprite
-    scanlineRotatePlotSprite(x: number, y: number, w: number, h: number, lineStart: Int32Array, lineWidth: Int32Array, anchorX: number, anchorY: number, theta: number, zoom: number): void {
+    scanlineRotatePlotSprite(x: number, y: number, w: number, h: number, anchorX: number, anchorY: number, theta: number, zoom: number, lineStart: Int32Array, lineWidth: Int32Array): void {
         x |= 0;
         y |= 0;
         w |= 0;
@@ -474,8 +462,7 @@ export default class Pix32 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::PixelPerfectRotateScalePlotSprite
-    rotatePlotSprite(y: number, theta: number, zoom: number, anchorX: number, anchorY: number, w: number, h: number, x: number): void {
+    rotatePlotSprite(x: number, y: number, w: number, h: number, anchorX: number, anchorY: number, theta: number, zoom: number): void {
         x |= 0;
         y |= 0;
         w |= 0;
@@ -520,8 +507,7 @@ export default class Pix32 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::ScanlinePlotSprite
-    scanlinePlotSprite(x: number, y: number, mask: Pix8): void {
+    scanlinePlotSprite(mask: Pix8, x: number, y: number): void {
         x |= 0;
         y |= 0;
 
@@ -535,41 +521,41 @@ export default class Pix32 extends Pix2D {
         let dstOff: number = Pix2D.width - w;
         let srcOff: number = 0;
 
-        if (y < Pix2D.top) {
-            const cutoff: number = Pix2D.top - y;
+        if (y < Pix2D.clipMinY) {
+            const cutoff: number = Pix2D.clipMinY - y;
             h -= cutoff;
-            y = Pix2D.top;
+            y = Pix2D.clipMinY;
             srcStep += cutoff * w;
             dstStep += cutoff * Pix2D.width;
         }
 
-        if (y + h > Pix2D.bottom) {
-            h -= y + h - Pix2D.bottom;
+        if (y + h > Pix2D.clipMaxY) {
+            h -= y + h - Pix2D.clipMaxY;
         }
 
-        if (x < Pix2D.left) {
-            const cutoff: number = Pix2D.left - x;
+        if (x < Pix2D.clipMinX) {
+            const cutoff: number = Pix2D.clipMinX - x;
             w -= cutoff;
-            x = Pix2D.left;
+            x = Pix2D.clipMinX;
             srcStep += cutoff;
             dstStep += cutoff;
             srcOff += cutoff;
             dstOff += cutoff;
         }
 
-        if (x + w > Pix2D.right) {
-            const cutoff: number = x + w - Pix2D.right;
+        if (x + w > Pix2D.clipMaxX) {
+            const cutoff: number = x + w - Pix2D.clipMaxX;
             w -= cutoff;
             srcOff += cutoff;
             dstOff += cutoff;
         }
 
         if (w > 0 && h > 0) {
-            this.scanlinePlot(w, h, this.data, srcOff, srcStep, Pix2D.pixels, dstStep, dstOff, mask.data);
+            this.plotScanline(Pix2D.pixels, this.data, srcStep, dstStep, w, h, dstOff, srcOff, mask.data);
         }
     }
 
-    private scanlinePlot(w: number, h: number, src: Int32Array, srcStep: number, srcOff: number, dst: Int32Array, dstOff: number, dstStep: number, mask: Int8Array): void {
+    private plotScanline(dst: Int32Array, src: Int32Array, srcOff: number, dstOff: number, w: number, h: number, dstStep: number, srcStep: number, mask: Int8Array): void {
         const qw: number = -(w >> 2);
         w = -(w & 0x3);
 

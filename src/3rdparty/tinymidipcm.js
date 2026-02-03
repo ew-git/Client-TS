@@ -144,7 +144,7 @@ class TinyMidiPCM {
 // controlling tinymidipcm:
 (async () => {
     const channels = 2;
-    const sampleRate = 44100;
+    const sampleRate = 22050;
     const flushTime = 250;
     const renderInterval = 30;
     const fadeseconds = 2;
@@ -175,7 +175,8 @@ class TinyMidiPCM {
         onRenderEnd: ms => {
             // renderEndSeconds = Math.floor(startTime + Math.floor(ms / 1000));
         },
-        bufferSize: 1024 * 100
+        bufferSize: 1024 * 100,
+        sampleRate
     });
 
     await tinyMidiPCM.init();
@@ -304,15 +305,15 @@ class TinyMidiPCM {
     };
 })();
 
-export function playMidi(data, vol, fade) {
+export function playMidi(data, dB, fade) {
     if (window._tinyMidiPlay) {
-        window._tinyMidiPlay(data, vol / 128, fade);
+        window._tinyMidiPlay(data, Math.pow(10, dB / 20), fade);
     }
 }
 
-export function setMidiVolume(vol) {
+export function setMidiVolume(dB) {
     if (window._tinyMidiVolume) {
-        window._tinyMidiVolume(vol / 128);
+        window._tinyMidiVolume(Math.pow(10, dB / 20));
     }
 }
 

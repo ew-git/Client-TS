@@ -3,16 +3,15 @@ import Pix2D from '#/graphics/Pix2D.js';
 import Jagfile from '#/io/Jagfile.js';
 import Packet from '#/io/Packet.js';
 
-// jag::oldscape::graphics::Pix8
 export default class Pix8 extends Pix2D {
-    owi: number; // jag::oldscape::graphics::pixloader::m_owi
-    ohi: number; // jag::oldscape::graphics::pixloader::m_ohi
-    readonly bpal: Int32Array; // jag::oldscape::graphics::pixloader::m_bpal
-    xof: number; // jag::oldscape::graphics::pixloader::m_xof
-    yof: number; // jag::oldscape::graphics::pixloader::m_yof
-    wi: number; // jag::oldscape::graphics::pixloader::m_wi
-    hi: number; // jag::oldscape::graphics::pixloader::m_hi
     data: Int8Array;
+    readonly bpal: Int32Array; // base palette
+    wi: number; // width
+    hi: number; // height
+    xof: number; // x offset
+    yof: number; // y offset
+    owi: number; // original width
+    ohi: number; // original height
 
     constructor(width: number, height: number, palette: Int32Array) {
         super();
@@ -24,7 +23,7 @@ export default class Pix8 extends Pix2D {
         this.bpal = palette;
     }
 
-    static load(jag: Jagfile, name: string, sprite: number = 0): Pix8 {
+    static depack(jag: Jagfile, name: string, sprite: number = 0): Pix8 {
         const dat: Packet = new Packet(jag.read(name + '.dat'));
         const index: Packet = new Packet(jag.read('index.dat'));
 
@@ -76,7 +75,6 @@ export default class Pix8 extends Pix2D {
         return image;
     }
 
-    // jag::oldscape::graphics::Pix8::HalveSize
     halveSize(): void {
         this.owi |= 0;
         this.ohi |= 0;
@@ -100,7 +98,6 @@ export default class Pix8 extends Pix2D {
         this.yof = 0;
     }
 
-    // jag::oldscape::graphics::Pix32::Trim
     trim(): void {
         if (this.wi === this.owi && this.hi === this.ohi) {
             return;
@@ -121,44 +118,6 @@ export default class Pix8 extends Pix2D {
         this.yof = 0;
     }
 
-    // jag::oldscape::graphics::Pix8::HFlip
-    hflip(): void {
-        const pixels: Int8Array = this.data;
-        const width: number = this.wi;
-        const height: number = this.hi;
-
-        for (let y: number = 0; y < height; y++) {
-            const div: number = (width / 2) | 0;
-            for (let x: number = 0; x < div; x++) {
-                const off1: number = x + y * width;
-                const off2: number = width - x - 1 + y * width;
-
-                const tmp: number = pixels[off1];
-                pixels[off1] = pixels[off2];
-                pixels[off2] = tmp;
-            }
-        }
-    }
-
-    // jag::oldscape::graphics::Pix8::VFlip
-    vflip(): void {
-        const pixels: Int8Array = this.data;
-        const width: number = this.wi;
-        const height: number = this.hi;
-
-        for (let y: number = 0; y < ((height / 2) | 0); y++) {
-            for (let x: number = 0; x < width; x++) {
-                const off1: number = x + y * width;
-                const off2: number = x + (height - y - 1) * width;
-
-                const tmp: number = pixels[off1];
-                pixels[off1] = pixels[off2];
-                pixels[off2] = tmp;
-            }
-        }
-    }
-
-    // jag::oldscape::graphics::Pix8::RgbAdjust
     rgbAdjust(r: number, g: number, b: number): void {
         for (let i: number = 0; i < this.bpal.length; i++) {
             let red: number = (this.bpal[i] >> 16) & 0xff;
@@ -189,7 +148,41 @@ export default class Pix8 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::PlotSprite
+    hflip(): void {
+        const pixels: Int8Array = this.data;
+        const width: number = this.wi;
+        const height: number = this.hi;
+
+        for (let y: number = 0; y < height; y++) {
+            const div: number = (width / 2) | 0;
+            for (let x: number = 0; x < div; x++) {
+                const off1: number = x + y * width;
+                const off2: number = width - x - 1 + y * width;
+
+                const tmp: number = pixels[off1];
+                pixels[off1] = pixels[off2];
+                pixels[off2] = tmp;
+            }
+        }
+    }
+
+    vflip(): void {
+        const pixels: Int8Array = this.data;
+        const width: number = this.wi;
+        const height: number = this.hi;
+
+        for (let y: number = 0; y < ((height / 2) | 0); y++) {
+            for (let x: number = 0; x < width; x++) {
+                const off1: number = x + y * width;
+                const off2: number = x + (height - y - 1) * width;
+
+                const tmp: number = pixels[off1];
+                pixels[off1] = pixels[off2];
+                pixels[off2] = tmp;
+            }
+        }
+    }
+
     plotSprite(x: number, y: number): void {
         x |= 0;
         y |= 0;
@@ -204,30 +197,30 @@ export default class Pix8 extends Pix2D {
         let dstStep: number = Pix2D.width - w;
         let srcStep: number = 0;
 
-        if (y < Pix2D.top) {
-            const cutoff: number = Pix2D.top - y;
+        if (y < Pix2D.clipMinY) {
+            const cutoff: number = Pix2D.clipMinY - y;
             h -= cutoff;
-            y = Pix2D.top;
+            y = Pix2D.clipMinY;
             srcOff += cutoff * w;
             dstOff += cutoff * Pix2D.width;
         }
 
-        if (y + h > Pix2D.bottom) {
-            h -= y + h - Pix2D.bottom;
+        if (y + h > Pix2D.clipMaxY) {
+            h -= y + h - Pix2D.clipMaxY;
         }
 
-        if (x < Pix2D.left) {
-            const cutoff: number = Pix2D.left - x;
+        if (x < Pix2D.clipMinX) {
+            const cutoff: number = Pix2D.clipMinX - x;
             w -= cutoff;
-            x = Pix2D.left;
+            x = Pix2D.clipMinX;
             srcOff += cutoff;
             dstOff += cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
         }
 
-        if (x + w > Pix2D.right) {
-            const cutoff: number = x + w - Pix2D.right;
+        if (x + w > Pix2D.clipMaxX) {
+            const cutoff: number = x + w - Pix2D.clipMaxX;
             w -= cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
@@ -238,7 +231,6 @@ export default class Pix8 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::PlotSprite
     private plot(w: number, h: number, src: Int8Array, srcOff: number, srcStep: number, dst: Int32Array, dstOff: number, dstStep: number): void {
         const qw: number = -(w >> 2);
         w = -(w & 0x3);
@@ -288,9 +280,8 @@ export default class Pix8 extends Pix2D {
         }
     }
 
-    /// mapview applet:
+    // mapview applet:
 
-    // jag::oldscape::graphics::NXTPix2D::ScalePlotSprite
     scalePlotSprite(arg0: number, arg1: number, arg2: number, arg3: number): void {
         try {
             const local2: number = this.wi;
@@ -316,26 +307,26 @@ export default class Pix8 extends Pix2D {
             let local133: number = arg0 + arg1 * Pix2D.width;
             let local137: number = Pix2D.width - arg2;
             let local144: number;
-            if (arg1 < Pix2D.top) {
-                local144 = Pix2D.top - arg1;
+            if (arg1 < Pix2D.clipMinY) {
+                local144 = Pix2D.clipMinY - arg1;
                 arg3 -= local144;
                 arg1 = 0;
                 local133 += local144 * Pix2D.width;
                 local9 += local39 * local144;
             }
-            if (arg1 + arg3 > Pix2D.bottom) {
-                arg3 -= arg1 + arg3 - Pix2D.bottom;
+            if (arg1 + arg3 > Pix2D.clipMaxY) {
+                arg3 -= arg1 + arg3 - Pix2D.clipMaxY;
             }
-            if (arg0 < Pix2D.left) {
-                local144 = Pix2D.left - arg0;
+            if (arg0 < Pix2D.clipMinX) {
+                local144 = Pix2D.clipMinX - arg0;
                 arg2 -= local144;
                 arg0 = 0;
                 local133 += local144;
                 local7 += local33 * local144;
                 local137 += local144;
             }
-            if (arg0 + arg2 > Pix2D.right) {
-                local144 = arg0 + arg2 - Pix2D.right;
+            if (arg0 + arg2 > Pix2D.clipMaxX) {
+                local144 = arg0 + arg2 - Pix2D.clipMaxX;
                 arg2 -= local144;
                 local137 += local144;
             }
@@ -345,7 +336,6 @@ export default class Pix8 extends Pix2D {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::PlotScale
     private plotScale(dst: Int32Array, src: Int8Array, bpal: Int32Array, offW: number, offH: number, dstOff: number, dstStep: number, w: number, h: number, scaleCropWidth: number, scaleCropHeight: number, arg11: number): void {
         try {
             const lastOffW: number = offW;

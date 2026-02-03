@@ -1,4 +1,4 @@
-import DoublyLinkable from '#/datastruct/DoublyLinkable.js';
+import Linkable2 from '#/datastruct/Linkable2.js';
 
 import { Colour } from '#/graphics/Colour.js';
 import Pix2D from '#/graphics/Pix2D.js';
@@ -8,7 +8,7 @@ import Packet from '#/io/Packet.js';
 
 import JavaRandom from '#/util/JavaRandom.js';
 
-export default class PixFont extends DoublyLinkable {
+export default class PixFont extends Linkable2 {
     static readonly CHARSET: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!"£$%^&*()-_=+[{]};:\'@#~,<.>/?\\| ';
     static readonly CHARCODESET: number[] = [];
 
@@ -19,7 +19,7 @@ export default class PixFont extends DoublyLinkable {
     readonly charOffsetY: Int32Array = new Int32Array(94);
     readonly charAdvance: Int32Array = new Int32Array(95);
     readonly drawWidth: Int32Array = new Int32Array(256);
-    private readonly rand: JavaRandom = new JavaRandom(Date.now()); // jag::oldscape::jstring::PixfontGeneric::m_rand
+    private readonly rand: JavaRandom = new JavaRandom(Date.now());
     strikeout: boolean = false;
     height2d: number = 0;
 
@@ -45,7 +45,7 @@ export default class PixFont extends DoublyLinkable {
         }
     }
 
-    static fromArchive(archive: Jagfile, name: string): PixFont {
+    static depack(archive: Jagfile, name: string): PixFont {
         const dat: Packet = new Packet(archive.read(name + '.dat'));
         const idx: Packet = new Packet(archive.read('index.dat'));
 
@@ -122,7 +122,7 @@ export default class PixFont extends DoublyLinkable {
         return font;
     }
 
-    centreString(x: number, y: number, str: string | null, rgb: number): void {
+    centreString(str: string | null, x: number, y: number, rgb: number): void {
         if (!str) {
             return;
         }
@@ -130,14 +130,14 @@ export default class PixFont extends DoublyLinkable {
         x |= 0;
         y |= 0;
 
-        this.drawString(x - ((this.stringWid(str) / 2) | 0), y, str, rgb);
+        this.drawString(str, x - ((this.stringWid(str) / 2) | 0), y, rgb);
     }
 
-    centreStringTag(x: number, y: number, str: string, rgb: number, shadowed: boolean): void {
+    centreStringTag(str: string, x: number, y: number, rgb: number, shadowed: boolean): void {
         x |= 0;
         y |= 0;
 
-        this.drawStringTag(x - ((this.stringWid(str) / 2) | 0), y, str, rgb, shadowed);
+        this.drawStringTag(str, x - ((this.stringWid(str) / 2) | 0), y, rgb, shadowed);
     }
 
     stringWid(str: string | null): number {
@@ -158,7 +158,7 @@ export default class PixFont extends DoublyLinkable {
         return w;
     }
 
-    drawString(x: number, y: number, str: string | null, rgb: number): void {
+    drawString(str: string | null, x: number, y: number, rgb: number): void {
         if (!str) {
             return;
         }
@@ -179,7 +179,7 @@ export default class PixFont extends DoublyLinkable {
         }
     }
 
-    centerStringWave(x: number, y: number, str: string | null, rgb: number, phase: number): void {
+    centerStringWave(str: string | null, x: number, y: number, rgb: number, phase: number): void {
         if (!str) {
             return;
         }
@@ -201,7 +201,7 @@ export default class PixFont extends DoublyLinkable {
         }
     }
 
-    drawStringTag(x: number, y: number, str: string, rgb: number, shadowed: boolean): void {
+    drawStringTag(str: string, x: number, y: number, rgb: number, shadowed: boolean): void {
         x |= 0;
         y |= 0;
 
@@ -212,7 +212,7 @@ export default class PixFont extends DoublyLinkable {
         y -= this.height2d;
         for (let i: number = 0; i < length; i++) {
             if (str.charAt(i) === '@' && i + 4 < length && str.charAt(i + 4) === '@') {
-                const tag = this.evaluateTag(str.substring(i + 1, i + 4));
+                const tag = this.updateState(str.substring(i + 1, i + 4));
                 if (tag !== -1) {
                     rgb = tag;
                 }
@@ -232,11 +232,11 @@ export default class PixFont extends DoublyLinkable {
         }
 
         if (this.strikeout) {
-            Pix2D.hline(startX, y + ((this.height2d * 0.7) | 0), Colour.DARKRED, x - startX);
+            Pix2D.hline(startX, y + ((this.height2d * 0.7) | 0), x - startX, Colour.DARKRED);
         }
     }
 
-    drawStringAntiMacro(x: number, y: number, str: string, rgb: number, shadowed: boolean, seed: number): void {
+    drawStringAntiMacro(str: string, x: number, y: number, rgb: number, shadowed: boolean, seed: number): void {
         x |= 0;
         y |= 0;
 
@@ -246,7 +246,7 @@ export default class PixFont extends DoublyLinkable {
         const offY: number = y - this.height2d;
         for (let i: number = 0; i < str.length; i++) {
             if (str.charAt(i) === '@' && i + 4 < str.length && str.charAt(i + 4) === '@') {
-                const tag = this.evaluateTag(str.substring(i + 1, i + 4));
+                const tag = this.updateState(str.substring(i + 1, i + 4));
                 if (tag !== -1) {
                     rgb = tag;
                 }
@@ -255,10 +255,10 @@ export default class PixFont extends DoublyLinkable {
                 const c: number = PixFont.CHARCODESET[str.charCodeAt(i)];
                 if (c !== 94) {
                     if (shadowed) {
-                        this.plotLetterTrans(x + this.charOffsetX[c] + 1, offY + this.charOffsetY[c] + 1, this.charMaskWidth[c], this.charMaskHeight[c], Colour.BLACK, 192, this.charMask[c]);
+                        this.plotLetterTrans(this.charMask[c], x + this.charOffsetX[c] + 1, offY + this.charOffsetY[c] + 1, this.charMaskWidth[c], this.charMaskHeight[c], Colour.BLACK, 192);
                     }
 
-                    this.plotLetterTrans(x + this.charOffsetX[c], offY + this.charOffsetY[c], this.charMaskWidth[c], this.charMaskHeight[c], rgb, rand, this.charMask[c]);
+                    this.plotLetterTrans(this.charMask[c], x + this.charOffsetX[c], offY + this.charOffsetY[c], this.charMaskWidth[c], this.charMaskHeight[c], rgb, rand);
                 }
 
                 x += this.charAdvance[c];
@@ -269,7 +269,7 @@ export default class PixFont extends DoublyLinkable {
         }
     }
 
-    evaluateTag(tag: string): number {
+    updateState(tag: string): number {
         if (tag === 'red') {
             return Colour.RED;
         } else if (tag === 'gre') {
@@ -313,17 +313,16 @@ export default class PixFont extends DoublyLinkable {
         }
     }
 
-    drawStringRight(x: number, y: number, str: string, rgb: number, shadowed: boolean = true): void {
+    drawStringRight(str: string, x: number, y: number, rgb: number, shadowed: boolean = true): void {
         x |= 0;
         y |= 0;
 
         if (shadowed) {
-            this.drawString(x - this.stringWid(str) + 1, y + 1, str, Colour.BLACK);
+            this.drawString(str, x - this.stringWid(str) + 1, y + 1, Colour.BLACK);
         }
-        this.drawString(x - this.stringWid(str), y, str, rgb);
+        this.drawString(str, x - this.stringWid(str), y, rgb);
     }
 
-    // jag::oldscape::jstring::PixfontGeneric::PlotLetter
     plotLetter(data: Int8Array, x: number, y: number, w: number, h: number, rgb: number): void {
         x |= 0;
         y |= 0;
@@ -336,41 +335,41 @@ export default class PixFont extends DoublyLinkable {
         let srcStep: number = 0;
         let srcOff: number = 0;
 
-        if (y < Pix2D.top) {
-            const cutoff: number = Pix2D.top - y;
+        if (y < Pix2D.clipMinY) {
+            const cutoff: number = Pix2D.clipMinY - y;
             h -= cutoff;
-            y = Pix2D.top;
+            y = Pix2D.clipMinY;
             srcOff += cutoff * w;
             dstOff += cutoff * Pix2D.width;
         }
 
-        if (y + h >= Pix2D.bottom) {
-            h -= y + h + 1 - Pix2D.bottom;
+        if (y + h >= Pix2D.clipMaxY) {
+            h -= y + h + 1 - Pix2D.clipMaxY;
         }
 
-        if (x < Pix2D.left) {
-            const cutoff: number = Pix2D.left - x;
+        if (x < Pix2D.clipMinX) {
+            const cutoff: number = Pix2D.clipMinX - x;
             w -= cutoff;
-            x = Pix2D.left;
+            x = Pix2D.clipMinX;
             srcOff += cutoff;
             dstOff += cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
         }
 
-        if (x + w >= Pix2D.right) {
-            const cutoff: number = x + w + 1 - Pix2D.right;
+        if (x + w >= Pix2D.clipMaxX) {
+            const cutoff: number = x + w + 1 - Pix2D.clipMaxX;
             w -= cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
         }
 
         if (w > 0 && h > 0) {
-            this.plot(w, h, data, srcOff, srcStep, Pix2D.pixels, dstOff, dstStep, rgb);
+            this.plot(Pix2D.pixels, data, rgb, srcOff, dstOff, w, h, dstStep, srcStep);
         }
     }
 
-    private plot(w: number, h: number, src: Int8Array, srcOff: number, srcStep: number, dst: Int32Array, dstOff: number, dstStep: number, rgb: number): void {
+    private plot(dst: Int32Array, src: Int8Array, rgb: number, srcOff: number, dstOff: number, w: number, h: number, dstStep: number, srcStep: number): void {
         w |= 0;
         h |= 0;
 
@@ -417,7 +416,7 @@ export default class PixFont extends DoublyLinkable {
         }
     }
 
-    plotLetterTrans(x: number, y: number, w: number, h: number, rgb: number, alpha: number, mask: Int8Array): void {
+    plotLetterTrans(data: Int8Array, x: number, y: number, w: number, h: number, rgb: number, alpha: number): void {
         x |= 0;
         y |= 0;
         w |= 0;
@@ -429,41 +428,41 @@ export default class PixFont extends DoublyLinkable {
         let srcStep: number = 0;
         let srcOff: number = 0;
 
-        if (y < Pix2D.top) {
-            const cutoff: number = Pix2D.top - y;
+        if (y < Pix2D.clipMinY) {
+            const cutoff: number = Pix2D.clipMinY - y;
             h -= cutoff;
-            y = Pix2D.top;
+            y = Pix2D.clipMinY;
             srcOff += cutoff * w;
             dstOff += cutoff * Pix2D.width;
         }
 
-        if (y + h >= Pix2D.bottom) {
-            h -= y + h + 1 - Pix2D.bottom;
+        if (y + h >= Pix2D.clipMaxY) {
+            h -= y + h + 1 - Pix2D.clipMaxY;
         }
 
-        if (x < Pix2D.left) {
-            const cutoff: number = Pix2D.left - x;
+        if (x < Pix2D.clipMinX) {
+            const cutoff: number = Pix2D.clipMinX - x;
             w -= cutoff;
-            x = Pix2D.left;
+            x = Pix2D.clipMinX;
             srcOff += cutoff;
             dstOff += cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
         }
 
-        if (x + w >= Pix2D.right) {
-            const cutoff: number = x + w + 1 - Pix2D.right;
+        if (x + w >= Pix2D.clipMaxX) {
+            const cutoff: number = x + w + 1 - Pix2D.clipMaxX;
             w -= cutoff;
             srcStep += cutoff;
             dstStep += cutoff;
         }
 
         if (w > 0 && h > 0) {
-            this.plotTrans(w, h, Pix2D.pixels, dstOff, dstStep, mask, srcOff, srcStep, rgb, alpha);
+            this.plotTrans(Pix2D.pixels, data, rgb, srcOff, dstOff, w, h, dstStep, srcStep, alpha);
         }
     }
 
-    private plotTrans(w: number, h: number, dst: Int32Array, dstOff: number, dstStep: number, mask: Int8Array, maskOff: number, maskStep: number, rgb: number, alpha: number): void {
+    private plotTrans(dst: Int32Array, src: Int8Array, rgb: number, srcOff: number, dstOff: number, w: number, h: number, dstStep: number, srcStep: number, alpha: number): void {
         w |= 0;
         h |= 0;
 
@@ -472,7 +471,7 @@ export default class PixFont extends DoublyLinkable {
 
         for (let y: number = -h; y < 0; y++) {
             for (let x: number = -w; x < 0; x++) {
-                if (mask[maskOff++] === 0) {
+                if (src[srcOff++] === 0) {
                     dstOff++;
                 } else {
                     const dstRgb: number = dst[dstOff];
@@ -481,7 +480,7 @@ export default class PixFont extends DoublyLinkable {
             }
 
             dstOff += dstStep;
-            maskOff += maskStep;
+            srcOff += srcStep;
         }
     }
 }

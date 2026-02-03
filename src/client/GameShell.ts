@@ -9,14 +9,14 @@ import { sleep } from '#/util/JsUtil.js';
 
 export default abstract class GameShell {
     protected state: number = 0;
-    protected deltime: number = 20; // jag::oldscape::javapal::GameShell::m_delTime
-    protected mindel: number = 1; // jag::oldscape::javapal::GameShell::m_minDel
+    protected deltime: number = 20;
+    protected mindel: number = 1;
     protected otim: number[] = new Array(10);
-    protected fps: number = 0; // jag::oldscape::javapal::GameShell::m_fps
+    protected fps: number = 0;
     protected debug: boolean = false;
     protected drawArea: PixMap | null = null;
     protected redrawScreen: boolean = true;
-    protected focus: boolean = true; // jag::oldscape::javapal::GameShell::m_focus
+    protected focus: boolean = true;
 
     public idleTimer: number = performance.now();
     public mouseButton: number = 0;
@@ -31,7 +31,7 @@ export default abstract class GameShell {
     protected nextMouseClickTime: number = 0;
     public mouseClickTime: number = 0;
 
-    public keyHeld: number[] = []; // jag::oldscape::ClientInputHandler::KeyHeld
+    public keyHeld: number[] = [];
     protected keyQueue: number[] = [];
     protected keyQueueReadPos: number = 0;
     protected keyQueueWritePos: number = 0;
@@ -58,12 +58,10 @@ export default abstract class GameShell {
         }
     }
 
-    // jag::oldscape::javapal::GameShell::m_sWid
     protected get sWid(): number {
         return canvas.width;
     }
 
-    // jag::oldscape::javapal::GameShell::m_sHei
     protected get sHei(): number {
         return canvas.height;
     }
@@ -72,7 +70,7 @@ export default abstract class GameShell {
         canvas.width = width;
         canvas.height = height;
         this.drawArea = new PixMap(width, height);
-        Pix3D.init();
+        Pix3D.setRenderClipping();
     }
 
     async run() {
@@ -99,6 +97,8 @@ export default abstract class GameShell {
         canvas.onpointerenter = this.onpointerenter.bind(this);
         canvas.onpointerleave = this.onpointerleave.bind(this);
         canvas.onpointermove = this.onpointermove.bind(this);
+        window.onmouseup = this.windowMouseUp.bind(this);
+        window.onmousemove = this.windowMouseMove.bind(this);
 
         if (this.isTouchDevice) {
             if (this.hasTouchEvents) {
@@ -120,7 +120,7 @@ export default abstract class GameShell {
             e.preventDefault();
         };
 
-        await this.drawProgress(0, 'Loading...');
+        await this.messageBox('Loading...', 0);
         await this.maininit();
 
         let ntime: number = 0;
@@ -253,7 +253,7 @@ export default abstract class GameShell {
         }
     }
 
-    protected async drawProgress(progress: number, message: string): Promise<void> {
+    protected async messageBox(message: string, progress: number): Promise<void> {
         const width: number = this.sWid;
         const height: number = this.sHei;
 
@@ -293,10 +293,10 @@ export default abstract class GameShell {
 
         const { x, y } = this.getMousePos(e);
 
-        this.mouseDownInner(x, y, e);
+        this.mouseDown(x, y, e);
     }
 
-    protected mouseDownInner(x: number, y: number, e: MouseEvent) {
+    protected mouseDown(x: number, y: number, e: MouseEvent) {
         this.idleTimer = performance.now();
         this.nextMouseClickX = x;
         this.nextMouseClickY = y;
@@ -326,19 +326,19 @@ export default abstract class GameShell {
 
         const { x, y } = this.getMousePos(e);
 
-        this.pointerDownInner(x, y, e);
+        this.pointerDown(x, y, e);
     }
 
-    protected pointerDownInner(_x: number, _y: number, _e: PointerEvent) {
+    protected pointerDown(_x: number, _y: number, _e: PointerEvent) {
     }
 
     private onmouseup(e: MouseEvent) {
         const { x, y } = this.getMousePos(e);
 
-        this.mouseUpInner(x, y, e);
+        this.mouseUp(x, y, e);
     }
 
-    protected mouseUpInner(x: number, y: number, e: MouseEvent) {
+    protected mouseUp(x: number, y: number, e: MouseEvent) {
         this.idleTimer = performance.now();
         this.mouseButton = 0;
 
@@ -354,10 +354,10 @@ export default abstract class GameShell {
     private onpointerup(e: PointerEvent) {
         const { x, y } = this.getMousePos(e);
 
-        this.pointerUpInner(x, y, e);
+        this.pointerUp(x, y, e);
     }
 
-    protected pointerUpInner(_x: number, _y: number, _e: PointerEvent) {
+    protected pointerUp(_x: number, _y: number, _e: PointerEvent) {
     }
 
     private onpointerenter(e: PointerEvent) {
@@ -367,10 +367,10 @@ export default abstract class GameShell {
 
         const { x, y } = this.getMousePos(e);
 
-        this.pointerEnterInner(x, y, e);
+        this.pointerEnter(x, y, e);
     }
 
-    protected pointerEnterInner(x: number, y: number, _e: PointerEvent) {
+    protected pointerEnter(x: number, y: number, _e: PointerEvent) {
         this.mouseX = x;
         this.mouseY = y;
 
@@ -380,10 +380,10 @@ export default abstract class GameShell {
     }
 
     private onpointerleave(e: PointerEvent) {
-        this.pointerLeaveInner(e);
+        this.pointerLeave(e);
     }
 
-    protected pointerLeaveInner(_e: PointerEvent) {
+    protected pointerLeave(_e: PointerEvent) {
         this.idleTimer = performance.now();
         this.mouseX = -1;
         this.mouseY = -1;
@@ -406,10 +406,10 @@ export default abstract class GameShell {
 
         const { x, y } = this.getMousePos(e);
 
-        this.pointerMoveInner(x, y, e);
+        this.pointerMove(x, y, e);
     }
 
-    protected pointerMoveInner(x: number, y: number, e: PointerEvent) {
+    protected pointerMove(x: number, y: number, e: PointerEvent) {
         this.idleTimer = performance.now();
         this.mouseX = x;
         this.mouseY = y;
@@ -419,11 +419,17 @@ export default abstract class GameShell {
         }
     }
 
-    private ontouchstart(e: TouchEvent) {
-        this.touchStartInner(e);
+    protected windowMouseUp(e: MouseEvent) {
     }
 
-    protected touchStartInner(e: TouchEvent) {
+    protected windowMouseMove(e: MouseEvent) {
+    }
+
+    private ontouchstart(e: TouchEvent) {
+        this.touchStart(e);
+    }
+
+    protected touchStart(e: TouchEvent) {
         if (e.touches.length < 2) {
             // 1 touch - prevent natural browser behavior
             // 2+ touches - allow scrolling/zooming
@@ -543,10 +549,11 @@ export default abstract class GameShell {
     }
 
     private get isTouchDevice() {
-        return (this.hasTouchEvents ||
-            (navigator.maxTouchPoints > 0) ||
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ((navigator as any).msMaxTouchPoints > 0));
+        return (
+            this.hasTouchEvents ||
+            navigator.maxTouchPoints > 0 ||
+            (navigator as any).msMaxTouchPoints > 0
+        );
     }
 
     protected get isMobile(): boolean {
@@ -561,7 +568,7 @@ export default abstract class GameShell {
         return document.fullscreenElement !== null;
     }
 
-    private getMousePos(e: MouseEvent): { x: number, y: number } {
+    private getMousePos(e: MouseEvent): { x: number; y: number } {
         const fixedWidth: number = this.sWid;
         const fixedHeight: number = this.sHei;
 

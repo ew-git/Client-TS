@@ -1,22 +1,20 @@
-import DoublyLinkable from '#/datastruct/DoublyLinkable.js';
+import Linkable2 from '#/datastruct/Linkable2.js';
 
-// jag::oldscape::graphics::Pix2D
-export default class Pix2D extends DoublyLinkable {
+export default class Pix2D extends Linkable2 {
     static pixels: Int32Array = new Int32Array();
 
     static width: number = 0;
     static height: number = 0;
 
-    static top: number = 0;
-    static bottom: number = 0;
-    static left: number = 0;
-    static right: number = 0;
-    static clipX: number = 0;
+    static clipMinX: number = 0;
+    static clipMaxX: number = 0;
+    static clipMinY: number = 0;
+    static clipMaxY: number = 0;
 
-    static centreX: number = 0;
-    static centreY: number = 0;
+    static sizeX: number = 0;
+    static maxX: number = 0;
+    static maxY: number = 0;
 
-    // jag::oldscape::graphics::Pix2D::SetPixels
     static setPixels(pixels: Int32Array, width: number, height: number): void {
         this.pixels = pixels;
         this.width = width;
@@ -24,44 +22,42 @@ export default class Pix2D extends DoublyLinkable {
         this.setClipping(0, 0, width, height);
     }
 
-    // jag::oldscape::graphics::Pix2D::ResetClipping
     static resetClipping(): void {
-        this.left = 0;
-        this.top = 0;
-        this.right = this.width;
-        this.bottom = this.height;
-        this.clipX = this.right - 1;
-        this.centreX = (this.right / 2) | 0;
+        this.clipMinX = 0;
+        this.clipMinY = 0;
+        this.clipMaxX = this.width;
+        this.clipMaxY = this.height;
+        this.sizeX = this.clipMaxX - 1;
+        this.maxX = (this.clipMaxX / 2) | 0;
     }
 
-    // jag::oldscape::graphics::Pix2D::SetClipping
-    static setClipping(left: number, top: number, right: number, bottom: number): void {
-        if (left < 0) {
-            left = 0;
+    static setClipping(x1: number, y1: number, x2: number, y2: number): void {
+        if (x1 < 0) {
+            x1 = 0;
         }
 
-        if (top < 0) {
-            top = 0;
+        if (y1 < 0) {
+            y1 = 0;
         }
 
-        if (right > this.width) {
-            right = this.width;
+        if (x2 > this.width) {
+            x2 = this.width;
         }
 
-        if (bottom > this.height) {
-            bottom = this.height;
+        if (y2 > this.height) {
+            y2 = this.height;
         }
 
-        this.top = top;
-        this.bottom = bottom;
-        this.left = left;
-        this.right = right;
-        this.clipX = this.right - 1;
-        this.centreX = (this.right / 2) | 0;
-        this.centreY = (this.bottom / 2) | 0;
+        this.clipMinY = y1;
+        this.clipMaxY = y2;
+        this.clipMinX = x1;
+        this.clipMaxX = x2;
+
+        this.sizeX = this.clipMaxX - 1;
+        this.maxX = (this.clipMaxX / 2) | 0;
+        this.maxY = (this.clipMaxY / 2) | 0;
     }
 
-    // jag::oldscape::graphics::NXTPix2D::Cls
     static cls(): void {
         const len: number = this.width * this.height;
         for (let i: number = 0; i < len; i++) {
@@ -69,24 +65,23 @@ export default class Pix2D extends DoublyLinkable {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::FillRectTrans
     static fillRectTrans(x: number, y: number, width: number, height: number, rgb: number, alpha: number): void {
-        if (x < this.left) {
-            width -= this.left - x;
-            x = this.left;
+        if (x < this.clipMinX) {
+            width -= this.clipMinX - x;
+            x = this.clipMinX;
         }
 
-        if (y < this.top) {
-            height -= this.top - y;
-            y = this.top;
+        if (y < this.clipMinY) {
+            height -= this.clipMinY - y;
+            y = this.clipMinY;
         }
 
-        if (x + width > this.right) {
-            width = this.right - x;
+        if (x + width > this.clipMaxX) {
+            width = this.clipMaxX - x;
         }
 
-        if (y + height > this.bottom) {
-            height = this.bottom - y;
+        if (y + height > this.clipMaxY) {
+            height = this.clipMaxY - y;
         }
 
         const invAlpha: number = 256 - alpha;
@@ -107,24 +102,23 @@ export default class Pix2D extends DoublyLinkable {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::FillRect
     static fillRect(x: number, y: number, width: number, height: number, rgb: number): void {
-        if (x < this.left) {
-            width -= this.left - x;
-            x = this.left;
+        if (x < this.clipMinX) {
+            width -= this.clipMinX - x;
+            x = this.clipMinX;
         }
 
-        if (y < this.top) {
-            height -= this.top - y;
-            y = this.top;
+        if (y < this.clipMinY) {
+            height -= this.clipMinY - y;
+            y = this.clipMinY;
         }
 
-        if (x + width > this.right) {
-            width = this.right - x;
+        if (x + width > this.clipMaxX) {
+            width = this.clipMaxX - x;
         }
 
-        if (y + height > this.bottom) {
-            height = this.bottom - y;
+        if (y + height > this.clipMaxY) {
+            height = this.clipMaxY - y;
         }
 
         const step: number = this.width - width;
@@ -138,37 +132,34 @@ export default class Pix2D extends DoublyLinkable {
         }
     }
 
-    // jag::oldscape::graphics::Pix2D::DrawRect
     static drawRect(x: number, y: number, w: number, h: number, rgb: number): void {
-        this.hline(x, y, rgb, w);
-        this.hline(x, y + h - 1, rgb, w);
-        this.vline(x, y, rgb, h);
-        this.vline(x + w - 1, y, rgb, h);
+        this.hline(x, y, w, rgb);
+        this.hline(x, y + h - 1, w, rgb);
+        this.vline(x, y, h, rgb);
+        this.vline(x + w - 1, y, h, rgb);
     }
 
-    // jag::oldscape::graphics::Pix2D::DrawRectTrans
     static drawRectTrans(x: number, y: number, w: number, h: number, rgb: number, alpha: number): void {
-        this.hlineTrans(x, y, rgb, w, alpha);
-        this.hlineTrans(x, y + h - 1, rgb, w, alpha);
+        this.hlineTrans(x, y, w, rgb, alpha);
+        this.hlineTrans(x, y + h - 1, w, rgb, alpha);
         if (h >= 3) {
-            this.vlineTrans(x, y, rgb, h, alpha);
-            this.vlineTrans(x + w - 1, y, rgb, h, alpha);
+            this.vlineTrans(x, y, h, rgb, alpha);
+            this.vlineTrans(x + w - 1, y, h, rgb, alpha);
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::HLine
-    static hline(x: number, y: number, rgb: number, width: number): void {
-        if (y < this.top || y >= this.bottom) {
+    static hline(x: number, y: number, width: number, rgb: number): void {
+        if (y < this.clipMinY || y >= this.clipMaxY) {
             return;
         }
 
-        if (x < this.left) {
-            width -= this.left - x;
-            x = this.left;
+        if (x < this.clipMinX) {
+            width -= this.clipMinX - x;
+            x = this.clipMinX;
         }
 
-        if (x + width > this.right) {
-            width = this.right - x;
+        if (x + width > this.clipMaxX) {
+            width = this.clipMaxX - x;
         }
 
         const off: number = x + y * this.width;
@@ -177,19 +168,18 @@ export default class Pix2D extends DoublyLinkable {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::HLineTrans
-    static hlineTrans(x: number, y: number, rgb: number, width: number, alpha: number): void {
-        if (y < this.top || y >= this.bottom) {
+    static hlineTrans(x: number, y: number, width: number, rgb: number, alpha: number): void {
+        if (y < this.clipMinY || y >= this.clipMaxY) {
             return;
         }
 
-        if (x < this.left) {
-            width -= this.left - x;
-            x = this.left;
+        if (x < this.clipMinX) {
+            width -= this.clipMinX - x;
+            x = this.clipMinX;
         }
 
-        if (x + width > this.right) {
-            width = this.right - x;
+        if (x + width > this.clipMaxX) {
+            width = this.clipMaxX - x;
         }
 
         const invAlpha: number = 256 - alpha;
@@ -205,21 +195,20 @@ export default class Pix2D extends DoublyLinkable {
             const mixed: number = (((r0 + r1) >> 8) << 16) + (((g0 + g1) >> 8) << 8) + ((b0 + b1) >> 8);
             this.pixels[offset++] = mixed;
         }
-    };
+    }
 
-    // jag::oldscape::graphics::NXTPix2D::VLine
-    static vline(x: number, y: number, rgb: number, height: number): void {
-        if (x < this.left || x >= this.right) {
+    static vline(x: number, y: number, height: number, rgb: number): void {
+        if (x < this.clipMinX || x >= this.clipMaxX) {
             return;
         }
 
-        if (y < this.top) {
-            height -= this.top - y;
-            y = this.top;
+        if (y < this.clipMinY) {
+            height -= this.clipMinY - y;
+            y = this.clipMinY;
         }
 
-        if (y + height > this.bottom) {
-            height = this.bottom - y;
+        if (y + height > this.clipMaxY) {
+            height = this.clipMaxY - y;
         }
 
         const off: number = x + y * this.width;
@@ -228,19 +217,18 @@ export default class Pix2D extends DoublyLinkable {
         }
     }
 
-    // jag::oldscape::graphics::NXTPix2D::VLineTrans
-    static vlineTrans(x: number, y: number, rgb: number, height: number, alpha: number): void {
-        if (x < this.left || x >= this.right) {
+    static vlineTrans(x: number, y: number, height: number, rgb: number, alpha: number): void {
+        if (x < this.clipMinX || x >= this.clipMaxX) {
             return;
         }
 
-        if (y < this.top) {
-            height -= this.top - y;
-            y = this.top;
+        if (y < this.clipMinY) {
+            height -= this.clipMinY - y;
+            y = this.clipMinY;
         }
 
-        if (y + height > this.bottom) {
-            height = this.bottom - y;
+        if (y + height > this.clipMaxY) {
+            height = this.clipMaxY - y;
         }
 
         const invAlpha: number = 256 - alpha;
@@ -256,9 +244,10 @@ export default class Pix2D extends DoublyLinkable {
             this.pixels[offset] = mixed;
             offset += this.width;
         }
-    };
+    }
 
-    // jag::oldscape::graphics::NXTPix2D::FillCircle
+    // mapview applet:
+
     static fillCircle(xCenter: number, yCenter: number, yRadius: number, rgb: number, alpha: number): void {
         const invAlpha: number = 256 - alpha;
         const r0: number = ((rgb >> 16) & 0xff) * alpha;
