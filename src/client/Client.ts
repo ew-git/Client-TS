@@ -16412,7 +16412,7 @@ export class Client extends GameShell {
         return items.filter(item => foundIds.has(item));
     }
 
-    async pickupNearestIdNoMouse(targetid: number, maxDist = 100) {
+    async pickupNearestIdNoMouse(targetid: number, maxDist = 50) {
         if (this.localPlayer == null) {
             return false;
         }
@@ -16479,7 +16479,7 @@ export class Client extends GameShell {
         return true;
     }
 
-    async pickupNearestIdValidated(targetid: number, waitseconds: number = 20, maxDist = 100) {
+    async pickupNearestIdValidated(targetid: number, waitseconds: number = 20, maxDist = 50) {
         // Check we have at least one free inventory space
         if (this.invFull()) {return false;}
         // Count current number of objects in inventory (what if stackable?), save in variable
@@ -17851,14 +17851,14 @@ export class Client extends GameShell {
                     continue; // Restart the outer while loop.
                 }
                 // Try to pick up any items on the ground.
-                let items = this.filterGroundItemsIds(pickupItems);
+                let items = this.filterGroundItemsIdsNearby(pickupItems, 10);
                 while (items.length > 0) {
                     const item = items.shift();
                     if (item != null) {
                         if ([1247, 2366, 1249].includes(item)) {
                             megaRaresFound++;
                         }
-                        await this.pickupNearestIdValidated(item);
+                        await this.pickupNearestIdValidated(item, 20, 20);
                         if (this.countInvById(bonesId) > 0) {
                             await this.buryBones([bonesId]);
                             killCount++;
@@ -17869,7 +17869,7 @@ export class Client extends GameShell {
                     if (this.invFull()) {
                         break;
                     }
-                    items = this.filterGroundItemsIds(pickupItems);
+                    items = this.filterGroundItemsIdsNearby(pickupItems, 10);
                 }
                 if (this.invFull()) {
                     // Handle full inventory, maybe bank.
