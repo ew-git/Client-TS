@@ -17752,8 +17752,8 @@ export class Client extends GameShell {
     async onF1Pressed_killShadowWarriors() {
         this.addChat(0, 'Beginning onF1Pressed_killShadowWarriors', '');
         this.stopLoop = false;
-        this.reportXPOnInterval(PlayerStat.STRENGTH, 60_000, 'STRENGTH');
-        this.setAttackStrength();
+        this.reportXPOnInterval(PlayerStat.ATTACK, 60_000, 'ATTACK');
+        // this.setAttackStrength();
         let killCount = 0; // based on bones buried
         let megaRaresFound = 0; // check 1247, 2366, 1249 when picking up items
         let minHP = 70;
@@ -17789,7 +17789,7 @@ export class Client extends GameShell {
                 console.log('Just got back to the bank. Checking logout login');
                 await this.logoutThenLoginThrottled(60); // do it every hour
                 await sleep(700);
-                this.setAttackStrength();
+                // this.setAttackStrength();
                 await sleep(700);
                 await this.depositAllExceptNPC([0]);
                 await sleep(600);
