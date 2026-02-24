@@ -16151,6 +16151,33 @@ export class Client extends GameShell {
         this.targetMode = 0;
         this.redrawSidebar = true;
     }
+    setAttackDefence(weaponType = 'dragon_mace') {
+        //  Using menu item 1 with action=225, a=2485, b=0, c=3805
+        let action = MenuAction.IF_BUTTON_SELECT; // 225
+        let a = 995; // not used?
+        let b = 0; // not used?
+        let c = 3803;
+        if (weaponType == 'dragon_mace') {
+            c = 3803;
+        } else {
+            console.error(`Trying to set strength with unknown weaponType ${weaponType}`);
+        }
+        this.out.pIsaac(ClientProt.IF_BUTTON);
+        this.out.p2(c);
+
+        const com: IfType = IfType.list[c];
+        if (com.scripts && com.scripts[0] && com.scripts[0][0] === 5) {
+            const varp: number = com.scripts[0][1];
+            if (com.scriptOperand && this.var[varp] !== com.scriptOperand[0]) {
+                this.var[varp] = com.scriptOperand[0];
+                this.clientVar(varp);
+                this.redrawSidebar = true;
+            }
+        }
+        this.useMode = 0;
+        this.targetMode = 0;
+        this.redrawSidebar = true;
+    }
 
     useSpec(weaponType = 'magic_shortbow') {
         // Using menu item 1 with action=231, a=361, b=0, c=7537
@@ -17752,12 +17779,12 @@ export class Client extends GameShell {
     async onF1Pressed_killShadowWarriors() {
         this.addChat(0, 'Beginning onF1Pressed_killShadowWarriors', '');
         this.stopLoop = false;
-        this.reportXPOnInterval(PlayerStat.ATTACK, 60_000, 'ATTACK');
-        // this.setAttackStrength();
+        this.reportXPOnInterval(PlayerStat.DEFENCE, 60_000, 'DEFENCE');
+        this.setAttackDefence();
         let killCount = 0; // based on bones buried
         let megaRaresFound = 0; // check 1247, 2366, 1249 when picking up items
         let minHP = 70;
-        let foodId = 361; // Tuna == 361
+        let foodId = this.itemIds['swordfish']; // Tuna == 361
         let bonesId = 526; // Bones == 526
         let state = 'banking';
         let warriorAreaBounds = [2691, 2708, 9761, 9784]; // W, E, S, N
@@ -17789,14 +17816,14 @@ export class Client extends GameShell {
                 console.log('Just got back to the bank. Checking logout login');
                 await this.logoutThenLoginThrottled(60); // do it every hour
                 await sleep(700);
-                // this.setAttackStrength();
+                this.setAttackDefence();
                 await sleep(700);
                 await this.depositAllExceptNPC([0]);
                 await sleep(600);
                 if (this.checkBankOpen()) {
                     // withdraw immediately
                     await this.withdraw10NoMouse(foodId);
-                    await this.withdraw5NoMouse(foodId);
+                    // await this.withdraw5NoMouse(foodId);
                 }
                 await sleep(1200);
                 if (this.invCount() == 0) {
