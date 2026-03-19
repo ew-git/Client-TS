@@ -608,6 +608,10 @@ export class Client extends GameShell {
             'fn': (obj: Client) => {obj.onF1Pressed_killShadowWarriors();}
         },
         {
+            'description': 'Mine near Ardy. Start in bank. Get pickaxe.',
+            'fn': (obj: Client) => {obj.onF1Pressed_mineIronCoalArdy();}
+        },
+        {
             'description': 'Clean herbs, then make prayer potions, then collect snape grass.',
             'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbsAndThen();}
         },
@@ -634,10 +638,6 @@ export class Client extends GameShell {
         {
             'description': 'Buy arrows in Varrock. Need cash on hand.',
             'fn': (obj: Client) => {obj.onF1Pressed_buyArrowsVarrock();}
-        },
-        {
-            'description': 'Mine near Ardy. Start in bank. Get pickaxe.',
-            'fn': (obj: Client) => {obj.onF1Pressed_mineIronCoalArdy();}
         },
         {
             'description': 'Smith iron knives in Varrock. GET HAMMER.',
@@ -17400,7 +17400,9 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(pathToBank);
                 await sleep(700);
                 await this.depositAllExceptNoMouse([0]);
-                await sleep(600);
+                await sleep(700);
+                this.closeBankWindow();
+                await sleep(700);
                 await this.walkToEndofPath(pathToMine);
                 await sleep(1200);
                 state = 'not banking';
