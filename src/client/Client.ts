@@ -604,6 +604,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Craft nature runes, start at store.',
+            'fn': (obj: Client) => {obj.onF1Pressed_craftNatureRunes();}
+        },
+        {
             'description': 'Kill shadow warriors in Legends Guild. Start at banker.',
             'fn': (obj: Client) => {obj.onF1Pressed_killShadowWarriors();}
         },
@@ -3871,15 +3875,25 @@ export class Client extends GameShell {
                 this.f1FunctionIndex = (this.f1FunctionIndex + 1) % this.f1Functions.length;
                 this.addChat(0, `(Press F1) ${this.f1FunctionIndex}: ${this.f1Functions[this.f1FunctionIndex].description}`, '');
             } else if (event.key === 'F6') {
-                console.log(this.getNearestObjectFromArray([1746]));
-
                 let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
                 let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                this.blinkIfNPCLowHP('Kalphite Queen', 20);
-                this.kqLoop();
+                let runeEssNoteId = 1437;
+                let runeEssId = 1436;
+                this.sellX(runeEssNoteId, 10);
+                await sleep(50);
+                this.sellX(runeEssNoteId, 10);
+                await sleep(50);
+                this.sellX(runeEssNoteId, 5);
+                await sleep(700);
+                this.buyX(runeEssId, 10, 25);
+                await sleep(50);
+                this.buyX(runeEssId, 10, 25);
+                await sleep(50);
+                this.buyX(runeEssId, 5, 25);
+                await sleep(700);
             }
         });
 
@@ -15882,6 +15896,21 @@ export class Client extends GameShell {
         return globalX >= bounds[0] && globalX <= bounds[1] && globalZ >= bounds[2] && globalZ <= bounds[3]
     }
 
+    /**
+     * 
+     * @param loc [globalX, globalZ]
+     * @param [maxDist=5] 
+     */
+    playerIsNear(loc: number[], maxDist = 5) {
+        if (loc.length < 2 || loc[0] === null || loc[1] === null) {
+            console.error('Invalid loc passed to playerIsNear');
+            return false;
+        }
+        let globalX = (this.localPlayer?.routeX[0] ?? 0) + this.mapBuildBaseX;
+        let globalZ = (this.localPlayer?.routeZ[0] ?? 0) + this.mapBuildBaseZ;
+        return this.manhattanDist(globalX, globalZ, loc[0], loc[1]) <= maxDist;
+    }
+
     getNearestNPC(needle: string) {
         let closestDist = Number.POSITIVE_INFINITY;
         let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
@@ -16871,6 +16900,25 @@ export class Client extends GameShell {
         }
     }
 
+    /**
+     * Does MenuAction.OPNPC3
+     * @param needle 
+     * @param [maxWait=10] seconds to wait
+     */
+    async tradeAndWaitForWindow(needle: string, maxWait = 10) {
+        this.doOPNPC3Nearest(needle);
+        let w = 0;
+        while (this.mainModalId == -1 && w < maxWait) {
+            await sleep(1000);
+            w++;
+        }
+        if (this.mainModalId == -1) {
+            return false; // failed to open trade window
+        } else {
+            return true;
+        }
+    }
+
     /*
     Returns an integer from 0 to 100
     sa_energy varp = 300
@@ -17023,6 +17071,133 @@ export class Client extends GameShell {
         this.useMode = 0;
         this.targetMode = 0;
         this.redrawSidebar = true;
+    }
+
+    /**
+     * 
+     * @param itemId item Id to sell; will search inv for first
+     * @param nsell 1, 5, 10
+     */
+    sellX(itemId: number, nsell: number) {
+        let maction = 0;
+        if (nsell == 1) {
+            maction = MenuAction.INV_BUTTON2;
+        } else if (nsell == 5) {
+            maction = MenuAction.INV_BUTTON3;
+        } else if (nsell == 10) {
+            maction = MenuAction.INV_BUTTON4;
+        } else {
+            console.error('Invalid number of items to sell');
+            return false;
+        }
+
+        let slotTarget = -1;
+        let inv = IfType.list[this.inventoryComponentId];
+        if (!inv || !inv.linkObjType) {
+            this.addChat?.(0, 'Inventory data not available', '');
+            return false;
+        }
+        // (+1 offset)
+        for (let slot = 0; slot < inv.linkObjType.length; slot++) {
+            if (inv.linkObjType[slot] == 0) continue; // Skip empty slots
+            let objId = inv.linkObjType[slot] - 1;
+            if (itemId == objId) {
+                slotTarget = slot;
+                break;
+            }
+        }
+        if (slotTarget == -1) {
+            console.error('Didnt find item in inv to sell');
+            return false;
+        }
+
+        let a = itemId;
+        let b = slotTarget;
+        let c = 3823;
+
+        if (maction === MenuAction.INV_BUTTON2) {
+            this.out.pIsaac(ClientProt.INV_BUTTON2);
+        }
+
+        if (maction === MenuAction.INV_BUTTON3) {
+            this.out.pIsaac(ClientProt.INV_BUTTON3);
+        }
+
+        if (maction === MenuAction.INV_BUTTON4) {
+            this.out.pIsaac(ClientProt.INV_BUTTON4);
+        }
+
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedComId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainModalId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatComId) {
+            this.selectedArea = 3;
+        }
+    }
+
+    /**
+     * 
+     * @param itemId item Id to sell; will search inv for first
+     * @param nbuy 1, 5, 10
+     * @param slot I don't know how to get the slot in trade with NPC yet
+     */
+    buyX(itemId: number, nbuy: number, slot: number) {
+        let maction = 0;
+        if (nbuy == 1) {
+            maction = MenuAction.INV_BUTTON2;
+        } else if (nbuy == 5) {
+            maction = MenuAction.INV_BUTTON3;
+        } else if (nbuy == 10) {
+            maction = MenuAction.INV_BUTTON4;
+        } else {
+            console.error('Invalid number of items to buy');
+            return false;
+        }
+
+        let slotTarget = slot;
+
+        let a = itemId;
+        let b = slotTarget;
+        let c = 3900;
+
+        if (maction === MenuAction.INV_BUTTON2) {
+            this.out.pIsaac(ClientProt.INV_BUTTON2);
+        }
+
+        if (maction === MenuAction.INV_BUTTON3) {
+            this.out.pIsaac(ClientProt.INV_BUTTON3);
+        }
+
+        if (maction === MenuAction.INV_BUTTON4) {
+            this.out.pIsaac(ClientProt.INV_BUTTON4);
+        }
+
+        this.out.p2(a);
+        this.out.p2(b);
+        this.out.p2(c);
+
+        this.selectedCycle = 0;
+        this.selectedComId = c;
+        this.selectedItem = b;
+        this.selectedArea = 2;
+
+        if (IfType.list[c].layerId === this.mainModalId) {
+            this.selectedArea = 1;
+        }
+
+        if (IfType.list[c].layerId === this.chatComId) {
+            this.selectedArea = 3;
+        }
     }
 
     async onF1Pressed_killLesserDemonWizTower() {
@@ -17929,6 +18104,103 @@ export class Client extends GameShell {
                     lastNPCAfterMeTime = performance.now();
                     await this.attackNearestNPCAfterMe(needle);
                 }
+            } else {
+                console.error(`Invalid state ${state}`);
+            }
+            await sleep(1200);
+        }
+    }
+
+    async onF1Pressed_craftNatureRunes() {
+        this.addChat(0, 'Beginning onF1Pressed_craftNatureRunes', '');
+        this.addChat(0, 'CONFIRM: coins, noted ess, nature tally, nat rune, tp out', '');
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.RUNECRAFT, 60_000, 'RUNECRAFT');
+
+        let storeLoc = [2767,3122];
+        let state = 'at_store';
+        // let state = 'walk_to_ruins';
+        // let state = 'craft_runes_and_exit';
+        // let state = 'walk_to_store';
+        // Don't complete the walking states until checking within an area.
+
+        if (!this.playerIsNear(storeLoc, 5)) {
+            this.addChat(0, 'Player is not near store. Exiting.', '');
+            this.stopLoop = true;
+            return;
+        }
+
+        let storeNPCName = 'Jiminua';
+        let runeEssNoteId = 1437;
+        let runeEssId = 1436;
+        let naturePortalAdjacent = [2400,4835];
+
+        // TODO CHECK selling ess with F7
+
+        let storeToRuinsPath = [ [ 2768, 3120 ], [ 2773, 3112 ], [ 2779, 3104 ], [ 2787, 3094 ], [ 2794, 3084 ], [ 2804, 3077 ], [ 2813, 3073 ], [ 2823, 3068 ], [ 2831, 3059 ], [ 2838, 3050 ], [ 2848, 3041 ], [ 2858, 3031 ], [ 2864, 3022 ]]; // , [ 2866, 3018 ] 
+        let ruinsToStorePath = storeToRuinsPath.toReversed();
+
+        let ruinsId = 2460; // Mysterious Ruins
+        let natureTalismanId = this.itemIds['nature_talisman'];
+        // Select tally: Using menu item 4 with action=102, a=1462, b=2, c=3214
+        // Use tally on ruins: Using menu item 1 with action=810, a=1114052916, b=52, c=50
+        let natureAltarId = 2486;
+        // Craft-rune Altar (2486):  Using menu item 3 with action=625, a=1114479663, b=47, c=56
+        let portalId = 2473;
+        // Use Portal: Using menu item 3 with action=625, a=1114265904, b=48, c=50
+
+        while (!this.stopLoop) {
+            if (state == 'at_store') {
+                if (this.countInvById(runeEssId) > 18) {
+                    state = 'walk_to_ruins';
+                    continue;
+                }
+
+                let openedTrade = await this.tradeAndWaitForWindow(storeNPCName);
+                if (!openedTrade) {
+                    await this.tradeAndWaitForWindow(storeNPCName, 30);
+                }
+                this.sellX(runeEssNoteId, 10);
+                await sleep(50);
+                this.sellX(runeEssNoteId, 10);
+                await sleep(50);
+                this.sellX(runeEssNoteId, 5);
+                await sleep(700);
+                this.buyX(runeEssId, 10, 25);
+                await sleep(50);
+                this.buyX(runeEssId, 10, 25);
+                await sleep(50);
+                this.buyX(runeEssId, 5, 25);
+                await sleep(700);
+
+                if (this.countInvById(runeEssId) > 18) {
+                    state = 'walk_to_ruins';
+                }
+            } else if (state == 'walk_to_ruins') {
+                for (let i = 0; i < 10; i++) {
+                    await this.walkToEndofPath(storeToRuinsPath);
+                    await sleep(1000);
+                    if (this.playerIsNear(storeToRuinsPath.at(-1) ?? [0, 0])) {
+                        break;
+                    }
+                }
+                state = 'craft_runes_and_exit';
+            } else if (state == 'craft_runes_and_exit') {
+                // TODO
+                // TODO
+                // TODO
+                // TODO
+                // TODO
+                // TODO
+            } else if (state == 'walk_to_store') {
+                for (let i = 0; i < 10; i++) {
+                    await this.walkToEndofPath(ruinsToStorePath);
+                    await sleep(1000);
+                    if (this.playerIsNear(storeLoc)) {
+                        break;
+                    }
+                }
+                state = 'at_store';
             } else {
                 console.error(`Invalid state ${state}`);
             }
