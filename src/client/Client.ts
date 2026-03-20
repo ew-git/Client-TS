@@ -3880,20 +3880,8 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                let runeEssNoteId = 1437;
-                let runeEssId = 1436;
-                this.sellX(runeEssNoteId, 10);
-                await sleep(50);
-                this.sellX(runeEssNoteId, 10);
-                await sleep(50);
-                this.sellX(runeEssNoteId, 5);
-                await sleep(700);
-                this.buyX(runeEssId, 10, 25);
-                await sleep(50);
-                this.buyX(runeEssId, 10, 25);
-                await sleep(50);
-                this.buyX(runeEssId, 5, 25);
-                await sleep(700);
+                let natureAltarId = 2486;
+                this.useNearestObjOPN(1, [natureAltarId], 30);
             }
         });
 
@@ -18135,10 +18123,9 @@ export class Client extends GameShell {
         let runeEssId = 1436;
         let naturePortalAdjacent = [2400,4835];
 
-        // TODO CHECK selling ess with F7
-
-        let storeToRuinsPath = [ [ 2768, 3120 ], [ 2773, 3112 ], [ 2779, 3104 ], [ 2787, 3094 ], [ 2794, 3084 ], [ 2804, 3077 ], [ 2813, 3073 ], [ 2823, 3068 ], [ 2831, 3059 ], [ 2838, 3050 ], [ 2848, 3041 ], [ 2858, 3031 ], [ 2864, 3022 ]]; // , [ 2866, 3018 ] 
+        let storeToRuinsPath = [[2768, 3120], [2773, 3112], [2779, 3104], [2787, 3094], [2794, 3084], [2804, 3077], [2813, 3073], [2823, 3068], [2831, 3059], [2838, 3050], [2848, 3041], [2858, 3031], [2864, 3022]]; // , [ 2866, 3018 ] 
         let ruinsToStorePath = storeToRuinsPath.toReversed();
+        let ruinsLoc = [2864, 3022];
 
         let ruinsId = 2460; // Mysterious Ruins
         let natureTalismanId = this.itemIds['nature_talisman'];
@@ -18172,6 +18159,7 @@ export class Client extends GameShell {
                 await sleep(50);
                 this.buyX(runeEssId, 5, 25);
                 await sleep(700);
+                this.closeBankWindow();
 
                 if (this.countInvById(runeEssId) > 18) {
                     state = 'walk_to_ruins';
@@ -18180,18 +18168,50 @@ export class Client extends GameShell {
                 for (let i = 0; i < 10; i++) {
                     await this.walkToEndofPath(storeToRuinsPath);
                     await sleep(1000);
-                    if (this.playerIsNear(storeToRuinsPath.at(-1) ?? [0, 0])) {
+                    if (this.playerIsNear(ruinsLoc)) {
                         break;
                     }
                 }
                 state = 'craft_runes_and_exit';
             } else if (state == 'craft_runes_and_exit') {
-                // TODO
-                // TODO
-                // TODO
-                // TODO
-                // TODO
-                // TODO
+                this.selectAndUseOnNearest(natureTalismanId, ruinsId);
+                for (let i = 0; i < 20; i++) {
+                    await sleep(600);
+                    if (this.playerIsNear(naturePortalAdjacent, 20)) {
+                        break;
+                    }
+                }
+                if (!this.playerIsNear(naturePortalAdjacent, 20)) {
+                    continue;
+                }
+                // Should be near altar at this point
+                this.useNearestObjOPN(1, [natureAltarId], 30);
+
+                for (let i = 0; i < 20; i++) {
+                    await sleep(600);
+                    if (this.countInvById(runeEssId) == 0) {
+                        break;
+                    }
+                }
+                if (this.countInvById(runeEssId) != 0) {
+                    continue;
+                }
+                // Should have crafted nature runes now, but need to wait for anim stall
+                await sleep(2200);
+
+                this.useNearestObjOPN(1, [portalId], 30);
+                for (let i = 0; i < 20; i++) {
+                    await sleep(600);
+                    if (this.playerIsNear(ruinsLoc, 20)) {
+                        break;
+                    }
+                }
+                if (!this.playerIsNear(ruinsLoc, 20)) {
+                    continue;
+                }
+                // Should be back outside ruins now
+
+                state = 'walk_to_store';
             } else if (state == 'walk_to_store') {
                 for (let i = 0; i < 10; i++) {
                     await this.walkToEndofPath(ruinsToStorePath);
@@ -18205,6 +18225,7 @@ export class Client extends GameShell {
                 console.error(`Invalid state ${state}`);
             }
             await sleep(1200);
+            this.handleRunEnergyThrottled(1);
         }
     }
 }
