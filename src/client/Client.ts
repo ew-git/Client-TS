@@ -18138,6 +18138,9 @@ export class Client extends GameShell {
 
         while (!this.stopLoop) {
             if (state == 'at_store') {
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(2100);
                 if (this.countInvById(runeEssId) > 18) {
                     state = 'walk_to_ruins';
                     continue;
