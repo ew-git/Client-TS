@@ -18177,7 +18177,9 @@ export class Client extends GameShell {
                 }
                 state = 'craft_runes_and_exit';
             } else if (state == 'craft_runes_and_exit') {
-                this.selectAndUseOnNearest(natureTalismanId, ruinsId);
+                if (!this.playerIsNear(naturePortalAdjacent, 20)) {
+                    this.selectAndUseOnNearest(natureTalismanId, ruinsId);
+                }
                 for (let i = 0; i < 20; i++) {
                     await sleep(600);
                     if (this.playerIsNear(naturePortalAdjacent, 20)) {
@@ -18200,7 +18202,7 @@ export class Client extends GameShell {
                     continue;
                 }
                 // Should have crafted nature runes now, but need to wait for anim stall
-                await sleep(2200);
+                await sleep(2500);
 
                 this.useNearestObjOPN(1, [portalId], 30);
                 for (let i = 0; i < 20; i++) {
