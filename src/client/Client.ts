@@ -604,6 +604,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Make mith bars in Al Kharid; start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makeMithAddyBarsAlKharid('mithril');}
+        },
+        {
             'description': 'Craft nature runes, start at store.',
             'fn': (obj: Client) => {obj.onF1Pressed_craftNatureRunes();}
         },
@@ -626,10 +630,6 @@ export class Client extends GameShell {
         {
             'description': 'Get snape grass.',
             'fn': (obj: Client) => {obj.onF1Pressed_getSnapeGrass();}
-        },
-        {
-            'description': 'Make addy bars; start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makeAddyBarsAlKharid();}
         },
         {
             'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
@@ -17689,13 +17689,17 @@ export class Client extends GameShell {
         }
     }
 
-    async onF1Pressed_makeAddyBarsAlKharid() {
+    async onF1Pressed_makeMithAddyBarsAlKharid(bar = 'mithril') {
+        if (bar === null || !['mithril', 'adamantite'].includes(bar)) {
+            console.error('Unexpected bar value');
+            return;
+        }
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.SMITHING, 60_000, 'Smithing');
         let state = 'banking';
         let pathToFurnace = [[3269,3167],[3279,3178],[3275,3186]];
         let pathToBank = pathToFurnace.toReversed();
-        let addyOreId = this.itemIds['adamantite_ore'];
+        let primaryOreId = this.itemIds[bar + '_ore'];
         let coalOreId = this.itemIds['coal'];
         let furnaceId = 2781;
         if (this.invCount() == 28) {
@@ -17713,15 +17717,19 @@ export class Client extends GameShell {
                 await sleep(600);
                 if (this.checkBankOpen()) {
                     // withdraw immediately
-                    await this.withdraw1NoMouse(addyOreId);
-                    await this.withdraw1NoMouse(addyOreId);
-                    await this.withdraw1NoMouse(addyOreId);
-                    await this.withdraw1NoMouse(addyOreId);
+                    if (bar == 'adamantite') {
+                        await this.withdraw1NoMouse(primaryOreId);
+                        await this.withdraw1NoMouse(primaryOreId);
+                        await this.withdraw1NoMouse(primaryOreId);
+                        await this.withdraw1NoMouse(primaryOreId);
+                    } else if (bar == 'mithril') {
+                        await this.withdraw5NoMouse(primaryOreId);
+                    }
                     await this.withdrawAllNoMouse(coalOreId);
                 }
                 await sleep(1200);
-                if (this.invCount() < 28) {
-                    console.log('Do not have full inv. Logging out.');
+                if (this.invCount() < 28 || this.countInvById(primaryOreId) < 2) {
+                    console.log('Do not have sufficient materials. Logging out.');
                     this.stopLoop = true;
                     await this.logout();
                 }
@@ -17732,8 +17740,9 @@ export class Client extends GameShell {
             }
             this.handleRunEnergyThrottled(1);
             await sleep(200);
-            for (let _ = 0; _ < 4; _++) {
-                this.selectAndUseOnNearest(addyOreId, furnaceId);
+            let maxOre = this.countInvById(primaryOreId);
+            for (let _ = 0; _ < maxOre; _++) {
+                this.selectAndUseOnNearest(primaryOreId, furnaceId);
                 await sleep(5*600+300);
             }
             state = 'banking';
