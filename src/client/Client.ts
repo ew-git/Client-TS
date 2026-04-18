@@ -608,6 +608,14 @@ export class Client extends GameShell {
             'fn': (obj: Client) => {obj.onF1Pressed_makeMithAddyBarsAlKharid('mithril');}
         },
         {
+            'description': 'Make steel bars in AlKharid; start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makeSteelBarsAlKharid();}
+        },
+        {
+            'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makeCannonballsAlKharid();}
+        },
+        {
             'description': 'Craft nature runes, start at store.',
             'fn': (obj: Client) => {obj.onF1Pressed_craftNatureRunes();}
         },
@@ -630,14 +638,6 @@ export class Client extends GameShell {
         {
             'description': 'Get snape grass.',
             'fn': (obj: Client) => {obj.onF1Pressed_getSnapeGrass();}
-        },
-        {
-            'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makeCannonballsAlKharid();}
-        },
-        {
-            'description': 'Make steel bars in AlKharid; start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makeSteelBarsAlKharid();}
         },
         {
             'description': 'Buy arrows in Varrock. Need cash on hand.',
