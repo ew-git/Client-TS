@@ -17668,6 +17668,7 @@ export class Client extends GameShell {
                     await this.withdraw10NoMouse(coalOreId);
                 }
                 await sleep(1200);
+                this.closeBankWindow();
                 if (this.invCount() < 28) {
                     console.log('Do not have full inv. Logging out.');
                     this.stopLoop = true;
@@ -17728,6 +17729,7 @@ export class Client extends GameShell {
                     await this.withdrawAllNoMouse(coalOreId);
                 }
                 await sleep(1200);
+                this.closeBankWindow();
                 if (this.invCount() < 28 || this.countInvById(primaryOreId) < 2) {
                     console.log('Do not have sufficient materials. Logging out.');
                     this.stopLoop = true;
@@ -17777,6 +17779,7 @@ export class Client extends GameShell {
                     await this.withdrawAllNoMouse(steelBarId);
                 }
                 await sleep(1200);
+                this.closeBankWindow();
                 if (this.invCount() < 28) {
                     console.log('Do not have full inv. Logging out.');
                     this.stopLoop = true;
