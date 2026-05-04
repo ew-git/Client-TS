@@ -604,6 +604,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Cook fish in Catherby. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_cookCatherby('raw_swordfish');}
+        },
+        {
             'description': 'Make mith bars in Al Kharid; start in bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_makeMithAddyBarsAlKharid('mithril');}
         },
@@ -3880,8 +3884,17 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                let natureAltarId = 2486;
-                this.useNearestObjOPN(1, [natureAltarId], 30);
+                // [2816,3438]
+                // let locId = 1530;
+                // let triedOpen = this.doOPLOC1OnNearestObjFromArray([locId], 10);
+                // console.log(`Tried to open door result: ${triedOpen}`);
+                let b = 2816 - this.mapBuildBaseX;
+                let c = 3438 - this.mapBuildBaseZ;
+                let a = this.world?.wallType(this.minusedlevel, b, c) ?? 0;
+                this.interactWithLoc(b, c, a, ClientProt.OPLOC1);
+                this.useMode = 0;
+                this.targetMode = 0;
+                this.redrawSidebar = true;
             }
         });
 
@@ -17188,6 +17201,16 @@ export class Client extends GameShell {
         }
     }
 
+    openDoorXZ(x: number, z: number) {
+        let b = x - this.mapBuildBaseX;
+        let c = z - this.mapBuildBaseZ;
+        let a = this.world?.wallType(this.minusedlevel, b, c) ?? 0;
+        this.interactWithLoc(b, c, a, ClientProt.OPLOC1);
+        this.useMode = 0;
+        this.targetMode = 0;
+        this.redrawSidebar = true;
+    }
+
     async onF1Pressed_killLesserDemonWizTower() {
         this.addChat(0, 'Beginning onF1Pressed_killLesserDemonWizTower', '');
         this.stopLoop = false;
@@ -17657,7 +17680,7 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(pathToBank);
                 await sleep(2000);
                 console.log('Just got back to the bank. Checking logout login');
-                await this.logoutThenLoginThrottled(60); // do it every hour
+                await this.logoutThenLoginThrottled(15); // do it every hour
                 await sleep(700);
                 await this.depositAllExceptNoMouse([0]);
                 await sleep(600);
@@ -17770,7 +17793,7 @@ export class Client extends GameShell {
                 await this.walkToEndofPath(pathToBank);
                 await sleep(2000);
                 console.log('Just got back to the bank. Checking logout login');
-                await this.logoutThenLoginThrottled(60); // do it every hour
+                await this.logoutThenLoginThrottled(30); // do it every hour
                 await sleep(700);
                 await this.depositAllExceptNoMouse([ammoMouldId]);
                 await sleep(600);
@@ -18243,6 +18266,68 @@ export class Client extends GameShell {
             }
             await sleep(1200);
             this.handleRunEnergyThrottled(1);
+        }
+    }
+
+    async onF1Pressed_cookCatherby(fishname = 'raw_swordfish') {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.COOKING, 60_000, 'Cooking');
+        let state = 'banking';
+        let rawFishId = this.itemIds['raw_swordfish'];
+        let rangeId = 2728;
+        let rangeLoc = [2817,3443];
+        let doorX = 2816;
+        let doorZ = 3438;
+        let roomBounds = [2815, 2818, 3439, 3443]; // W, E, S, N
+        let bankLoc = [2809,3441];
+        let outsideDoorLoc = [2816,3438];
+        let insideDoorLoc = [2816,3439];
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                if (this.playerIsInBounds(roomBounds)) {
+                    await this.walkToEndofPath([insideDoorLoc]);
+                }
+                while (this.playerIsInBounds(roomBounds)) {
+                    this.openDoorXZ(doorX, doorZ);
+                    await sleep(1000);
+                    await this.walkToEndofPath([bankLoc]);
+                }
+                await sleep(700);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(30);
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdrawAllNoMouse(rawFishId);
+                }
+                await sleep(700);
+                this.closeBankWindow();
+                if (this.invCount() < 28) {
+                    console.log('Do not have full inv. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath([outsideDoorLoc]);
+                while (!this.playerIsInBounds(roomBounds)) {
+                    this.openDoorXZ(doorX, doorZ);
+                    await sleep(1000);
+                    await this.walkToEndofPath([rangeLoc]);
+                }
+                await sleep(700);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            this.handleRunEnergyThrottled(1);
+            await sleep(200);
+            for (let _ = 0; _ < 28; _++) {
+                this.selectAndUseOnNearest(rawFishId, rangeId);
+                await sleep(3*600+300);
+            }
+            state = 'banking';
+            await sleep(700);
         }
     }
 }
