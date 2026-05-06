@@ -604,65 +604,73 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Fish sharks in guild. Start near dock.',
+            'fn': (obj: Client) => {obj.onF1Pressed_fishSharkGuild();}
+        },
+        {
+            'description': 'Cut gems. Get chisel and be near bank',
+            'fn': (obj: Client) => {obj.onF1Pressed_cutGems();}
+        },
+        {
             'description': 'Cook fish in Catherby. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_cookCatherby('raw_swordfish');}
-        },
-        {
-            'description': 'Make mith bars in Al Kharid; start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makeMithAddyBarsAlKharid('mithril');}
-        },
-        {
-            'description': 'Make steel bars in AlKharid; start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makeSteelBarsAlKharid();}
-        },
-        {
-            'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makeCannonballsAlKharid();}
-        },
-        {
-            'description': 'Craft nature runes, start at store.',
-            'fn': (obj: Client) => {obj.onF1Pressed_craftNatureRunes();}
-        },
-        {
-            'description': 'Kill shadow warriors in Legends Guild. Start at banker.',
-            'fn': (obj: Client) => {obj.onF1Pressed_killShadowWarriors();}
+            'fn': (obj: Client) => {obj.onF1Pressed_cookCatherby('raw_shark');}
         },
         {
             'description': 'Mine near Ardy. Start in bank. Get pickaxe.',
             'fn': (obj: Client) => {obj.onF1Pressed_mineIronCoalArdy();}
         },
-        {
-            'description': 'Clean herbs, then make prayer potions, then collect snape grass.',
-            'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbsAndThen();}
-        },
-        {
-            'description': 'Clean herbs.',
-            'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbs();}
-        },
-        {
-            'description': 'Get snape grass.',
-            'fn': (obj: Client) => {obj.onF1Pressed_getSnapeGrass();}
-        },
-        {
-            'description': 'Buy arrows in Varrock. Need cash on hand.',
-            'fn': (obj: Client) => {obj.onF1Pressed_buyArrowsVarrock();}
-        },
-        {
-            'description': 'Smith iron knives in Varrock. GET HAMMER.',
-            'fn': (obj: Client) => {obj.onF1Pressed_smithIronKnivesVarrock();}
-        },
-        {
-            'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
-            'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
-        },
-        {
-            'description': 'Kill chaos druids with ranged. SET RAPID.',
-            'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdyRange();}
-        },
-        {
-            'description': 'Kill moss giants with ranged. SET RAPID.',
-            'fn': (obj: Client) => {obj.onF1Pressed_killMossGiantsArdyRange();}
-        },
+        // {
+        //     'description': 'Make mith bars in Al Kharid; start in bank.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_makeMithAddyBarsAlKharid('mithril');}
+        // },
+        // {
+        //     'description': 'Make steel bars in AlKharid; start in bank.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_makeSteelBarsAlKharid();}
+        // },
+        // {
+        //     'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_makeCannonballsAlKharid();}
+        // },
+        // {
+        //     'description': 'Craft nature runes, start at store.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_craftNatureRunes();}
+        // },
+        // {
+        //     'description': 'Kill shadow warriors in Legends Guild. Start at banker.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_killShadowWarriors();}
+        // },
+        // {
+        //     'description': 'Clean herbs, then make prayer potions, then collect snape grass.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbsAndThen();}
+        // },
+        // {
+        //     'description': 'Clean herbs.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbs();}
+        // },
+        // {
+        //     'description': 'Get snape grass.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_getSnapeGrass();}
+        // },
+        // {
+        //     'description': 'Buy arrows in Varrock. Need cash on hand.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_buyArrowsVarrock();}
+        // },
+        // {
+        //     'description': 'Smith iron knives in Varrock. GET HAMMER.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_smithIronKnivesVarrock();}
+        // },
+        // {
+        //     'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
+        // },
+        // {
+        //     'description': 'Kill chaos druids with ranged. SET RAPID.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdyRange();}
+        // },
+        // {
+        //     'description': 'Kill moss giants with ranged. SET RAPID.',
+        //     'fn': (obj: Client) => {obj.onF1Pressed_killMossGiantsArdyRange();}
+        // },
     ];
 
     private itemIds: { [name: string]: number } = {
@@ -3884,17 +3892,13 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                // [2816,3438]
-                // let locId = 1530;
-                // let triedOpen = this.doOPLOC1OnNearestObjFromArray([locId], 10);
-                // console.log(`Tried to open door result: ${triedOpen}`);
-                let b = 2816 - this.mapBuildBaseX;
-                let c = 3438 - this.mapBuildBaseZ;
-                let a = this.world?.wallType(this.minusedlevel, b, c) ?? 0;
-                this.interactWithLoc(b, c, a, ClientProt.OPLOC1);
-                this.useMode = 0;
-                this.targetMode = 0;
-                this.redrawSidebar = true;
+                // console.log(this.getNearestNPC('Fishing spot'));
+                // this.doOPNPC3NearestById(313);
+                console.log(this.localPlayer?.primaryAnim);
+                console.log(this.localPlayer?.primaryAnimFrame);
+                console.log(this.localPlayer?.primaryAnimCycle);
+                console.log(this.localPlayer?.primaryAnimDelay);
+                console.log(this.localPlayer?.primaryAnimLoop);
             }
         });
 
@@ -15938,6 +15942,32 @@ export class Client extends GameShell {
         return closestNpc;
     }
 
+    getNearestNPCById(needle: number) {
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
+
+        for (let index: number = 0; index < this.npcCount; index++) {
+            let entity: ClientEntity | null = null;
+            entity = this.npc[this.npcIds[index]];
+            if (!entity) {
+                continue;
+            }
+            let npcsi = this.npcIds[index];
+            const npc: ClientNpc = entity as ClientNpc;
+            let npcid: number = npc.type?.id ?? 0;
+            if (npcid == needle && this.localPlayer) {
+                const dx = this.localPlayer?.routeX[0] - npc.routeX[0];
+                const dz = this.localPlayer?.routeZ[0] - npc.routeZ[0];
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestNpc = { x: npc.routeX[0], z: npc.routeZ[0], entity, npc, npcsIndex: npcsi };
+                }
+            }
+        }
+        return closestNpc;
+    }
+
     getNearestNPCInBounds(needle: string, west: number, east: number, south: number, north: number, maxdist: number) {
         let closestDist = Number.POSITIVE_INFINITY;
         let closestNpc: { x: number, z: number, entity: ClientEntity, npc: ClientNpc, npcsIndex: number } | null = null;
@@ -16901,6 +16931,26 @@ export class Client extends GameShell {
         }
     }
 
+    doOPNPC3NearestById(needle: number) {
+        let nearestNPC = this.getNearestNPCById(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npc[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+                this.out.pIsaac(ClientProt.OPNPC3);
+                this.out.p2(a);
+                this.useMode = 0;
+                this.targetMode = 0;
+                this.redrawSidebar = true;
+            }
+        }
+    }
+
     /**
      * Does MenuAction.OPNPC3
      * @param needle 
@@ -17209,6 +17259,10 @@ export class Client extends GameShell {
         this.useMode = 0;
         this.targetMode = 0;
         this.redrawSidebar = true;
+    }
+
+    playerIsIdle(): boolean {
+        return this.localPlayer?.primaryAnim == -1
     }
 
     async onF1Pressed_killLesserDemonWizTower() {
@@ -18328,6 +18382,75 @@ export class Client extends GameShell {
             }
             state = 'banking';
             await sleep(700);
+        }
+    }
+
+    async onF1Pressed_fishSharkGuild() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.FISHING, 60_000, 'Fishing');
+        let state = 'not banking';
+        let harpoonId = this.itemIds['harpoon'];
+        let pathToBank = [[2594,3415],[2586,3418]];
+        let pathOutOfBank = pathToBank.toReversed();
+
+        this.handleRunEnergyThrottled(5);
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathToBank);
+                await sleep(700);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(30);
+                await sleep(700);
+                await this.depositAllExceptNoMouse([harpoonId]);
+                await sleep(700);
+                this.closeBankWindow();
+                await this.walkToEndofPath(pathOutOfBank);
+                await sleep(700);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            this.handleRunEnergyThrottled(5);
+            if (this.invFull()) {
+                state = 'banking';
+                continue;
+            }
+            // Inventory is not full and we're not banking.
+            // If player is idle, then try to fish at nearest loc.
+            // Using menu item 3 with action=309, a=2137, b=0, c=0.
+            // They're all called "Fishing spot".
+            // To find the right one, use console.log(this.getNearestNPC('Fishing spot'));
+            // and look at the type.id
+            if (this.playerIsIdle()) {
+                this.doOPNPC3NearestById(313);
+                await sleep(10000);
+            }
+            await sleep(700);
+        }
+    }
+
+    async onF1Pressed_cutGems(gemNames = ['uncut_sapphire', 'uncut_emerald', 'uncut_ruby', 'uncut_diamond', 'uncut_dragonstone']) {
+        this.stopLoop = false;
+        let chiselId = this.itemIds['chisel'];
+        for (let h = 0; h < gemNames.length; h++) {
+            const gemName = gemNames[h];
+            let gemId = this.itemIds[gemName];
+            while (!this.stopLoop) {
+                await this.depositAllExceptNoMouse([chiselId]);
+                if (this.getBankCount(gemId) < 30) {
+                    break;
+                }
+                await this.withdrawAllNoMouse(gemId);
+                await sleep(700);
+                this.closeBankWindow();
+                for (let slot = 1; slot < 28; slot++) {
+                    // select chisel (slot 0) and use on gem (slots 1-27)
+                    this.selectInvSingleSlot(0, chiselId);
+                    this.useOnInvSlot(slot, gemId);
+                    await sleep(600*2 + 170);
+                }
+                await sleep(700);
+            }
         }
     }
 }
