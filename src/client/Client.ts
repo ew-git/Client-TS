@@ -18432,6 +18432,7 @@ export class Client extends GameShell {
 
     async onF1Pressed_cutGems(gemNames = ['uncut_sapphire', 'uncut_emerald', 'uncut_ruby', 'uncut_diamond', 'uncut_dragonstone']) {
         this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.CRAFTING, 60_000, 'Crafting');
         let chiselId = this.itemIds['chisel'];
         for (let h = 0; h < gemNames.length; h++) {
             const gemName = gemNames[h];
