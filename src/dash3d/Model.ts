@@ -1,4 +1,4 @@
-import AnimBase from '#/dash3d/AnimBase.js';
+import AnimBase, { AnimTransform } from '#/dash3d/AnimBase.js';
 import AnimFrame from '#/dash3d/AnimFrame.js';
 import Pix2D from '#/graphics/Pix2D.js';
 import Pix3D from '#/dash3d/Pix3D.js';
@@ -449,7 +449,7 @@ export default class Model extends ModelSource {
                     copyRenderType = true;
                 }
 
-                if (model.facePriority !== null) {
+                if (model.facePriority === null) {
                     if (combined.priority === -1) {
                         combined.priority = model.priority;
                     }
@@ -597,7 +597,7 @@ export default class Model extends ModelSource {
                     copyRenderType = true;
                 }
 
-                if (model.facePriority !== null) {
+                if (model.facePriority === null) {
                     if (combined.priority === -1) {
                         combined.priority = model.priority;
                     }
@@ -1241,7 +1241,7 @@ export default class Model extends ModelSource {
 
         const labelCount: number = labels.length;
 
-        if (type === 0) {
+        if (type === AnimTransform.ORIGIN) {
             let count: number = 0;
             Model.oX = 0;
             Model.oY = 0;
@@ -1275,7 +1275,7 @@ export default class Model extends ModelSource {
                 Model.oY = y;
                 Model.oZ = z;
             }
-        } else if (type === 1) {
+        } else if (type === AnimTransform.TRANSLATE) {
             for (let g: number = 0; g < labelCount; g++) {
                 const group: number = labels[g];
                 if (!this.labelVertices || group >= this.labelVertices.length) {
@@ -1292,7 +1292,7 @@ export default class Model extends ModelSource {
                     }
                 }
             }
-        } else if (type === 2) {
+        } else if (type === AnimTransform.ROTATE) {
             for (let g: number = 0; g < labelCount; g++) {
                 const label: number = labels[g];
                 if (!this.labelVertices || label >= this.labelVertices.length) {
@@ -1344,7 +1344,7 @@ export default class Model extends ModelSource {
                     }
                 }
             }
-        } else if (type === 3) {
+        } else if (type === AnimTransform.SCALE) {
             for (let g: number = 0; g < labelCount; g++) {
                 const label: number = labels[g];
                 if (!this.labelVertices || label >= this.labelVertices.length) {
@@ -1370,7 +1370,7 @@ export default class Model extends ModelSource {
                     }
                 }
             }
-        } else if (type === 5 && this.labelFaces && this.faceAlpha) {
+        } else if (type === AnimTransform.TRANSPARENCY && this.labelFaces && this.faceAlpha) {
             for (let g: number = 0; g < labelCount; g++) {
                 const label: number = labels[g];
                 if (label >= this.labelFaces.length) {

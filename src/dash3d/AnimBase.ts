@@ -2,6 +2,14 @@ import Packet from '#/io/Packet.js';
 
 import { TypedArray1d } from '#/util/Arrays.js';
 
+export const enum AnimTransform {
+    ORIGIN = 0,
+    TRANSLATE = 1,
+    ROTATE = 2,
+    SCALE = 3,
+    TRANSPARENCY = 5
+}
+
 export default class AnimBase {
     size: number = 0;
     type: Uint8Array | null = null;

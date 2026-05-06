@@ -4,7 +4,7 @@ import { stopMidi, setMidiVolume, playMidi } from '#3rdparty/tinymidipcm.js';
 import { ClientCode } from '#/client/ClientCode.js';
 import GameShell from '#/client/GameShell.js';
 import InputTracking from '#/client/InputTracking.js';
-import { MenuAction } from '#/client/MenuAction.js';
+import { MiniMenuAction } from '#/client/MiniMenuAction.js';
 import MobileKeyboard from '#/client/MobileKeyboard.js';
 import MouseTracking from '#/client/MouseTracking.js';
 
@@ -27,13 +27,13 @@ import ClientNpc, { NpcUpdate } from '#/dash3d/ClientNpc.js';
 import ClientObj from '#/dash3d/ClientObj.js';
 import ClientPlayer, { PlayerUpdate } from '#/dash3d/ClientPlayer.js';
 import ClientProj from '#/dash3d/ClientProj.js';
-import CollisionMap, { CollisionConstants } from '#/dash3d/CollisionMap.js';
+import CollisionMap, { BuildArea } from '#/dash3d/CollisionMap.js';
 import { CollisionFlag } from '#/dash3d/CollisionFlag.js';
 import { DirectionFlag } from '#/dash3d/DirectionFlag.js';
 import { LocAngle } from '#/dash3d/LocAngle.js';
 import LocChange from '#/dash3d/LocChange.js';
 import { LocLayer } from '#/dash3d/LocLayer.js';
-import LocShape from '#/dash3d/LocShape.js';
+import { LocShape, LOC_SHAPE_TO_LAYER } from '#/dash3d/LocShape.js';
 import { MapFlag } from '#/dash3d/MapFlag.js';
 import MapSpotAnim from '#/dash3d/MapSpotAnim.js';
 import World from '#/dash3d/World.js';
@@ -69,12 +69,18 @@ import WordPack from '#/wordenc/WordPack.js';
 
 import JagFX from '#/sound/JagFX.js';
 
-const enum Constants {
-    CLIENT_VERSION = 254,
-    MAX_CHATS = 50,
-    MAX_PLAYER_COUNT = 2048,
-    LOCAL_PLAYER_INDEX = 2047
-}
+const CLIENT_VERSION = 254;
+
+const MAX_PLAYER_COUNT = 2048;
+const LOCAL_PLAYER_INDEX = 2047;
+
+const MAX_CHATS = 50;
+const CHAT_COLOURS = [Colour.YELLOW, Colour.RED, Colour.GREEN, Colour.CYAN, Colour.MAGENTA, Colour.WHITE];
+
+const SCROLLBAR_TRACK = 0x23201b;
+const SCROLLBAR_GRIP_FOREGROUND = 0x4d4233;
+const SCROLLBAR_GRIP_HIGHLIGHT = 0x766654;
+const SCROLLBAR_GRIP_LOWLIGHT = 0x332d25;
 
 // Custom constants
 const enum PlayerStat {
@@ -195,15 +201,15 @@ export class Client extends GameShell {
     private world: World | null = null;
     private mapl: Uint8Array[][] | null = null;
     private groundh: Int32Array[][] | null = null;
-    private levelCollisionMap: (CollisionMap | null)[] = new TypedArray1d(CollisionConstants.LEVELS, null);
+    private collision: (CollisionMap | null)[] = new TypedArray1d(BuildArea.LEVELS, null);
     private textureBuffer: Int8Array = new Int8Array(16384);
 
     private zoneUpdateX: number = 0;
     private zoneUpdateZ: number = 0;
 
     private tryMoveNearest: number = 0;
-    private dirMap: Int32Array = new Int32Array(CollisionConstants.SIZE * CollisionConstants.SIZE);
-    private distMap: Int32Array = new Int32Array(CollisionConstants.SIZE * CollisionConstants.SIZE);
+    private dirMap: Int32Array = new Int32Array(BuildArea.SIZE * BuildArea.SIZE);
+    private distMap: Int32Array = new Int32Array(BuildArea.SIZE * BuildArea.SIZE);
     private routeX: Int32Array = new Int32Array(4000);
     private routeZ: Int32Array = new Int32Array(4000);
 
@@ -276,7 +282,7 @@ export class Client extends GameShell {
     private flameCycle0: number = 0;
     private flameGradientCycle0: number = 0;
     private flameGradientCycle1: number = 0;
-    private flamesInterval: Timer | null = null;
+    private flamesInterval: ReturnType<typeof setInterval> | null = null;
 
     private areaSidebar: PixMap | null = null;
     private areaMapback: PixMap | null = null;
@@ -324,10 +330,6 @@ export class Client extends GameShell {
     private minimapMaskLineOffsets: Int32Array = new Int32Array(151);
     private minimapMaskLineLengths: Int32Array = new Int32Array(151);
 
-    private SCROLLBAR_TRACK = 0x23201b;
-    private SCROLLBAR_GRIP_FOREGROUND = 0x4d4233;
-    private SCROLLBAR_GRIP_HIGHLIGHT = 0x766654;
-    private SCROLLBAR_GRIP_LOWLIGHT = 0x332d25;
     private scrollGrabbed: boolean = false;
     private scrollInputPadding: number = 0;
     private scrollCycle: number = 0;
@@ -348,16 +350,16 @@ export class Client extends GameShell {
     private cameraPitchClamp: number = 0;
 
     private chatCount: number = 0;
-    private chatX: Int32Array = new Int32Array(Constants.MAX_CHATS);
-    private chatY: Int32Array = new Int32Array(Constants.MAX_CHATS);
-    private chatHeight: Int32Array = new Int32Array(Constants.MAX_CHATS);
-    private chatWidth: Int32Array = new Int32Array(Constants.MAX_CHATS);
-    private chatColour: Int32Array = new Int32Array(Constants.MAX_CHATS);
-    private chatEffect: Int32Array = new Int32Array(Constants.MAX_CHATS);
-    private chatTimer: Int32Array = new Int32Array(Constants.MAX_CHATS);
-    private chats: (string | null)[] = new TypedArray1d(Constants.MAX_CHATS, null);
+    private chatX: Int32Array = new Int32Array(MAX_CHATS);
+    private chatY: Int32Array = new Int32Array(MAX_CHATS);
+    private chatHeight: Int32Array = new Int32Array(MAX_CHATS);
+    private chatWidth: Int32Array = new Int32Array(MAX_CHATS);
+    private chatColour: Int32Array = new Int32Array(MAX_CHATS);
+    private chatEffect: Int32Array = new Int32Array(MAX_CHATS);
+    private chatTimer: Int32Array = new Int32Array(MAX_CHATS);
+    private chats: (string | null)[] = new TypedArray1d(MAX_CHATS, null);
 
-    private tileLastOccupiedCycle: Int32Array[] = new Int32Array2d(CollisionConstants.SIZE, CollisionConstants.SIZE);
+    private tileLastOccupiedCycle: Int32Array[] = new Int32Array2d(BuildArea.SIZE, BuildArea.SIZE);
     private sceneCycle: number = 0;
 
     private projectX: number = 0;
@@ -386,13 +388,13 @@ export class Client extends GameShell {
     private inMultizone: number = 0;
     private chatDisabled: number = 0;
 
-    private players: (ClientPlayer | null)[] = new TypedArray1d(Constants.MAX_PLAYER_COUNT, null);
+    private players: (ClientPlayer | null)[] = new TypedArray1d(MAX_PLAYER_COUNT, null);
     private playerCount: number = 0;
-    private playerIds: Int32Array = new Int32Array(Constants.MAX_PLAYER_COUNT);
+    private playerIds: Int32Array = new Int32Array(MAX_PLAYER_COUNT);
 
     private entityUpdateCount: number = 0;
-    private entityUpdateIds: Int32Array = new Int32Array(Constants.MAX_PLAYER_COUNT);
-    private playerAppearanceBuffer: (Packet | null)[] = new TypedArray1d(Constants.MAX_PLAYER_COUNT, null);
+    private entityUpdateIds: Int32Array = new Int32Array(MAX_PLAYER_COUNT);
+    private playerAppearanceBuffer: (Packet | null)[] = new TypedArray1d(MAX_PLAYER_COUNT, null);
 
     private minusedlevel: number = 0;
     private selfSlot: number = -1;
@@ -405,7 +407,7 @@ export class Client extends GameShell {
     private playerOp: (string | null)[] = new TypedArray1d(5, null);
     private playerOpPriority: boolean[] = new TypedArray1d(5, false);
 
-    private groundObj: (LinkList<ClientObj> | null)[][][] = new TypedArray3d(CollisionConstants.LEVELS, CollisionConstants.SIZE, CollisionConstants.SIZE, null);
+    private groundObj: (LinkList<ClientObj> | null)[][][] = new TypedArray3d(BuildArea.LEVELS, BuildArea.SIZE, BuildArea.SIZE, null);
     private locChanges: LinkList<LocChange> = new LinkList();
     private projectiles: LinkList<ClientProj> = new LinkList();
     private spotanims: LinkList<MapSpotAnim> = new LinkList();
@@ -477,7 +479,6 @@ export class Client extends GameShell {
     private chatType: Int32Array = new Int32Array(100);
     private chatUsername: (string | null)[] = new TypedArray1d(100, null);
     private chatText: (string | null)[] = new TypedArray1d(100, null);
-    static readonly CHAT_COLORS = Int32Array.of(Colour.YELLOW, Colour.RED, Colour.GREEN, Colour.CYAN, Colour.MAGENTA, Colour.WHITE);
     private chatPublicMode: number = 0;
     private chatPrivateMode: number = 0;
     private chatTradeMode: number = 0;
@@ -3906,7 +3907,7 @@ export class Client extends GameShell {
             return;
         }
 
-        console.log(`RS2 user client - release #${Constants.CLIENT_VERSION}`);
+        console.log(`RS2 user client - release #${CLIENT_VERSION}`);
 
         Client.nodeId = nodeid;
         Client.memServer = members;
@@ -4131,11 +4132,11 @@ export class Client extends GameShell {
             const wordenc: Jagfile = await this.getJagFile('chat system', 50, 'wordenc', 7);
             const sounds: Jagfile = await this.getJagFile('sound effects', 55, 'sounds', 8);
 
-            this.mapl = new Uint8Array3d(CollisionConstants.LEVELS, CollisionConstants.SIZE, CollisionConstants.SIZE);
-            this.groundh = new Int32Array3d(CollisionConstants.LEVELS, CollisionConstants.SIZE + 1, CollisionConstants.SIZE + 1);
-            this.world = new World(this.groundh, CollisionConstants.SIZE, CollisionConstants.LEVELS, CollisionConstants.SIZE);
-            for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
-                this.levelCollisionMap[level] = new CollisionMap();
+            this.mapl = new Uint8Array3d(BuildArea.LEVELS, BuildArea.SIZE, BuildArea.SIZE);
+            this.groundh = new Int32Array3d(BuildArea.LEVELS, BuildArea.SIZE + 1, BuildArea.SIZE + 1);
+            this.world = new World(this.groundh, BuildArea.SIZE, BuildArea.LEVELS, BuildArea.SIZE);
+            for (let level: number = 0; level < BuildArea.LEVELS; level++) {
+                this.collision[level] = new CollisionMap();
             }
             this.minimap = new Pix32(512, 512);
 
@@ -5320,7 +5321,7 @@ export class Client extends GameShell {
                 }
 
                 this.loginout.p1(this.out.pos + 36 + 1 + 1);
-                this.loginout.p1(Constants.CLIENT_VERSION);
+                this.loginout.p1(CLIENT_VERSION);
                 this.loginout.p1(Client.lowMem ? 1 : 0);
 
                 for (let i: number = 0; i < 9; i++) {
@@ -5390,7 +5391,7 @@ export class Client extends GameShell {
                 this.playerCount = 0;
                 this.npcCount = 0;
 
-                for (let i: number = 0; i < Constants.MAX_PLAYER_COUNT; i++) {
+                for (let i: number = 0; i < MAX_PLAYER_COUNT; i++) {
                     this.players[i] = null;
                     this.playerAppearanceBuffer[i] = null;
                 }
@@ -5399,14 +5400,14 @@ export class Client extends GameShell {
                     this.npc[i] = null;
                 }
 
-                this.localPlayer = this.players[Constants.LOCAL_PLAYER_INDEX] = new ClientPlayer();
+                this.localPlayer = this.players[LOCAL_PLAYER_INDEX] = new ClientPlayer();
 
                 this.projectiles.clear();
                 this.spotanims.clear();
 
-                for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
-                    for (let x: number = 0; x < CollisionConstants.SIZE; x++) {
-                        for (let z: number = 0; z < CollisionConstants.SIZE; z++) {
+                for (let level: number = 0; level < BuildArea.LEVELS; level++) {
+                    for (let x: number = 0; x < BuildArea.SIZE; x++) {
+                        for (let z: number = 0; z < BuildArea.SIZE; z++) {
                             this.groundObj[level][x][z] = null;
                         }
                     }
@@ -6038,8 +6039,8 @@ export class Client extends GameShell {
         this.clearCaches();
         this.world?.resetMap();
 
-        for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
-            this.levelCollisionMap[level]?.reset();
+        for (let level: number = 0; level < BuildArea.LEVELS; level++) {
+            this.collision[level]?.reset();
         }
 
         stopMidi(false);
@@ -6089,7 +6090,7 @@ export class Client extends GameShell {
         }
 
         this.menuOption[0] = 'Cancel';
-        this.menuAction[0] = MenuAction.CANCEL;
+        this.menuAction[0] = MiniMenuAction.CANCEL;
         this.menuNumEntries = 1;
 
         this.addPrivateChatOptions();
@@ -6203,16 +6204,16 @@ export class Client extends GameShell {
                     if (this.mouseX > 4 && this.mouseX < 516 && this.mouseY - 4 > y - 10 && this.mouseY - 4 <= y + 3) {
                         if (this.staffmodlevel) {
                             this.menuOption[this.menuNumEntries] = 'Report abuse @whi@' + sender;
-                            this.menuAction[this.menuNumEntries] = MenuAction._PRIORITY + MenuAction.REPORT_ABUSE;
+                            this.menuAction[this.menuNumEntries] = MiniMenuAction._PRIORITY + MiniMenuAction.ABUSE_REPORT;
                             this.menuNumEntries++;
                         }
 
                         this.menuOption[this.menuNumEntries] = 'Add ignore @whi@' + sender;
-                        this.menuAction[this.menuNumEntries] = MenuAction._PRIORITY + MenuAction.IGNORELIST_ADD;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction._PRIORITY + MiniMenuAction.IGNORELIST_ADD;
                         this.menuNumEntries++;
 
                         this.menuOption[this.menuNumEntries] = 'Add friend @whi@' + sender;
-                        this.menuAction[this.menuNumEntries] = MenuAction._PRIORITY + MenuAction.FRIENDLIST_ADD;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction._PRIORITY + MiniMenuAction.FRIENDLIST_ADD;
                         this.menuNumEntries++;
                     }
 
@@ -6260,16 +6261,16 @@ export class Client extends GameShell {
                 if (mouseY > y - 14 && mouseY <= y && this.localPlayer && sender !== this.localPlayer.name) {
                     if (this.staffmodlevel >= 1) {
                         this.menuOption[this.menuNumEntries] = 'Report abuse @whi@' + sender;
-                        this.menuAction[this.menuNumEntries] = MenuAction.REPORT_ABUSE;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.ABUSE_REPORT;
                         this.menuNumEntries++;
                     }
 
                     this.menuOption[this.menuNumEntries] = 'Add ignore @whi@' + sender;
-                    this.menuAction[this.menuNumEntries] = MenuAction.IGNORELIST_ADD;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.IGNORELIST_ADD;
                     this.menuNumEntries++;
 
                     this.menuOption[this.menuNumEntries] = 'Add friend @whi@' + sender;
-                    this.menuAction[this.menuNumEntries] = MenuAction.FRIENDLIST_ADD;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.FRIENDLIST_ADD;
                     this.menuNumEntries++;
                 }
 
@@ -6278,16 +6279,16 @@ export class Client extends GameShell {
                 if (mouseY > y - 14 && mouseY <= y) {
                     if (this.staffmodlevel >= 1) {
                         this.menuOption[this.menuNumEntries] = 'Report abuse @whi@' + sender;
-                        this.menuAction[this.menuNumEntries] = MenuAction.REPORT_ABUSE;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.ABUSE_REPORT;
                         this.menuNumEntries++;
                     }
 
                     this.menuOption[this.menuNumEntries] = 'Add ignore @whi@' + sender;
-                    this.menuAction[this.menuNumEntries] = MenuAction.IGNORELIST_ADD;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.IGNORELIST_ADD;
                     this.menuNumEntries++;
 
                     this.menuOption[this.menuNumEntries] = 'Add friend @whi@' + sender;
-                    this.menuAction[this.menuNumEntries] = MenuAction.FRIENDLIST_ADD;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.FRIENDLIST_ADD;
                     this.menuNumEntries++;
                 }
 
@@ -6295,7 +6296,7 @@ export class Client extends GameShell {
             } else if (type === 4 && (this.chatTradeMode === 0 || (this.chatTradeMode === 1 && this.isFriend(sender)))) {
                 if (mouseY > y - 14 && mouseY <= y) {
                     this.menuOption[this.menuNumEntries] = 'Accept trade @whi@' + sender;
-                    this.menuAction[this.menuNumEntries] = MenuAction.OPPLAYER_TRADEREQ;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.ACCEPT_TRADEREQ;
                     this.menuNumEntries++;
                 }
 
@@ -6305,7 +6306,7 @@ export class Client extends GameShell {
             } else if (type === 8 && (this.chatTradeMode === 0 || (this.chatTradeMode === 1 && this.isFriend(sender)))) {
                 if (mouseY > y - 14 && mouseY <= y) {
                     this.menuOption[this.menuNumEntries] = 'Accept duel @whi@' + sender;
-                    this.menuAction[this.menuNumEntries] = MenuAction.OPPLAYER_DUELREQ;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.ACCEPT_DUELREQ;
                     this.menuNumEntries++;
                 }
 
@@ -6479,7 +6480,7 @@ export class Client extends GameShell {
         for (let i: number = -1; i < this.playerCount; i++) {
             let index: number;
             if (i === -1) {
-                index = Constants.LOCAL_PLAYER_INDEX;
+                index = LOCAL_PLAYER_INDEX;
             } else {
                 index = this.playerIds[i];
             }
@@ -7025,7 +7026,7 @@ export class Client extends GameShell {
         for (let i: number = -1; i < this.playerCount; i++) {
             let index: number;
             if (i === -1) {
-                index = Constants.LOCAL_PLAYER_INDEX;
+                index = LOCAL_PLAYER_INDEX;
             } else {
                 index = this.playerIds[i];
             }
@@ -7276,7 +7277,7 @@ export class Client extends GameShell {
         if (e.faceEntity >= 32768) {
             let index: number = e.faceEntity - 32768;
             if (index === this.selfSlot) {
-                index = Constants.LOCAL_PLAYER_INDEX;
+                index = LOCAL_PLAYER_INDEX;
             }
 
             const player: ClientPlayer | null = this.players[index];
@@ -7848,7 +7849,7 @@ export class Client extends GameShell {
             let id: number;
             if (self) {
                 player = this.localPlayer;
-                id = Constants.LOCAL_PLAYER_INDEX << 14;
+                id = LOCAL_PLAYER_INDEX << 14;
             } else {
                 player = this.players[this.playerIds[i]];
                 id = this.playerIds[i] << 14;
@@ -7866,7 +7867,7 @@ export class Client extends GameShell {
             const stx: number = player.x >> 7;
             const stz: number = player.z >> 7;
 
-            if (stx < 0 || stx >= CollisionConstants.SIZE || stz < 0 || stz >= CollisionConstants.SIZE) {
+            if (stx < 0 || stx >= BuildArea.SIZE || stz < 0 || stz >= BuildArea.SIZE) {
                 continue;
             }
 
@@ -7901,7 +7902,7 @@ export class Client extends GameShell {
             const x: number = npc.x >> 7;
             const z: number = npc.z >> 7;
 
-            if (x < 0 || x >= CollisionConstants.SIZE || z < 0 || z >= CollisionConstants.SIZE) {
+            if (x < 0 || x >= BuildArea.SIZE || z < 0 || z >= BuildArea.SIZE) {
                 continue;
             }
 
@@ -8198,7 +8199,7 @@ export class Client extends GameShell {
             if (entity.chatMessage && (index >= this.playerCount || this.chatPublicMode === 0 || this.chatPublicMode === 3 || (this.chatPublicMode === 1 && this.isFriend((entity as ClientPlayer).name)))) {
                 this.getOverlayPosEntity(entity, entity.height);
 
-                if (this.projectX > -1 && this.chatCount < Constants.MAX_CHATS && this.b12) {
+                if (this.projectX > -1 && this.chatCount < MAX_CHATS && this.b12) {
                     this.chatWidth[this.chatCount] = (this.b12.stringWid(entity.chatMessage) / 2) | 0;
                     this.chatHeight[this.chatCount] = this.b12.height2d;
                     this.chatX[this.chatCount] = this.projectX;
@@ -8288,7 +8289,7 @@ export class Client extends GameShell {
             } else {
                 let colour: number = Colour.YELLOW;
                 if (this.chatColour[i] < 6) {
-                    colour = Client.CHAT_COLORS[this.chatColour[i]];
+                    colour = CHAT_COLOURS[this.chatColour[i]];
                 } else if (this.chatColour[i] === 6) {
                     colour = this.sceneCycle % 20 < 10 ? Colour.RED : Colour.YELLOW;
                 } else if (this.chatColour[i] === 7) {
@@ -8710,11 +8711,11 @@ export class Client extends GameShell {
             this.clearCaches();
             this.world?.resetMap();
 
-            for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
-                this.levelCollisionMap[level]?.reset();
+            for (let level: number = 0; level < BuildArea.LEVELS; level++) {
+                this.collision[level]?.reset();
             }
 
-            const build: ClientBuild = new ClientBuild(CollisionConstants.SIZE, CollisionConstants.SIZE, this.groundh!, this.mapl!);
+            const build: ClientBuild = new ClientBuild(BuildArea.SIZE, BuildArea.SIZE, this.groundh!, this.mapl!);
             const maps: number = this.mapBuildGroundData?.length ?? 0;
 
             ClientBuild.lowMem = World.lowMem;
@@ -8771,20 +8772,20 @@ export class Client extends GameShell {
                     if (data) {
                         const x: number = (this.mapBuildIndex[i] >> 8) * 64 - this.mapBuildBaseX;
                         const z: number = (this.mapBuildIndex[i] & 0xff) * 64 - this.mapBuildBaseZ;
-                        build.loadLocations(data, x, z, this.loopCycle, this.world, this.levelCollisionMap);
+                        build.loadLocations(data, x, z, this.loopCycle, this.world, this.collision);
                     }
                 }
             }
 
             this.out.pIsaac(ClientProt.NO_TIMEOUT);
 
-            build.finishBuild(this.world, this.levelCollisionMap);
+            build.finishBuild(this.world, this.collision);
             this.areaViewport?.setPixels();
 
             this.out.pIsaac(ClientProt.NO_TIMEOUT);
 
-            for (let x: number = 0; x < CollisionConstants.SIZE; x++) {
-                for (let z: number = 0; z < CollisionConstants.SIZE; z++) {
+            for (let x: number = 0; x < BuildArea.SIZE; x++) {
+                for (let z: number = 0; z < BuildArea.SIZE; z++) {
                     this.showObject(x, z);
                 }
             }
@@ -8851,10 +8852,10 @@ export class Client extends GameShell {
             pixels[i] = 0;
         }
 
-        for (let z: number = 1; z < CollisionConstants.SIZE - 1; z++) {
-            let offset: number = (CollisionConstants.SIZE - 1 - z) * 512 * 4 + 24628;
+        for (let z: number = 1; z < BuildArea.SIZE - 1; z++) {
+            let offset: number = (BuildArea.SIZE - 1 - z) * 512 * 4 + 24628;
 
-            for (let x: number = 1; x < CollisionConstants.SIZE - 1; x++) {
+            for (let x: number = 1; x < BuildArea.SIZE - 1; x++) {
                 if (this.mapl && (this.mapl[level][x][z] & (MapFlag.VisBelow | MapFlag.ForceHighDetail)) === 0) {
                     this.world?.render2DGround(level, x, z, pixels, offset, 512);
                 }
@@ -8872,8 +8873,8 @@ export class Client extends GameShell {
 
         this.minimap.setPixels();
 
-        for (let z: number = 1; z < CollisionConstants.SIZE - 1; z++) {
-            for (let x: number = 1; x < CollisionConstants.SIZE - 1; x++) {
+        for (let z: number = 1; z < BuildArea.SIZE - 1; z++) {
+            for (let x: number = 1; x < BuildArea.SIZE - 1; x++) {
                 if (this.mapl && (this.mapl[level][x][z] & (MapFlag.VisBelow | MapFlag.ForceHighDetail)) === 0) {
                     this.drawDetail(level, x, z, inactiveRgb, activeRgb);
                 }
@@ -8888,8 +8889,8 @@ export class Client extends GameShell {
 
         this.activeMapFunctionCount = 0;
 
-        for (let x: number = 0; x < CollisionConstants.SIZE; x++) {
-            for (let z: number = 0; z < CollisionConstants.SIZE; z++) {
+        for (let x: number = 0; x < BuildArea.SIZE; x++) {
+            for (let z: number = 0; z < BuildArea.SIZE; z++) {
                 const typecode: number = this.world?.gdType(this.minusedlevel, x, z) ?? 0;
                 if (typecode === 0) {
                     continue;
@@ -8905,12 +8906,12 @@ export class Client extends GameShell {
                 let stz: number = z;
 
                 if (func !== 22 && func !== 29 && func !== 34 && func !== 36 && func !== 46 && func !== 47 && func !== 48) {
-                    const maxX: number = CollisionConstants.SIZE;
-                    const maxZ: number = CollisionConstants.SIZE;
-                    const collisionmap: CollisionMap | null = this.levelCollisionMap[this.minusedlevel];
+                    const maxX: number = BuildArea.SIZE;
+                    const maxZ: number = BuildArea.SIZE;
+                    const collisionMap: CollisionMap | null = this.collision[this.minusedlevel];
 
-                    if (collisionmap) {
-                        const flags: Int32Array = collisionmap.flags;
+                    if (collisionMap) {
+                        const flags: Int32Array = collisionMap.flags;
 
                         for (let i: number = 0; i < 10; i++) {
                             const rand: number = (Math.random() * 4.0) | 0;
@@ -8974,10 +8975,10 @@ export class Client extends GameShell {
                 if (scene) {
                     const offsetX: number = ((loc.width * 4 - scene.wi) / 2) | 0;
                     const offsetY: number = ((loc.length * 4 - scene.hi) / 2) | 0;
-                    scene.plotSprite(tileX * 4 + 48 + offsetX, (CollisionConstants.SIZE - tileZ - loc.length) * 4 + offsetY + 48);
+                    scene.plotSprite(tileX * 4 + 48 + offsetX, (BuildArea.SIZE - tileZ - loc.length) * 4 + offsetY + 48);
                 }
             } else {
-                if (shape === LocShape.WALL_STRAIGHT.id || shape === LocShape.WALL_L.id) {
+                if (shape === LocShape.WALL_STRAIGHT || shape === LocShape.WALL_L) {
                     if (angle === LocAngle.WEST) {
                         dst[offset] = rgb;
                         dst[offset + 512] = rgb;
@@ -9001,7 +9002,7 @@ export class Client extends GameShell {
                     }
                 }
 
-                if (shape === LocShape.WALL_SQUARE_CORNER.id) {
+                if (shape === LocShape.WALL_SQUARE_CORNER) {
                     if (angle === LocAngle.WEST) {
                         dst[offset] = rgb;
                     } else if (angle === LocAngle.NORTH) {
@@ -9013,7 +9014,7 @@ export class Client extends GameShell {
                     }
                 }
 
-                if (shape === LocShape.WALL_L.id) {
+                if (shape === LocShape.WALL_L) {
                     if (angle === LocAngle.SOUTH) {
                         dst[offset] = rgb;
                         dst[offset + 512] = rgb;
@@ -9052,17 +9053,17 @@ export class Client extends GameShell {
                 if (scene) {
                     const offsetX: number = ((loc.width * 4 - scene.wi) / 2) | 0;
                     const offsetY: number = ((loc.length * 4 - scene.hi) / 2) | 0;
-                    scene.plotSprite(tileX * 4 + 48 + offsetX, (CollisionConstants.SIZE - tileZ - loc.length) * 4 + offsetY + 48);
+                    scene.plotSprite(tileX * 4 + 48 + offsetX, (BuildArea.SIZE - tileZ - loc.length) * 4 + offsetY + 48);
                 }
             } else {
-                if (shape === LocShape.WALL_DIAGONAL.id) {
+                if (shape === LocShape.WALL_DIAGONAL) {
                     let rgb: number = 0xeeeeee;
                     if (sceneType > 0) {
                         rgb = 0xee0000;
                     }
 
                     const dst: Int32Array = this.minimap.data;
-                    const offset: number = tileX * 4 + (CollisionConstants.SIZE - 1 - tileZ) * 512 * 4 + 24624;
+                    const offset: number = tileX * 4 + (BuildArea.SIZE - 1 - tileZ) * 512 * 4 + 24624;
 
                     if (angle === LocAngle.WEST || angle === LocAngle.EAST) {
                         dst[offset + 1536] = rgb;
@@ -9089,7 +9090,7 @@ export class Client extends GameShell {
                 if (scene) {
                     const offsetX: number = ((loc.width * 4 - scene.wi) / 2) | 0;
                     const offsetY: number = ((loc.length * 4 - scene.hi) / 2) | 0;
-                    scene.plotSprite(tileX * 4 + 48 + offsetX, (CollisionConstants.SIZE - tileZ - loc.length) * 4 + offsetY + 48);
+                    scene.plotSprite(tileX * 4 + 48 + offsetX, (BuildArea.SIZE - tileZ - loc.length) * 4 + offsetY + 48);
                 }
             }
         }
@@ -9133,7 +9134,7 @@ export class Client extends GameShell {
             this.out.psize1(this.out.pos - start);
         }
 
-        if (shape === LocShape.CENTREPIECE_STRAIGHT.id || shape === LocShape.CENTREPIECE_DIAGONAL.id || shape === LocShape.GROUND_DECOR.id) {
+        if (shape === LocShape.CENTREPIECE_STRAIGHT || shape === LocShape.CENTREPIECE_DIAGONAL || shape === LocShape.GROUND_DECOR) {
             const loc: LocType = LocType.list(locId);
 
             let width: number;
@@ -9169,13 +9170,13 @@ export class Client extends GameShell {
     }
 
     private tryMove(srcX: number, srcZ: number, dx: number, dz: number, tryNearest: boolean, locWidth: number, locLength: number, locAngle: number, locShape: number, forceapproach: number, type: number): boolean {
-        const collisionMap: CollisionMap | null = this.levelCollisionMap[this.minusedlevel];
+        const collisionMap: CollisionMap | null = this.collision[this.minusedlevel];
         if (!collisionMap) {
             return false;
         }
 
-        const sceneWidth: number = CollisionConstants.SIZE;
-        const sceneLength: number = CollisionConstants.SIZE;
+        const sceneWidth: number = BuildArea.SIZE;
+        const sceneLength: number = BuildArea.SIZE;
 
         for (let x: number = 0; x < sceneWidth; x++) {
             for (let z: number = 0; z < sceneLength; z++) {
@@ -9212,13 +9213,13 @@ export class Client extends GameShell {
                 break;
             }
 
-            if (locShape !== LocShape.WALL_STRAIGHT.id) {
-                if ((locShape < LocShape.WALLDECOR_STRAIGHT_OFFSET.id || locShape === LocShape.CENTREPIECE_STRAIGHT.id) && collisionMap.testWall(x, z, dx, dz, locShape - 1, locAngle)) {
+            if (locShape !== LocShape.WALL_STRAIGHT) {
+                if ((locShape < LocShape.WALLDECOR_STRAIGHT_OFFSET || locShape === LocShape.CENTREPIECE_STRAIGHT) && collisionMap.testWall(x, z, dx, dz, locShape - 1, locAngle)) {
                     arrived = true;
                     break;
                 }
 
-                if (locShape < LocShape.CENTREPIECE_STRAIGHT.id && collisionMap.testWDecor(x, z, dx, dz, locShape - 1, locAngle)) {
+                if (locShape < LocShape.CENTREPIECE_STRAIGHT && collisionMap.testWDecor(x, z, dx, dz, locShape - 1, locAngle)) {
                     arrived = true;
                     break;
                 }
@@ -9340,7 +9341,7 @@ export class Client extends GameShell {
                     for (let px: number = dx - padding; px <= dx + padding; px++) {
                         for (let pz: number = dz - padding; pz <= dz + padding; pz++) {
                             const index: number = CollisionMap.index(px, pz);
-                            if (px >= 0 && pz >= 0 && px < CollisionConstants.SIZE && pz < CollisionConstants.SIZE && this.distMap[index] < min) {
+                            if (px >= 0 && pz >= 0 && px < BuildArea.SIZE && pz < BuildArea.SIZE && this.distMap[index] < min) {
                                 min = this.distMap[index];
                                 x = px;
                                 z = pz;
@@ -10449,7 +10450,7 @@ export class Client extends GameShell {
                     }
                 }
 
-                for (let i: number = 0; i < Constants.MAX_PLAYER_COUNT; i++) {
+                for (let i: number = 0; i < MAX_PLAYER_COUNT; i++) {
                     const player: ClientPlayer | null = this.players[i];
                     if (player) {
                         for (let j: number = 0; j < 10; j++) {
@@ -10465,19 +10466,19 @@ export class Client extends GameShell {
                 this.awaitingPlayerInfo = true;
 
                 let startTileX: number = 0;
-                let endTileX: number = CollisionConstants.SIZE;
+                let endTileX: number = BuildArea.SIZE;
                 let dirX: number = 1;
                 if (dx < 0) {
-                    startTileX = CollisionConstants.SIZE - 1;
+                    startTileX = BuildArea.SIZE - 1;
                     endTileX = -1;
                     dirX = -1;
                 }
 
                 let startTileZ: number = 0;
-                let endTileZ: number = CollisionConstants.SIZE;
+                let endTileZ: number = BuildArea.SIZE;
                 let dirZ: number = 1;
                 if (dz < 0) {
-                    startTileZ = CollisionConstants.SIZE - 1;
+                    startTileZ = BuildArea.SIZE - 1;
                     endTileZ = -1;
                     dirZ = -1;
                 }
@@ -10487,8 +10488,8 @@ export class Client extends GameShell {
                         const lastX: number = x + dx;
                         const lastZ: number = z + dz;
 
-                        for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
-                            if (lastX >= 0 && lastZ >= 0 && lastX < CollisionConstants.SIZE && lastZ < CollisionConstants.SIZE) {
+                        for (let level: number = 0; level < BuildArea.LEVELS; level++) {
+                            if (lastX >= 0 && lastZ >= 0 && lastX < BuildArea.SIZE && lastZ < BuildArea.SIZE) {
                                 this.groundObj[level][x][z] = this.groundObj[level][lastX][lastZ];
                             } else {
                                 this.groundObj[level][x][z] = null;
@@ -10501,7 +10502,7 @@ export class Client extends GameShell {
                     loc.x -= dx;
                     loc.z -= dz;
 
-                    if (loc.x < 0 || loc.z < 0 || loc.x >= CollisionConstants.SIZE || loc.z >= CollisionConstants.SIZE) {
+                    if (loc.x < 0 || loc.z < 0 || loc.x >= BuildArea.SIZE || loc.z >= BuildArea.SIZE) {
                         loc.unlink();
                     }
                 }
@@ -10722,9 +10723,9 @@ export class Client extends GameShell {
 
             const shape: number = info >> 2;
             const rotate: number = info & 0x3;
-            const layer: number = LocShape.of(shape).layer;
+            const layer: number = LOC_SHAPE_TO_LAYER[shape];
 
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+            if (x >= 0 && z >= 0 && x < BuildArea.SIZE && z < BuildArea.SIZE) {
                 this.locChangeCreate(this.minusedlevel, x, z, layer, id, shape, rotate, 0, -1);
             }
         } else if (opcode === ServerProt.LOC_DEL) {
@@ -10732,9 +10733,9 @@ export class Client extends GameShell {
 
             const shape: number = info >> 2;
             const rotate: number = info & 0x3;
-            const layer: number = LocShape.of(shape).layer;
+            const layer: number = LOC_SHAPE_TO_LAYER[shape];
 
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+            if (x >= 0 && z >= 0 && x < BuildArea.SIZE && z < BuildArea.SIZE) {
                 this.locChangeCreate(this.minusedlevel, x, z, layer, -1, shape, rotate, 0, -1);
             }
         } else if (opcode === ServerProt.LOC_ANIM) {
@@ -10743,9 +10744,9 @@ export class Client extends GameShell {
 
             let shape: number = info >> 2;
             const rotate = info & 0x3;
-            const layer: number = LocShape.of(shape).layer;
+            const layer: number = LOC_SHAPE_TO_LAYER[shape];
 
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE && this.world && this.groundh) {
+            if (x >= 0 && z >= 0 && x < BuildArea.SIZE && z < BuildArea.SIZE && this.world && this.groundh) {
                 const heightSW = this.groundh[this.minusedlevel][x][z];
                 const heightSE = this.groundh[this.minusedlevel][x + 1][z];
                 const heightNE = this.groundh[this.minusedlevel][x + 1][z + 1];
@@ -10787,7 +10788,7 @@ export class Client extends GameShell {
             const type: number = buf.g2();
             const count: number = buf.g2();
 
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+            if (x >= 0 && z >= 0 && x < BuildArea.SIZE && z < BuildArea.SIZE) {
                 const obj: ClientObj = new ClientObj(type, count);
                 if (!this.groundObj[this.minusedlevel][x][z]) {
                     this.groundObj[this.minusedlevel][x][z] = new LinkList();
@@ -10799,7 +10800,7 @@ export class Client extends GameShell {
         } else if (opcode === ServerProt.OBJ_DEL) {
             const type: number = buf.g2();
 
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+            if (x >= 0 && z >= 0 && x < BuildArea.SIZE && z < BuildArea.SIZE) {
                 const objs = this.groundObj[this.minusedlevel][x][z];
                 if (objs) {
                     for (let obj = objs.head(); obj !== null; obj = objs.next()) {
@@ -10828,7 +10829,7 @@ export class Client extends GameShell {
             const angle: number = buf.g1();
             const startpos: number = buf.g1();
 
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE && x2 >= 0 && z2 >= 0 && x2 < CollisionConstants.SIZE && z2 < CollisionConstants.SIZE) {
+            if (x >= 0 && z >= 0 && x < BuildArea.SIZE && z < BuildArea.SIZE && x2 >= 0 && z2 >= 0 && x2 < BuildArea.SIZE && z2 < BuildArea.SIZE) {
                 x = x * 128 + 64;
                 z = z * 128 + 64;
                 x2 = x2 * 128 + 64;
@@ -10843,7 +10844,7 @@ export class Client extends GameShell {
             const height: number = buf.g1();
             const time: number = buf.g2();
 
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+            if (x >= 0 && z >= 0 && x < BuildArea.SIZE && z < BuildArea.SIZE) {
                 x = x * 128 + 64;
                 z = z * 128 + 64;
 
@@ -10855,7 +10856,7 @@ export class Client extends GameShell {
             const count: number = buf.g2();
             const pid: number = buf.g2();
 
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE && pid !== this.selfSlot) {
+            if (x >= 0 && z >= 0 && x < BuildArea.SIZE && z < BuildArea.SIZE && pid !== this.selfSlot) {
                 if (!this.groundObj[this.minusedlevel][x][z]) {
                     this.groundObj[this.minusedlevel][x][z] = new LinkList();
                 }
@@ -10868,7 +10869,7 @@ export class Client extends GameShell {
             const info: number = buf.g1();
             const shape: number = info >> 2;
             const rotate: number = info & 0x3;
-            const layer: number = LocShape.of(shape).layer;
+            const layer: number = LOC_SHAPE_TO_LAYER[shape];
 
             const id: number = buf.g2();
             const t1: number = buf.g2();
@@ -10937,7 +10938,7 @@ export class Client extends GameShell {
             const ocount: number = buf.g2();
             const count: number = buf.g2();
 
-            if (x >= 0 && z >= 0 && x < CollisionConstants.SIZE && z < CollisionConstants.SIZE) {
+            if (x >= 0 && z >= 0 && x < BuildArea.SIZE && z < BuildArea.SIZE) {
                 const objs = this.groundObj[this.minusedlevel][x][z];
                 if (objs) {
                     for (let obj = objs.head(); obj !== null; obj = objs.next()) {
@@ -11089,7 +11090,7 @@ export class Client extends GameShell {
 
                 const type: LocType = LocType.list(otherId);
                 if (type.blockwalk) {
-                    this.levelCollisionMap[level]?.delWall(x, z, otherShape, otherAngle, type.blockrange);
+                    this.collision[level]?.delWall(x, z, otherShape, otherAngle, type.blockrange);
                 }
             } else if (layer === LocLayer.WALL_DECOR) {
                 this.world?.delDecor(level, x, z);
@@ -11097,19 +11098,19 @@ export class Client extends GameShell {
                 this.world.delLoc(level, x, z);
 
                 const type: LocType = LocType.list(otherId);
-                if (x + type.width > CollisionConstants.SIZE - 1 || z + type.width > CollisionConstants.SIZE - 1 || x + type.length > CollisionConstants.SIZE - 1 || z + type.length > CollisionConstants.SIZE - 1) {
+                if (x + type.width > BuildArea.SIZE - 1 || z + type.width > BuildArea.SIZE - 1 || x + type.length > BuildArea.SIZE - 1 || z + type.length > BuildArea.SIZE - 1) {
                     return;
                 }
 
                 if (type.blockwalk) {
-                    this.levelCollisionMap[level]?.delLoc(x, z, type.width, type.length, otherAngle, type.blockrange);
+                    this.collision[level]?.delLoc(x, z, type.width, type.length, otherAngle, type.blockrange);
                 }
             } else if (layer === LocLayer.GROUND_DECOR) {
                 this.world?.delGroundDecor(level, x, z);
 
                 const type: LocType = LocType.list(otherId);
                 if (type.blockwalk && type.active) {
-                    this.levelCollisionMap[level]?.unblockGround(x, z);
+                    this.collision[level]?.unblockGround(x, z);
                 }
             }
         }
@@ -11121,7 +11122,7 @@ export class Client extends GameShell {
             }
 
             if (this.groundh) {
-                ClientBuild.changeLocUnchecked(level, x, z, id, shape, angle, this.loopCycle, tileLevel, this.groundh, this.world, this.levelCollisionMap[level]);
+                ClientBuild.changeLocUnchecked(level, x, z, id, shape, angle, this.loopCycle, tileLevel, this.groundh, this.world, this.collision[level]);
             }
         }
     }
@@ -11214,14 +11215,14 @@ export class Client extends GameShell {
             const op: number = buf.gBit(2);
 
             if (op === 0) {
-                this.entityUpdateIds[this.entityUpdateCount++] = Constants.LOCAL_PLAYER_INDEX;
+                this.entityUpdateIds[this.entityUpdateCount++] = LOCAL_PLAYER_INDEX;
             } else if (op === 1) {
                 const walkDir: number = buf.gBit(3);
                 this.localPlayer?.moveCode(false, walkDir);
 
                 const extendedInfo: number = buf.gBit(1);
                 if (extendedInfo === 1) {
-                    this.entityUpdateIds[this.entityUpdateCount++] = Constants.LOCAL_PLAYER_INDEX;
+                    this.entityUpdateIds[this.entityUpdateCount++] = LOCAL_PLAYER_INDEX;
                 }
             } else if (op === 2) {
                 const walkDir: number = buf.gBit(3);
@@ -11232,7 +11233,7 @@ export class Client extends GameShell {
 
                 const extendedInfo: number = buf.gBit(1);
                 if (extendedInfo === 1) {
-                    this.entityUpdateIds[this.entityUpdateCount++] = Constants.LOCAL_PLAYER_INDEX;
+                    this.entityUpdateIds[this.entityUpdateCount++] = LOCAL_PLAYER_INDEX;
                 }
             } else if (op === 3) {
                 this.minusedlevel = buf.gBit(2);
@@ -11244,7 +11245,7 @@ export class Client extends GameShell {
 
                 const extendedInfo: number = buf.gBit(1);
                 if (extendedInfo === 1) {
-                    this.entityUpdateIds[this.entityUpdateCount++] = Constants.LOCAL_PLAYER_INDEX;
+                    this.entityUpdateIds[this.entityUpdateCount++] = LOCAL_PLAYER_INDEX;
                 }
             }
         }
@@ -11897,9 +11898,9 @@ export class Client extends GameShell {
                 const action: number = this.menuAction[this.menuNumEntries - 1];
 
                 if (
-                    action == MenuAction.INV_BUTTON1 || action == MenuAction.INV_BUTTON2 || action == MenuAction.INV_BUTTON3 || action == MenuAction.INV_BUTTON4 || action == MenuAction.INV_BUTTON5 ||
-                    action == MenuAction.OPHELD1 || action == MenuAction.OPHELD2 || action == MenuAction.OPHELD3 || action == MenuAction.OPHELD4 || action == MenuAction.OPHELD5 ||
-                    action == MenuAction.OPHELDT_START || action === MenuAction.OPHELD6
+                    action == MiniMenuAction.INV_BUTTON1 || action == MiniMenuAction.INV_BUTTON2 || action == MiniMenuAction.INV_BUTTON3 || action == MiniMenuAction.INV_BUTTON4 || action == MiniMenuAction.INV_BUTTON5 ||
+                    action == MiniMenuAction.OP_HELD1 || action == MiniMenuAction.OP_HELD2 || action == MiniMenuAction.OP_HELD3 || action == MiniMenuAction.OP_HELD4 || action == MiniMenuAction.OP_HELD5 ||
+                    action == MiniMenuAction.USEHELD_START || action === MiniMenuAction.OP_HELD6
                 ) {
                     const slot: number = this.menuParamB[this.menuNumEntries - 1];
                     const comId: number = this.menuParamC[this.menuNumEntries - 1];
@@ -12098,11 +12099,11 @@ export class Client extends GameShell {
         }
 
         let action: number = this.menuAction[option];
-        if (action >= MenuAction._PRIORITY) {
-            action -= MenuAction._PRIORITY;
+        if (action >= MiniMenuAction._PRIORITY) {
+            action -= MiniMenuAction._PRIORITY;
         }
 
-        return action === MenuAction.FRIENDLIST_ADD;
+        return action === MiniMenuAction.FRIENDLIST_ADD;
     }
 
     private doAction(optionId: number): void {
@@ -12119,16 +12120,16 @@ export class Client extends GameShell {
         const a: number = this.menuParamA[optionId];
         const b: number = this.menuParamB[optionId];
         const c: number = this.menuParamC[optionId];
-        
+
         if (this.logUseMenu) {
             console.log(`Using menu item ${optionId} with action=${action}, a=${a}, b=${b}, c=${c}`);
         }
 
-        if (action >= MenuAction._PRIORITY) {
-            action -= MenuAction._PRIORITY;
+        if (action >= MiniMenuAction._PRIORITY) {
+            action -= MiniMenuAction._PRIORITY;
         }
 
-        if (action === MenuAction.OPOBJ1 || action === MenuAction.OPOBJ2 || action === MenuAction.OPOBJ3 || action === MenuAction.OPOBJ4 || action === MenuAction.OPOBJ5) {
+        if (action === MiniMenuAction.OP_OBJ1 || action === MiniMenuAction.OP_OBJ2 || action === MiniMenuAction.OP_OBJ3 || action === MiniMenuAction.OP_OBJ4 || action === MiniMenuAction.OP_OBJ5) {
             if (this.localPlayer) {
                 const success: boolean = this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], b, c, false, 0, 0, 0, 0, 0, 2);
                 if (!success) {
@@ -12140,7 +12141,7 @@ export class Client extends GameShell {
                 this.crossMode = 2;
                 this.crossCycle = 0;
 
-                if (action === MenuAction.OPOBJ1) {
+                if (action === MiniMenuAction.OP_OBJ1) {
                     if ((b & 0x3) == 0) {
                         Client.oplogic7++;
                     }
@@ -12152,15 +12153,15 @@ export class Client extends GameShell {
                     this.out.pIsaac(ClientProt.OPOBJ1);
                 }
 
-                if (action === MenuAction.OPOBJ2) {
+                if (action === MiniMenuAction.OP_OBJ2) {
                     this.out.pIsaac(ClientProt.OPOBJ2);
                 }
 
-                if (action === MenuAction.OPOBJ3) {
+                if (action === MiniMenuAction.OP_OBJ3) {
                     this.out.pIsaac(ClientProt.OPOBJ3);
                 }
 
-                if (action === MenuAction.OPOBJ4) {
+                if (action === MiniMenuAction.OP_OBJ4) {
                     Client.oplogic8 += c;
                     if (Client.oplogic8 >= 75) {
                         this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC8);
@@ -12170,7 +12171,7 @@ export class Client extends GameShell {
                     this.out.pIsaac(ClientProt.OPOBJ4);
                 }
 
-                if (action === MenuAction.OPOBJ5) {
+                if (action === MiniMenuAction.OP_OBJ5) {
                     Client.oplogic3 += this.mapBuildBaseZ;
                     if (Client.oplogic3 >= 118) {
                         this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC3);
@@ -12186,7 +12187,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPOBJ6) {
+        if (action === MiniMenuAction.OP_OBJ6) {
             const obj: ObjType = ObjType.list(a);
             let examine: string;
 
@@ -12199,7 +12200,7 @@ export class Client extends GameShell {
             this.addChat(0, examine, '');
         }
 
-        if (action === MenuAction.OPOBJT) {
+        if (action === MiniMenuAction.TGT_OBJ) {
             if (this.localPlayer) {
                 const success: boolean = this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], b, c, false, 0, 0, 0, 0, 0, 2);
                 if (!success) {
@@ -12219,7 +12220,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPOBJU) {
+        if (action === MiniMenuAction.USEHELD_ONOBJ) {
             if (this.localPlayer) {
                 const success: boolean = this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], b, c, false, 0, 0, 0, 0, 0, 2);
                 if (!success) {
@@ -12241,7 +12242,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPNPC1 || action === MenuAction.OPNPC2 || action === MenuAction.OPNPC3 || action === MenuAction.OPNPC4 || action === MenuAction.OPNPC5) {
+        if (action === MiniMenuAction.OP_NPC1 || action === MiniMenuAction.OP_NPC2 || action === MiniMenuAction.OP_NPC3 || action === MiniMenuAction.OP_NPC4 || action === MiniMenuAction.OP_NPC5) {
             const npc: ClientNpc | null = this.npc[a];
             if (npc && this.localPlayer) {
                 this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
@@ -12251,23 +12252,23 @@ export class Client extends GameShell {
                 this.crossMode = 2;
                 this.crossCycle = 0;
 
-                if (action === MenuAction.OPNPC1) {
+                if (action === MiniMenuAction.OP_NPC1) {
                     this.out.pIsaac(ClientProt.OPNPC1);
                 }
 
-                if (action === MenuAction.OPNPC2) {
+                if (action === MiniMenuAction.OP_NPC2) {
                     this.out.pIsaac(ClientProt.OPNPC2);
                 }
 
-                if (action === MenuAction.OPNPC3) {
+                if (action === MiniMenuAction.OP_NPC3) {
                     this.out.pIsaac(ClientProt.OPNPC3);
                 }
 
-                if (action === MenuAction.OPNPC4) {
+                if (action === MiniMenuAction.OP_NPC4) {
                     this.out.pIsaac(ClientProt.OPNPC4);
                 }
 
-                if (action === MenuAction.OPNPC5) {
+                if (action === MiniMenuAction.OP_NPC5) {
                     this.out.pIsaac(ClientProt.OPNPC5);
                 }
 
@@ -12275,7 +12276,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPNPC6) {
+        if (action === MiniMenuAction.OP_NPC6) {
             const npc: ClientNpc | null = this.npc[a];
             if (npc && npc.type) {
                 let examine: string;
@@ -12290,7 +12291,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPNPCT) {
+        if (action === MiniMenuAction.TGT_NPC) {
             const npc: ClientNpc | null = this.npc[a];
             if (npc && this.localPlayer) {
                 this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
@@ -12306,7 +12307,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPNPCU) {
+        if (action === MiniMenuAction.USEHELD_ONNPC) {
             const npc: ClientNpc | null = this.npc[a];
 
             if (npc && this.localPlayer) {
@@ -12325,11 +12326,11 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPLOC1) {
+        if (action === MiniMenuAction.OP_LOC1) {
             this.interactWithLoc(b, c, a, ClientProt.OPLOC1);
         }
 
-        if (action === MenuAction.OPLOC2) {
+        if (action === MiniMenuAction.OP_LOC2) {
             Client.oplogic1 += c;
             if (Client.oplogic1 >= 139) {
                 this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC1);
@@ -12339,7 +12340,7 @@ export class Client extends GameShell {
             this.interactWithLoc(b, c, a, ClientProt.OPLOC2);
         }
 
-        if (action === MenuAction.OPLOC3) {
+        if (action === MiniMenuAction.OP_LOC3) {
             Client.oplogic2++;
             if (Client.oplogic2 >= 124) {
                 this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC2);
@@ -12349,15 +12350,15 @@ export class Client extends GameShell {
             this.interactWithLoc(b, c, a, ClientProt.OPLOC3);
         }
 
-        if (action === MenuAction.OPLOC4) {
+        if (action === MiniMenuAction.OP_LOC4) {
             this.interactWithLoc(b, c, a, ClientProt.OPLOC4);
         }
 
-        if (action === MenuAction.OPLOC5) {
+        if (action === MiniMenuAction.OP_LOC5) {
             this.interactWithLoc(b, c, a, ClientProt.OPLOC5);
         }
 
-        if (action === MenuAction.OPLOC6) {
+        if (action === MiniMenuAction.OP_LOC6) {
             const locId: number = (a >> 14) & 0x7fff;
             const loc: LocType = LocType.list(locId);
 
@@ -12371,13 +12372,13 @@ export class Client extends GameShell {
             this.addChat(0, examine, '');
         }
 
-        if (action === MenuAction.OPLOCT) {
+        if (action === MiniMenuAction.TGT_LOC) {
             if (this.interactWithLoc(b, c, a, ClientProt.OPLOCT)) {
                 this.out.p2(this.targetComId);
             }
         }
 
-        if (action === MenuAction.OPLOCU) {
+        if (action === MiniMenuAction.USEHELD_ONLOC) {
             if (this.interactWithLoc(b, c, a, ClientProt.OPLOCU)) {
                 this.out.p2(this.objComId);
                 this.out.p2(this.objSelectedSlot);
@@ -12385,7 +12386,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPPLAYER1 || action === MenuAction.OPPLAYER2 || action === MenuAction.OPPLAYER3 || action === MenuAction.OPPLAYER4 || action === MenuAction.OPPLAYER5) {
+        if (action === MiniMenuAction.OP_PLAYER1 || action === MiniMenuAction.OP_PLAYER2 || action === MiniMenuAction.OP_PLAYER3 || action === MiniMenuAction.OP_PLAYER4 || action === MiniMenuAction.OP_PLAYER5) {
             const player: ClientPlayer | null = this.players[a];
             if (player && this.localPlayer) {
                 this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], player.routeX[0], player.routeZ[0], false, 1, 1, 0, 0, 0, 2);
@@ -12395,7 +12396,7 @@ export class Client extends GameShell {
                 this.crossMode = 2;
                 this.crossCycle = 0;
 
-                if (action === MenuAction.OPPLAYER1) {
+                if (action === MiniMenuAction.OP_PLAYER1) {
                     Client.oplogic4++;
                     if (Client.oplogic4 >= 52) {
                         this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC4);
@@ -12405,15 +12406,15 @@ export class Client extends GameShell {
                     this.out.pIsaac(ClientProt.OPPLAYER1);
                 }
 
-                if (action === MenuAction.OPPLAYER2) {
+                if (action === MiniMenuAction.OP_PLAYER2) {
                     this.out.pIsaac(ClientProt.OPPLAYER2);
                 }
 
-                if (action === MenuAction.OPPLAYER3) {
+                if (action === MiniMenuAction.OP_PLAYER3) {
                     this.out.pIsaac(ClientProt.OPPLAYER3);
                 }
 
-                if (action === MenuAction.OPPLAYER4) {
+                if (action === MiniMenuAction.OP_PLAYER4) {
                     Client.oplogic5 += a;
                     if (Client.oplogic5 >= 66) {
                         this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC5);
@@ -12423,7 +12424,7 @@ export class Client extends GameShell {
                     this.out.pIsaac(ClientProt.OPPLAYER4);
                 }
 
-                if (action === MenuAction.OPPLAYER5) {
+                if (action === MiniMenuAction.OP_PLAYER5) {
                     this.out.pIsaac(ClientProt.OPPLAYER5);
                 }
 
@@ -12431,7 +12432,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPPLAYER_TRADEREQ || action === MenuAction.OPPLAYER_DUELREQ) {
+        if (action === MiniMenuAction.ACCEPT_TRADEREQ || action === MiniMenuAction.ACCEPT_DUELREQ) {
             let option: string = this.menuOption[optionId];
             const tag: number = option.indexOf('@whi@');
 
@@ -12446,7 +12447,7 @@ export class Client extends GameShell {
                     if (player && player.name && player.name.toLowerCase() === name.toLowerCase() && this.localPlayer) {
                         this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], player.routeX[0], player.routeZ[0], false, 1, 1, 0, 0, 0, 2);
 
-                        if (action === MenuAction.OPPLAYER_TRADEREQ) {
+                        if (action === MiniMenuAction.ACCEPT_TRADEREQ) {
                             Client.oplogic5 += a;
                             if (Client.oplogic5 >= 66) {
                                 this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC5);
@@ -12456,7 +12457,7 @@ export class Client extends GameShell {
                             this.out.pIsaac(ClientProt.OPPLAYER4);
                         }
 
-                        if (action === MenuAction.OPPLAYER_DUELREQ) {
+                        if (action === MiniMenuAction.ACCEPT_DUELREQ) {
                             Client.oplogic4++;
                             if (Client.oplogic4 >= 52) {
                                 this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC4);
@@ -12478,7 +12479,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPPLAYERT) {
+        if (action === MiniMenuAction.TGT_PLAYER) {
             const player: ClientPlayer | null = this.players[a];
 
             if (player && this.localPlayer) {
@@ -12495,7 +12496,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPPLAYERU) {
+        if (action === MiniMenuAction.USEHELD_ONPLAYER) {
             const player: ClientPlayer | null = this.players[a];
             if (player && this.localPlayer) {
                 this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], player.routeX[0], player.routeZ[0], false, 1, 1, 0, 0, 0, 2);
@@ -12513,20 +12514,20 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPHELD1 || action === MenuAction.OPHELD2 || action === MenuAction.OPHELD3 || action === MenuAction.OPHELD4 || action === MenuAction.OPHELD5) {
-            if (action === MenuAction.OPHELD1) {
+        if (action === MiniMenuAction.OP_HELD1 || action === MiniMenuAction.OP_HELD2 || action === MiniMenuAction.OP_HELD3 || action === MiniMenuAction.OP_HELD4 || action === MiniMenuAction.OP_HELD5) {
+            if (action === MiniMenuAction.OP_HELD1) {
                 this.out.pIsaac(ClientProt.OPHELD1);
             }
 
-            if (action === MenuAction.OPHELD2) {
+            if (action === MiniMenuAction.OP_HELD2) {
                 this.out.pIsaac(ClientProt.OPHELD2);
             }
 
-            if (action === MenuAction.OPHELD3) {
+            if (action === MiniMenuAction.OP_HELD3) {
                 this.out.pIsaac(ClientProt.OPHELD3);
             }
 
-            if (action === MenuAction.OPHELD4) {
+            if (action === MiniMenuAction.OP_HELD4) {
                 Client.oplogic9++;
                 if (Client.oplogic9 >= 116) {
                     this.out.pIsaac(ClientProt.ANTICHEAT_OPLOGIC9);
@@ -12536,7 +12537,7 @@ export class Client extends GameShell {
                 this.out.pIsaac(ClientProt.OPHELD4);
             }
 
-            if (action === MenuAction.OPHELD5) {
+            if (action === MiniMenuAction.OP_HELD5) {
                 this.out.pIsaac(ClientProt.OPHELD5);
             }
 
@@ -12558,7 +12559,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPHELD6) {
+        if (action === MiniMenuAction.OP_HELD6) {
             const obj: ObjType = ObjType.list(a);
             const com = IfType.list[c];
             let examine: string;
@@ -12574,7 +12575,7 @@ export class Client extends GameShell {
             this.addChat(0, examine, '');
         }
 
-        if (action === MenuAction.OPHELDT_START) {
+        if (action === MiniMenuAction.USEHELD_START) {
             this.useMode = 1;
             this.objSelectedSlot = b;
             this.objSelectedComId = c;
@@ -12585,7 +12586,7 @@ export class Client extends GameShell {
             return;
         }
 
-        if (action === MenuAction.OPHELDT_SELECT) {
+        if (action === MiniMenuAction.TGT_BUTTON) {
             const com: IfType = IfType.list[c];
             this.targetMode = 1;
             this.targetComId = c;
@@ -12614,7 +12615,7 @@ export class Client extends GameShell {
             return;
         }
 
-        if (action === MenuAction.OPHELDT) {
+        if (action === MiniMenuAction.TGT_HELD) {
             this.out.pIsaac(ClientProt.OPHELDT);
             this.out.p2(a);
             this.out.p2(b);
@@ -12635,7 +12636,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.OPHELDU) {
+        if (action === MiniMenuAction.USEHELD_ONHELD) {
             this.out.pIsaac(ClientProt.OPHELDU);
             this.out.p2(a);
             this.out.p2(b);
@@ -12658,8 +12659,8 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.INV_BUTTON1 || action === MenuAction.INV_BUTTON2 || action === MenuAction.INV_BUTTON3 || action === MenuAction.INV_BUTTON4 || action === MenuAction.INV_BUTTON5) {
-            if (action === MenuAction.INV_BUTTON1) {
+        if (action === MiniMenuAction.INV_BUTTON1 || action === MiniMenuAction.INV_BUTTON2 || action === MiniMenuAction.INV_BUTTON3 || action === MiniMenuAction.INV_BUTTON4 || action === MiniMenuAction.INV_BUTTON5) {
+            if (action === MiniMenuAction.INV_BUTTON1) {
                 if ((a & 0x3) == 0) {
                     Client.oplogic6++;
                 }
@@ -12671,19 +12672,19 @@ export class Client extends GameShell {
                 this.out.pIsaac(ClientProt.INV_BUTTON1);
             }
 
-            if (action === MenuAction.INV_BUTTON2) {
+            if (action === MiniMenuAction.INV_BUTTON2) {
                 this.out.pIsaac(ClientProt.INV_BUTTON2);
             }
 
-            if (action === MenuAction.INV_BUTTON3) {
+            if (action === MiniMenuAction.INV_BUTTON3) {
                 this.out.pIsaac(ClientProt.INV_BUTTON3);
             }
 
-            if (action === MenuAction.INV_BUTTON4) {
+            if (action === MiniMenuAction.INV_BUTTON4) {
                 this.out.pIsaac(ClientProt.INV_BUTTON4);
             }
 
-            if (action === MenuAction.INV_BUTTON5) {
+            if (action === MiniMenuAction.INV_BUTTON5) {
                 this.out.pIsaac(ClientProt.INV_BUTTON5);
             }
 
@@ -12705,7 +12706,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.IF_BUTTON) {
+        if (action === MiniMenuAction.IF_BUTTON) {
             const com: IfType = IfType.list[c];
             let notify: boolean = true;
 
@@ -12719,7 +12720,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.IF_BUTTON_TOGGLE) {
+        if (action === MiniMenuAction.TOGGLE_BUTTON) {
             this.out.pIsaac(ClientProt.IF_BUTTON);
             this.out.p2(c);
 
@@ -12732,7 +12733,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.IF_BUTTON_SELECT) {
+        if (action === MiniMenuAction.SELECT_BUTTON) {
             this.out.pIsaac(ClientProt.IF_BUTTON);
             this.out.p2(c);
 
@@ -12747,7 +12748,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.RESUME_PAUSEBUTTON) {
+        if (action === MiniMenuAction.PAUSE_BUTTON) {
             if (!this.resumedPauseButton) {
                 this.out.pIsaac(ClientProt.RESUME_PAUSEBUTTON);
                 this.out.p2(c);
@@ -12755,11 +12756,11 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.CLOSE_MODAL) {
+        if (action === MiniMenuAction.CLOSE_BUTTON) {
             this.closeModal();
         }
 
-        if (action === MenuAction.REPORT_ABUSE) {
+        if (action === MiniMenuAction.ABUSE_REPORT) {
             const option: string = this.menuOption[optionId];
             const tag: number = option.indexOf('@whi@');
 
@@ -12778,7 +12779,7 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.WALK) {
+        if (action === MiniMenuAction.WALK) {
             if (this.isMenuOpen) {
                 this.world?.updateMousePicking(b - 4, c - 4);
             } else {
@@ -12786,25 +12787,25 @@ export class Client extends GameShell {
             }
         }
 
-        if (action === MenuAction.FRIENDLIST_ADD || action === MenuAction.IGNORELIST_ADD || action === MenuAction.FRIENDLIST_DEL || action === MenuAction.IGNORELIST_DEL) {
+        if (action === MiniMenuAction.FRIENDLIST_ADD || action === MiniMenuAction.IGNORELIST_ADD || action === MiniMenuAction.FRIENDLIST_DEL || action === MiniMenuAction.IGNORELIST_DEL) {
             const option: string = this.menuOption[optionId];
             const tag: number = option.indexOf('@whi@');
 
             if (tag !== -1) {
                 const username: bigint = JString.toUserhash(option.substring(tag + 5).trim());
-                if (action === MenuAction.FRIENDLIST_ADD) {
+                if (action === MiniMenuAction.FRIENDLIST_ADD) {
                     this.addFriend(username);
-                } else if (action === MenuAction.IGNORELIST_ADD) {
+                } else if (action === MiniMenuAction.IGNORELIST_ADD) {
                     this.addIgnore(username);
-                } else if (action === MenuAction.FRIENDLIST_DEL) {
+                } else if (action === MiniMenuAction.FRIENDLIST_DEL) {
                     this.delFriend(username);
-                } else if (action === MenuAction.IGNORELIST_DEL) {
+                } else if (action === MiniMenuAction.IGNORELIST_DEL) {
                     this.delIgnore(username);
                 }
             }
         }
 
-        if (action === MenuAction.MESSAGE_PRIVATE) {
+        if (action === MiniMenuAction.MESSAGE_PRIVATE) {
             const option: string = this.menuOption[optionId];
             const tag: number = option.indexOf('@whi@');
 
@@ -12839,7 +12840,7 @@ export class Client extends GameShell {
     private addWorldOptions(): void {
         if (this.useMode === 0 && this.targetMode === 0) {
             this.menuOption[this.menuNumEntries] = 'Walk here';
-            this.menuAction[this.menuNumEntries] = MenuAction.WALK;
+            this.menuAction[this.menuNumEntries] = MiniMenuAction.WALK;
             this.menuParamB[this.menuNumEntries] = this.mouseX;
             this.menuParamC[this.menuNumEntries] = this.mouseY;
             this.menuNumEntries++;
@@ -12864,7 +12865,7 @@ export class Client extends GameShell {
 
                 if (this.useMode === 1) {
                     this.menuOption[this.menuNumEntries] = 'Use ' + this.objSelectedName + ' with @cya@' + loc.name;
-                    this.menuAction[this.menuNumEntries] = MenuAction.OPLOCU;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.USEHELD_ONLOC;
                     this.menuParamA[this.menuNumEntries] = typecode;
                     this.menuParamB[this.menuNumEntries] = x;
                     this.menuParamC[this.menuNumEntries] = z;
@@ -12872,7 +12873,7 @@ export class Client extends GameShell {
                 } else if (this.targetMode === 1) {
                     if ((this.targetMask & 0x4) === 4) {
                         this.menuOption[this.menuNumEntries] = this.targetOp + ' @cya@' + loc.name;
-                        this.menuAction[this.menuNumEntries] = MenuAction.OPLOCT;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.TGT_LOC;
                         this.menuParamA[this.menuNumEntries] = typecode;
                         this.menuParamB[this.menuNumEntries] = x;
                         this.menuParamC[this.menuNumEntries] = z;
@@ -12888,15 +12889,15 @@ export class Client extends GameShell {
                             this.menuOption[this.menuNumEntries] = loc.op[i] + ' @cya@' + loc.name;
 
                             if (i === 0) {
-                                this.menuAction[this.menuNumEntries] = MenuAction.OPLOC1;
+                                this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_LOC1;
                             } else if (i === 1) {
-                                this.menuAction[this.menuNumEntries] = MenuAction.OPLOC2;
+                                this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_LOC2;
                             } else if (i === 2) {
-                                this.menuAction[this.menuNumEntries] = MenuAction.OPLOC3;
+                                this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_LOC3;
                             } else if (i === 3) {
-                                this.menuAction[this.menuNumEntries] = MenuAction.OPLOC4;
+                                this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_LOC4;
                             } else if (i === 4) {
-                                this.menuAction[this.menuNumEntries] = MenuAction.OPLOC5;
+                                this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_LOC5;
                             }
 
                             this.menuParamA[this.menuNumEntries] = typecode;
@@ -12907,7 +12908,7 @@ export class Client extends GameShell {
                     }
 
                     this.menuOption[this.menuNumEntries] = 'Examine @cya@' + loc.name + ' (' + loc.id + ')';
-                    this.menuAction[this.menuNumEntries] = MenuAction.OPLOC6;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_LOC6;
                     this.menuParamA[this.menuNumEntries] = typecode;
                     this.menuParamB[this.menuNumEntries] = x;
                     this.menuParamC[this.menuNumEntries] = z;
@@ -12963,7 +12964,7 @@ export class Client extends GameShell {
                     const type: ObjType = ObjType.list(obj.id);
                     if (this.useMode === 1) {
                         this.menuOption[this.menuNumEntries] = 'Use ' + this.objSelectedName + ' with @lre@' + type.name;
-                        this.menuAction[this.menuNumEntries] = MenuAction.OPOBJU;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.USEHELD_ONOBJ;
                         this.menuParamA[this.menuNumEntries] = obj.id;
                         this.menuParamB[this.menuNumEntries] = x;
                         this.menuParamC[this.menuNumEntries] = z;
@@ -12971,7 +12972,7 @@ export class Client extends GameShell {
                     } else if (this.targetMode === 1) {
                         if ((this.targetMask & 0x1) === 1) {
                             this.menuOption[this.menuNumEntries] = this.targetOp + ' @lre@' + type.name;
-                            this.menuAction[this.menuNumEntries] = MenuAction.OPOBJT;
+                            this.menuAction[this.menuNumEntries] = MiniMenuAction.TGT_OBJ;
                             this.menuParamA[this.menuNumEntries] = obj.id;
                             this.menuParamB[this.menuNumEntries] = x;
                             this.menuParamC[this.menuNumEntries] = z;
@@ -12983,15 +12984,15 @@ export class Client extends GameShell {
                                 this.menuOption[this.menuNumEntries] = type.op[op] + ' @lre@' + type.name;
 
                                 if (op === 0) {
-                                    this.menuAction[this.menuNumEntries] = MenuAction.OPOBJ1;
+                                    this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_OBJ1;
                                 } else if (op === 1) {
-                                    this.menuAction[this.menuNumEntries] = MenuAction.OPOBJ2;
+                                    this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_OBJ2;
                                 } else if (op === 2) {
-                                    this.menuAction[this.menuNumEntries] = MenuAction.OPOBJ3;
+                                    this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_OBJ3;
                                 } else if (op === 3) {
-                                    this.menuAction[this.menuNumEntries] = MenuAction.OPOBJ4;
+                                    this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_OBJ4;
                                 } else if (op === 4) {
-                                    this.menuAction[this.menuNumEntries] = MenuAction.OPOBJ5;
+                                    this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_OBJ5;
                                 }
 
                                 this.menuParamA[this.menuNumEntries] = obj.id;
@@ -13000,7 +13001,7 @@ export class Client extends GameShell {
                                 this.menuNumEntries++;
                             } else if (op === 2) {
                                 this.menuOption[this.menuNumEntries] = 'Take @lre@' + type.name;
-                                this.menuAction[this.menuNumEntries] = MenuAction.OPOBJ3;
+                                this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_OBJ3;
                                 this.menuParamA[this.menuNumEntries] = obj.id;
                                 this.menuParamB[this.menuNumEntries] = x;
                                 this.menuParamC[this.menuNumEntries] = z;
@@ -13009,7 +13010,7 @@ export class Client extends GameShell {
                         }
 
                         this.menuOption[this.menuNumEntries] = 'Examine @lre@' + type.name;
-                        this.menuAction[this.menuNumEntries] = MenuAction.OPOBJ6;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_OBJ6;
                         this.menuParamA[this.menuNumEntries] = obj.id;
                         this.menuParamB[this.menuNumEntries] = x;
                         this.menuParamC[this.menuNumEntries] = z;
@@ -13032,7 +13033,7 @@ export class Client extends GameShell {
 
         if (this.useMode === 1) {
             this.menuOption[this.menuNumEntries] = 'Use ' + this.objSelectedName + ' with @yel@' + tooltip;
-            this.menuAction[this.menuNumEntries] = MenuAction.OPNPCU;
+            this.menuAction[this.menuNumEntries] = MiniMenuAction.USEHELD_ONNPC;
             this.menuParamA[this.menuNumEntries] = a;
             this.menuParamB[this.menuNumEntries] = b;
             this.menuParamC[this.menuNumEntries] = c;
@@ -13040,7 +13041,7 @@ export class Client extends GameShell {
         } else if (this.targetMode === 1) {
             if ((this.targetMask & 0x2) === 2) {
                 this.menuOption[this.menuNumEntries] = this.targetOp + ' @yel@' + tooltip;
-                this.menuAction[this.menuNumEntries] = MenuAction.OPNPCT;
+                this.menuAction[this.menuNumEntries] = MiniMenuAction.TGT_NPC;
                 this.menuParamA[this.menuNumEntries] = a;
                 this.menuParamB[this.menuNumEntries] = b;
                 this.menuParamC[this.menuNumEntries] = c;
@@ -13056,15 +13057,15 @@ export class Client extends GameShell {
                     this.menuOption[this.menuNumEntries] = npc.op[i] + ' @yel@' + tooltip;
 
                     if (i === 0) {
-                        this.menuAction[this.menuNumEntries] = MenuAction.OPNPC1;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_NPC1;
                     } else if (i === 1) {
-                        this.menuAction[this.menuNumEntries] = MenuAction.OPNPC2;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_NPC2;
                     } else if (i === 2) {
-                        this.menuAction[this.menuNumEntries] = MenuAction.OPNPC3;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_NPC3;
                     } else if (i === 3) {
-                        this.menuAction[this.menuNumEntries] = MenuAction.OPNPC4;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_NPC4;
                     } else if (i === 4) {
-                        this.menuAction[this.menuNumEntries] = MenuAction.OPNPC5;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_NPC5;
                     }
 
                     this.menuParamA[this.menuNumEntries] = a;
@@ -13082,21 +13083,21 @@ export class Client extends GameShell {
 
                     let priority: number = 0;
                     if (this.localPlayer && npc.vislevel > this.localPlayer.combatLevel) {
-                        priority = MenuAction._PRIORITY;
+                        priority = MiniMenuAction._PRIORITY;
                     }
 
                     this.menuOption[this.menuNumEntries] = npc.op[i] + ' @yel@' + tooltip;
 
                     if (i === 0) {
-                        this.menuAction[this.menuNumEntries] = priority + MenuAction.OPNPC1;
+                        this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_NPC1;
                     } else if (i === 1) {
-                        this.menuAction[this.menuNumEntries] = priority + MenuAction.OPNPC2;
+                        this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_NPC2;
                     } else if (i === 2) {
-                        this.menuAction[this.menuNumEntries] = priority + MenuAction.OPNPC3;
+                        this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_NPC3;
                     } else if (i === 3) {
-                        this.menuAction[this.menuNumEntries] = priority + MenuAction.OPNPC4;
+                        this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_NPC4;
                     } else if (i === 4) {
-                        this.menuAction[this.menuNumEntries] = priority + MenuAction.OPNPC5;
+                        this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_NPC5;
                     }
 
                     this.menuParamA[this.menuNumEntries] = a;
@@ -13107,7 +13108,7 @@ export class Client extends GameShell {
             }
 
             this.menuOption[this.menuNumEntries] = 'Examine @yel@' + tooltip;
-            this.menuAction[this.menuNumEntries] = MenuAction.OPNPC6;
+            this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_NPC6;
             this.menuParamA[this.menuNumEntries] = a;
             this.menuParamB[this.menuNumEntries] = b;
             this.menuParamC[this.menuNumEntries] = c;
@@ -13127,7 +13128,7 @@ export class Client extends GameShell {
 
         if (this.useMode === 1) {
             this.menuOption[this.menuNumEntries] = 'Use ' + this.objSelectedName + ' with @whi@' + tooltip;
-            this.menuAction[this.menuNumEntries] = MenuAction.OPPLAYERU;
+            this.menuAction[this.menuNumEntries] = MiniMenuAction.USEHELD_ONPLAYER;
             this.menuParamA[this.menuNumEntries] = a;
             this.menuParamB[this.menuNumEntries] = b;
             this.menuParamC[this.menuNumEntries] = c;
@@ -13135,7 +13136,7 @@ export class Client extends GameShell {
         } else if (this.targetMode === 1) {
             if ((this.targetMask & 0x8) === 8) {
                 this.menuOption[this.menuNumEntries] = this.targetOp + ' @whi@' + tooltip;
-                this.menuAction[this.menuNumEntries] = MenuAction.OPPLAYERT;
+                this.menuAction[this.menuNumEntries] = MiniMenuAction.TGT_PLAYER;
                 this.menuParamA[this.menuNumEntries] = a;
                 this.menuParamB[this.menuNumEntries] = b;
                 this.menuParamC[this.menuNumEntries] = c;
@@ -13160,15 +13161,15 @@ export class Client extends GameShell {
                 }
 
                 if (i === 0) {
-                    this.menuAction[this.menuNumEntries] = priority + MenuAction.OPPLAYER1;
+                    this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_PLAYER1;
                 } else if (i === 1) {
-                    this.menuAction[this.menuNumEntries] = priority + MenuAction.OPPLAYER2;
+                    this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_PLAYER2;
                 } else if (i === 2) {
-                    this.menuAction[this.menuNumEntries] = priority + MenuAction.OPPLAYER3;
+                    this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_PLAYER3;
                 } else if (i === 3) {
-                    this.menuAction[this.menuNumEntries] = priority + MenuAction.OPPLAYER4;
+                    this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_PLAYER4;
                 } else if (i === 4) {
-                    this.menuAction[this.menuNumEntries] = priority + MenuAction.OPPLAYER5;
+                    this.menuAction[this.menuNumEntries] = priority + MiniMenuAction.OP_PLAYER5;
                 }
 
                 this.menuParamA[this.menuNumEntries] = a;
@@ -13179,7 +13180,7 @@ export class Client extends GameShell {
         }
 
         for (let i: number = 0; i < this.menuNumEntries; i++) {
-            if (this.menuAction[i] === MenuAction.WALK) {
+            if (this.menuAction[i] === MiniMenuAction.WALK) {
                 this.menuOption[i] = 'Walk here @whi@' + tooltip;
                 break;
             }
@@ -13246,7 +13247,7 @@ export class Client extends GameShell {
                         if (this.useMode === 1 && child.objOps) {
                             if (child.id !== this.objSelectedComId || slot !== this.objSelectedSlot) {
                                 this.menuOption[this.menuNumEntries] = 'Use ' + this.objSelectedName + ' with @lre@' + obj.name;
-                                this.menuAction[this.menuNumEntries] = MenuAction.OPHELDU;
+                                this.menuAction[this.menuNumEntries] = MiniMenuAction.USEHELD_ONHELD;
                                 this.menuParamA[this.menuNumEntries] = obj.id;
                                 this.menuParamB[this.menuNumEntries] = slot;
                                 this.menuParamC[this.menuNumEntries] = child.id;
@@ -13255,7 +13256,7 @@ export class Client extends GameShell {
                         } else if (this.targetMode === 1 && child.objOps) {
                             if ((this.targetMask & 0x10) === 16) {
                                 this.menuOption[this.menuNumEntries] = this.targetOp + ' @lre@' + obj.name;
-                                this.menuAction[this.menuNumEntries] = MenuAction.OPHELDT;
+                                this.menuAction[this.menuNumEntries] = MiniMenuAction.TGT_HELD;
                                 this.menuParamA[this.menuNumEntries] = obj.id;
                                 this.menuParamB[this.menuNumEntries] = slot;
                                 this.menuParamC[this.menuNumEntries] = child.id;
@@ -13268,9 +13269,9 @@ export class Client extends GameShell {
                                         this.menuOption[this.menuNumEntries] = obj.iop[op] + ' @lre@' + obj.name;
 
                                         if (op === 3) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.OPHELD4;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_HELD4;
                                         } else if (op === 4) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.OPHELD5;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_HELD5;
                                         }
 
                                         this.menuParamA[this.menuNumEntries] = obj.id;
@@ -13279,7 +13280,7 @@ export class Client extends GameShell {
                                         this.menuNumEntries++;
                                     } else if (op === 4) {
                                         this.menuOption[this.menuNumEntries] = 'Drop @lre@' + obj.name;
-                                        this.menuAction[this.menuNumEntries] = MenuAction.OPHELD5;
+                                        this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_HELD5;
                                         this.menuParamA[this.menuNumEntries] = obj.id;
                                         this.menuParamB[this.menuNumEntries] = slot;
                                         this.menuParamC[this.menuNumEntries] = child.id;
@@ -13290,7 +13291,7 @@ export class Client extends GameShell {
 
                             if (child.objUse) {
                                 this.menuOption[this.menuNumEntries] = 'Use @lre@' + obj.name;
-                                this.menuAction[this.menuNumEntries] = MenuAction.OPHELDT_START;
+                                this.menuAction[this.menuNumEntries] = MiniMenuAction.USEHELD_START;
                                 this.menuParamA[this.menuNumEntries] = obj.id;
                                 this.menuParamB[this.menuNumEntries] = slot;
                                 this.menuParamC[this.menuNumEntries] = child.id;
@@ -13303,11 +13304,11 @@ export class Client extends GameShell {
                                         this.menuOption[this.menuNumEntries] = obj.iop[op] + ' @lre@' + obj.name;
 
                                         if (op === 0) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.OPHELD1;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_HELD1;
                                         } else if (op === 1) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.OPHELD2;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_HELD2;
                                         } else if (op === 2) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.OPHELD3;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_HELD3;
                                         }
 
                                         this.menuParamA[this.menuNumEntries] = obj.id;
@@ -13324,15 +13325,15 @@ export class Client extends GameShell {
                                         this.menuOption[this.menuNumEntries] = child.iop[op] + ' @lre@' + obj.name;
 
                                         if (op === 0) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.INV_BUTTON1;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.INV_BUTTON1;
                                         } else if (op === 1) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.INV_BUTTON2;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.INV_BUTTON2;
                                         } else if (op === 2) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.INV_BUTTON3;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.INV_BUTTON3;
                                         } else if (op === 3) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.INV_BUTTON4;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.INV_BUTTON4;
                                         } else if (op === 4) {
-                                            this.menuAction[this.menuNumEntries] = MenuAction.INV_BUTTON5;
+                                            this.menuAction[this.menuNumEntries] = MiniMenuAction.INV_BUTTON5;
                                         }
 
                                         this.menuParamA[this.menuNumEntries] = obj.id;
@@ -13344,7 +13345,7 @@ export class Client extends GameShell {
                             }
 
                             this.menuOption[this.menuNumEntries] = 'Examine @lre@' + obj.name;
-                            this.menuAction[this.menuNumEntries] = MenuAction.OPHELD6;
+                            this.menuAction[this.menuNumEntries] = MiniMenuAction.OP_HELD6;
                             this.menuParamA[this.menuNumEntries] = obj.id;
                             this.menuParamB[this.menuNumEntries] = slot;
                             this.menuParamC[this.menuNumEntries] = child.id;
@@ -13363,7 +13364,7 @@ export class Client extends GameShell {
 
                     if (!override && child.buttonText) {
                         this.menuOption[this.menuNumEntries] = child.buttonText;
-                        this.menuAction[this.menuNumEntries] = MenuAction.IF_BUTTON;
+                        this.menuAction[this.menuNumEntries] = MiniMenuAction.IF_BUTTON;
                         this.menuParamC[this.menuNumEntries] = child.id;
                         this.menuNumEntries++;
                     }
@@ -13374,27 +13375,27 @@ export class Client extends GameShell {
                     }
 
                     this.menuOption[this.menuNumEntries] = prefix + ' @gre@' + child.targetBase;
-                    this.menuAction[this.menuNumEntries] = MenuAction.OPHELDT_SELECT;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.TGT_BUTTON;
                     this.menuParamC[this.menuNumEntries] = child.id;
                     this.menuNumEntries++;
                 } else if (child.buttonType === ButtonType.BUTTON_CLOSE) {
                     this.menuOption[this.menuNumEntries] = 'Close';
-                    this.menuAction[this.menuNumEntries] = MenuAction.CLOSE_MODAL;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.CLOSE_BUTTON;
                     this.menuParamC[this.menuNumEntries] = child.id;
                     this.menuNumEntries++;
                 } else if (child.buttonType === ButtonType.BUTTON_TOGGLE && child.buttonText) {
                     this.menuOption[this.menuNumEntries] = child.buttonText;
-                    this.menuAction[this.menuNumEntries] = MenuAction.IF_BUTTON_TOGGLE;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.TOGGLE_BUTTON;
                     this.menuParamC[this.menuNumEntries] = child.id;
                     this.menuNumEntries++;
                 } else if (child.buttonType === ButtonType.BUTTON_SELECT && child.buttonText) {
                     this.menuOption[this.menuNumEntries] = child.buttonText;
-                    this.menuAction[this.menuNumEntries] = MenuAction.IF_BUTTON_SELECT;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.SELECT_BUTTON;
                     this.menuParamC[this.menuNumEntries] = child.id;
                     this.menuNumEntries++;
                 } else if (child.buttonType === ButtonType.BUTTON_CONTINUE && !this.resumedPauseButton && child.buttonText) {
                     this.menuOption[this.menuNumEntries] = child.buttonText;
-                    this.menuAction[this.menuNumEntries] = MenuAction.RESUME_PAUSEBUTTON;
+                    this.menuAction[this.menuNumEntries] = MiniMenuAction.PAUSE_BUTTON;
                     this.menuParamC[this.menuNumEntries] = child.id;
                     this.menuNumEntries++;
                 }
@@ -13418,16 +13419,16 @@ export class Client extends GameShell {
             }
 
             this.menuOption[this.menuNumEntries] = 'Remove @whi@' + this.friendUsername[clientCode];
-            this.menuAction[this.menuNumEntries] = MenuAction.FRIENDLIST_DEL;
+            this.menuAction[this.menuNumEntries] = MiniMenuAction.FRIENDLIST_DEL;
             this.menuNumEntries++;
 
             this.menuOption[this.menuNumEntries] = 'Message @whi@' + this.friendUsername[clientCode];
-            this.menuAction[this.menuNumEntries] = MenuAction.MESSAGE_PRIVATE;
+            this.menuAction[this.menuNumEntries] = MiniMenuAction.MESSAGE_PRIVATE;
             this.menuNumEntries++;
             return true;
         } else if (clientCode >= ClientCode.CC_IGNORES_START && clientCode <= ClientCode.CC_IGNORES_END) {
             this.menuOption[this.menuNumEntries] = 'Remove @whi@' + component.text;
-            this.menuAction[this.menuNumEntries] = MenuAction.IGNORELIST_DEL;
+            this.menuAction[this.menuNumEntries] = MiniMenuAction.IGNORELIST_DEL;
             this.menuNumEntries++;
             return true;
         }
@@ -13893,7 +13894,7 @@ export class Client extends GameShell {
     private drawScrollbar(x: number, y: number, scrollY: number, scrollHeight: number, height: number): void {
         this.scrollbar1?.plotSprite(x, y);
         this.scrollbar2?.plotSprite(x, y + height - 16);
-        Pix2D.fillRect(x, y + 16, 16, height - 32, this.SCROLLBAR_TRACK);
+        Pix2D.fillRect(x, y + 16, 16, height - 32, SCROLLBAR_TRACK);
 
         let gripSize: number = (((height - 32) * height) / scrollHeight) | 0;
         if (gripSize < 8) {
@@ -13901,19 +13902,19 @@ export class Client extends GameShell {
         }
 
         const gripY: number = (((height - gripSize - 32) * scrollY) / (scrollHeight - height)) | 0;
-        Pix2D.fillRect(x, y + gripY + 16, 16, gripSize, this.SCROLLBAR_GRIP_FOREGROUND);
+        Pix2D.fillRect(x, y + gripY + 16, 16, gripSize, SCROLLBAR_GRIP_FOREGROUND);
 
-        Pix2D.vline(x, y + gripY + 16, gripSize, this.SCROLLBAR_GRIP_HIGHLIGHT);
-        Pix2D.vline(x + 1, y + gripY + 16, gripSize, this.SCROLLBAR_GRIP_HIGHLIGHT);
+        Pix2D.vline(x, y + gripY + 16, gripSize, SCROLLBAR_GRIP_HIGHLIGHT);
+        Pix2D.vline(x + 1, y + gripY + 16, gripSize, SCROLLBAR_GRIP_HIGHLIGHT);
 
-        Pix2D.hline(x, y + gripY + 16, 16, this.SCROLLBAR_GRIP_HIGHLIGHT);
-        Pix2D.hline(x, y + gripY + 17, 16, this.SCROLLBAR_GRIP_HIGHLIGHT);
+        Pix2D.hline(x, y + gripY + 16, 16, SCROLLBAR_GRIP_HIGHLIGHT);
+        Pix2D.hline(x, y + gripY + 17, 16, SCROLLBAR_GRIP_HIGHLIGHT);
 
-        Pix2D.vline(x + 15, y + gripY + 16, gripSize, this.SCROLLBAR_GRIP_LOWLIGHT);
-        Pix2D.vline(x + 14, y + gripY + 17, gripSize - 1, this.SCROLLBAR_GRIP_LOWLIGHT);
+        Pix2D.vline(x + 15, y + gripY + 16, gripSize, SCROLLBAR_GRIP_LOWLIGHT);
+        Pix2D.vline(x + 14, y + gripY + 17, gripSize - 1, SCROLLBAR_GRIP_LOWLIGHT);
 
-        Pix2D.hline(x, y + gripY + gripSize + 15, 16, this.SCROLLBAR_GRIP_LOWLIGHT);
-        Pix2D.hline(x + 1, y + gripY + gripSize + 14, 15, this.SCROLLBAR_GRIP_LOWLIGHT);
+        Pix2D.hline(x, y + gripY + gripSize + 15, 16, SCROLLBAR_GRIP_LOWLIGHT);
+        Pix2D.hline(x + 1, y + gripY + gripSize + 14, 15, SCROLLBAR_GRIP_LOWLIGHT);
     }
 
     private inf(value: number): string {
@@ -14630,7 +14631,7 @@ export class Client extends GameShell {
             this.closeModal();
 
             if (this.reportAbuseInput.length > 0) {
-                this.out.pIsaac(ClientProt.REPORT_ABUSE);
+                this.out.pIsaac(ClientProt.SEND_SNAPSHOT);
                 this.out.p8(JString.toUserhash(this.reportAbuseInput));
                 this.out.p1(clientCode - 601);
                 this.out.p1(this.reportAbuseMuteOption ? 1 : 0);
@@ -14857,8 +14858,8 @@ export class Client extends GameShell {
             this.minimapDrawDot(anchorY, this.activeMapFunctions[i], anchorX);
         }
 
-        for (let ltx: number = 0; ltx < CollisionConstants.SIZE; ltx++) {
-            for (let ltz: number = 0; ltz < CollisionConstants.SIZE; ltz++) {
+        for (let ltx: number = 0; ltx < BuildArea.SIZE; ltx++) {
+            for (let ltz: number = 0; ltz < BuildArea.SIZE; ltz++) {
                 const objs = this.groundObj[this.minusedlevel][ltx][ltz];
                 if (objs) {
                     anchorX = ltx * 4 + 2 - ((this.localPlayer.x / 32) | 0);

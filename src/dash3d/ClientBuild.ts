@@ -2,9 +2,9 @@ import FloType from '#/config/FloType.js';
 import LocType from '#/config/LocType.js';
 
 import ClientLocAnim from '#/dash3d/ClientLocAnim.js';
-import CollisionMap, { CollisionConstants } from '#/dash3d/CollisionMap.js';
+import CollisionMap, { BuildArea } from '#/dash3d/CollisionMap.js';
 import { LocAngle } from '#/dash3d/LocAngle.js';
-import LocShape from '#/dash3d/LocShape.js';
+import { LocShape } from '#/dash3d/LocShape.js';
 import { MapFlag } from '#/dash3d/MapFlag.js';
 import Model from '#/dash3d/Model.js';
 import type ModelSource from '#/dash3d/ModelSource.js';
@@ -56,13 +56,13 @@ export default class ClientBuild {
         this.groundh = groundh;
         this.mapl = mapl;
 
-        this.floort1 = new Uint8Array3d(CollisionConstants.LEVELS, maxTileX, maxTileZ);
-        this.floort2 = new Uint8Array3d(CollisionConstants.LEVELS, maxTileX, maxTileZ);
-        this.floors = new Uint8Array3d(CollisionConstants.LEVELS, maxTileX, maxTileZ);
-        this.floorr = new Uint8Array3d(CollisionConstants.LEVELS, maxTileX, maxTileZ);
+        this.floort1 = new Uint8Array3d(BuildArea.LEVELS, maxTileX, maxTileZ);
+        this.floort2 = new Uint8Array3d(BuildArea.LEVELS, maxTileX, maxTileZ);
+        this.floors = new Uint8Array3d(BuildArea.LEVELS, maxTileX, maxTileZ);
+        this.floorr = new Uint8Array3d(BuildArea.LEVELS, maxTileX, maxTileZ);
 
-        this.mapo = new Int32Array3d(CollisionConstants.LEVELS, maxTileX + 1, maxTileZ + 1);
-        this.shadow = new Uint8Array3d(CollisionConstants.LEVELS, maxTileX + 1, maxTileZ + 1);
+        this.mapo = new Int32Array3d(BuildArea.LEVELS, maxTileX + 1, maxTileZ + 1);
+        this.shadow = new Uint8Array3d(BuildArea.LEVELS, maxTileX + 1, maxTileZ + 1);
         this.lightmap = new Int32Array2d(maxTileX + 1, maxTileZ + 1);
 
         this.huetot = new Int32Array(maxTileZ);
@@ -73,9 +73,9 @@ export default class ClientBuild {
     }
 
     finishBuild(world: World | null, collision: (CollisionMap | null)[]): void {
-        for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
-            for (let x: number = 0; x < CollisionConstants.SIZE; x++) {
-                for (let z: number = 0; z < CollisionConstants.SIZE; z++) {
+        for (let level: number = 0; level < BuildArea.LEVELS; level++) {
+            for (let x: number = 0; x < BuildArea.SIZE; x++) {
+                for (let z: number = 0; z < BuildArea.SIZE; z++) {
                     if ((this.mapl[level][x][z] & MapFlag.Block) !== 0) {
                         let trueLevel: number = level;
 
@@ -105,7 +105,7 @@ export default class ClientBuild {
             ClientBuild.ligOff = 16;
         }
 
-        for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
+        for (let level: number = 0; level < BuildArea.LEVELS; level++) {
             const shademap: Uint8Array[] = this.shadow[level];
             const lightAmbient: number = 96;
             const lightAttenuation: number = 768;
@@ -149,10 +149,10 @@ export default class ClientBuild {
 
                         if (t1 > 0) {
                             const flo: FloType = FloType.list[t1 - 1];
-                            this.huetot[z0] += flo.chroma;
+                            this.huetot[z0] += flo.underlayHue;
                             this.sattot[z0] += flo.saturation;
                             this.ligtot[z0] += flo.lightness;
-                            this.comtot[z0] += flo.luminance;
+                            this.comtot[z0] += flo.chroma;
                             this.tot[z0]++;
                         }
                     }
@@ -163,39 +163,39 @@ export default class ClientBuild {
 
                         if (t1 > 0) {
                             const flo: FloType = FloType.list[t1 - 1];
-                            this.huetot[z0] -= flo.chroma;
+                            this.huetot[z0] -= flo.underlayHue;
                             this.sattot[z0] -= flo.saturation;
                             this.ligtot[z0] -= flo.lightness;
-                            this.comtot[z0] -= flo.luminance;
+                            this.comtot[z0] -= flo.chroma;
                             this.tot[z0]--;
                         }
                     }
                 }
 
                 if (x0 >= 1 && x0 < this.maxTileX - 1) {
-                    let hueAccumulator: number = 0;
-                    let saturationAccumulator: number = 0;
-                    let lightnessAccumulator: number = 0;
-                    let luminanceAccumulator: number = 0;
-                    let magnitudeAccumulator: number = 0;
+                    let blendHue: number = 0;
+                    let blendSat: number = 0;
+                    let blendLig: number = 0;
+                    let blendCom: number = 0;
+                    let blendTot: number = 0;
 
                     for (let z0: number = -5; z0 < this.maxTileZ + 5; z0++) {
                         const dz1: number = z0 + 5;
                         if (dz1 >= 0 && dz1 < this.maxTileZ) {
-                            hueAccumulator += this.huetot[dz1];
-                            saturationAccumulator += this.sattot[dz1];
-                            lightnessAccumulator += this.ligtot[dz1];
-                            luminanceAccumulator += this.comtot[dz1];
-                            magnitudeAccumulator += this.tot[dz1];
+                            blendHue += this.huetot[dz1];
+                            blendSat += this.sattot[dz1];
+                            blendLig += this.ligtot[dz1];
+                            blendCom += this.comtot[dz1];
+                            blendTot += this.tot[dz1];
                         }
 
                         const dz2: number = z0 - 5;
                         if (dz2 >= 0 && dz2 < this.maxTileZ) {
-                            hueAccumulator -= this.huetot[dz2];
-                            saturationAccumulator -= this.sattot[dz2];
-                            lightnessAccumulator -= this.ligtot[dz2];
-                            luminanceAccumulator -= this.comtot[dz2];
-                            magnitudeAccumulator -= this.tot[dz2];
+                            blendHue -= this.huetot[dz2];
+                            blendSat -= this.sattot[dz2];
+                            blendLig -= this.ligtot[dz2];
+                            blendCom -= this.comtot[dz2];
+                            blendTot -= this.tot[dz2];
                         }
 
                         if (z0 >= 1 && z0 < this.maxTileZ - 1 && (!ClientBuild.lowMem || ((this.mapl[level][x0][z0] & MapFlag.ForceHighDetail) === 0 && this.getVisBelowLevel(level, x0, z0) === ClientBuild.minusedlevel))) {
@@ -214,22 +214,22 @@ export default class ClientBuild {
                                 const lightNW: number = this.lightmap[x0][z0 + 1];
 
                                 let t1Colour: number = -1;
-                                let t1OffColour: number = -1;
+                                let t1RandColour: number = -1;
 
                                 if (t1 > 0) {
-                                    const hue: number = ((hueAccumulator * 256) / luminanceAccumulator) | 0;
-                                    const saturation: number = (saturationAccumulator / magnitudeAccumulator) | 0;
-                                    let lightness: number = (lightnessAccumulator / magnitudeAccumulator) | 0;
-                                    t1Colour = ClientBuild.getTable(hue, saturation, lightness);
+                                    const hue: number = ((blendHue * 256) / blendCom) | 0;
+                                    const sat: number = (blendSat / blendTot) | 0;
+                                    let lig: number = (blendLig / blendTot) | 0;
+                                    t1Colour = ClientBuild.getTable(hue, sat, lig);
 
                                     const randomHue: number = (hue + ClientBuild.hueOff) & 0xff;
-                                    lightness += ClientBuild.ligOff;
-                                    if (lightness < 0) {
-                                        lightness = 0;
-                                    } else if (lightness > 255) {
-                                        lightness = 255;
+                                    let randomLig = lig + ClientBuild.ligOff;
+                                    if (randomLig < 0) {
+                                        randomLig = 0;
+                                    } else if (randomLig > 255) {
+                                        randomLig = 255;
                                     }
-                                    t1OffColour = ClientBuild.getTable(randomHue, saturation, lightness);
+                                    t1RandColour = ClientBuild.getTable(randomHue, sat, randomLig);
                                 }
 
                                 if (level > 0) {
@@ -247,7 +247,7 @@ export default class ClientBuild {
 
                                 let underlay: number = 0;
                                 if (t1Colour !== -1) {
-                                    underlay = Pix3D.colourTable[ClientBuild.getUCol(t1OffColour, 96)];
+                                    underlay = Pix3D.colourTable[ClientBuild.getUCol(t1RandColour, 96)];
                                 }
 
                                 if (t2 === 0) {
@@ -277,8 +277,8 @@ export default class ClientBuild {
                                     const shape: number = this.floors[level][x0][z0] + 1;
                                     const rotation: number = this.floorr[level][x0][z0];
                                     const flo: FloType = FloType.list[t2 - 1];
-                                    let texture: number = flo.texture;
 
+                                    let texture: number = flo.texture;
                                     let t2Colour: number;
                                     let overlay: number;
                                     if (texture >= 0) {
@@ -290,7 +290,7 @@ export default class ClientBuild {
                                         texture = -1;
                                     } else {
                                         t2Colour = ClientBuild.getTable(flo.hue, flo.saturation, flo.lightness);
-                                        overlay = Pix3D.colourTable[ClientBuild.getOCol(flo.hsl, 96)];
+                                        overlay = Pix3D.colourTable[ClientBuild.getOCol(flo.overlayHsl, 96)];
                                     }
 
                                     world?.setGround(
@@ -343,7 +343,7 @@ export default class ClientBuild {
         let wall1: number = 0x2; // this flag is set by walls with rotation 1 or 3
         let floor: number = 0x4; // this flag is set by floors which are flat
 
-        for (let topLevel: number = 0; topLevel < CollisionConstants.LEVELS; topLevel++) {
+        for (let topLevel: number = 0; topLevel < BuildArea.LEVELS; topLevel++) {
             if (topLevel > 0) {
                 wall0 <<= 0x3;
                 wall1 <<= 0x3;
@@ -569,14 +569,14 @@ export default class ClientBuild {
     loadGround(src: Uint8Array, originX: number, originZ: number, xOffset: number, zOffset: number): void {
         const buf: Packet = new Packet(src);
 
-        for (let level: number = 0; level < CollisionConstants.LEVELS; level++) {
+        for (let level: number = 0; level < BuildArea.LEVELS; level++) {
             for (let x: number = 0; x < 64; x++) {
                 for (let z: number = 0; z < 64; z++) {
                     const stx: number = x + xOffset;
                     const stz: number = z + zOffset;
                     let opcode: number;
 
-                    if (stx >= 0 && stx < CollisionConstants.SIZE && stz >= 0 && stz < CollisionConstants.SIZE) {
+                    if (stx >= 0 && stx < BuildArea.SIZE && stz >= 0 && stz < BuildArea.SIZE) {
                         this.mapl[level][stx][stz] = 0;
 
                         while (true) {
@@ -745,7 +745,7 @@ export default class ClientBuild {
                 const stx: number = x + xOffset;
                 const stz: number = z + zOffset;
 
-                if (stx > 0 && stz > 0 && stx < CollisionConstants.SIZE - 1 && stz < CollisionConstants.SIZE - 1) {
+                if (stx > 0 && stz > 0 && stx < BuildArea.SIZE - 1 && stz < BuildArea.SIZE - 1) {
                     let currentLevel: number = level;
                     if ((this.mapl[1][stx][stz] & MapFlag.LinkBelow) !== 0) {
                         currentLevel = level - 1;
@@ -789,7 +789,7 @@ export default class ClientBuild {
 
         const typecode2: number = ((((angle << 6) + shape) | 0) << 24) >> 24;
 
-        if (shape === LocShape.GROUND_DECOR.id) {
+        if (shape === LocShape.GROUND_DECOR) {
             if (!ClientBuild.lowMem || loc.active || loc.forcedecor) {
                 let model: ModelSource | null;
                 if (loc.anim === -1) {
@@ -804,7 +804,7 @@ export default class ClientBuild {
                     collision.blockGround(x, z);
                 }
             }
-        } else if (shape === LocShape.CENTREPIECE_STRAIGHT.id || shape === LocShape.CENTREPIECE_DIAGONAL.id) {
+        } else if (shape === LocShape.CENTREPIECE_STRAIGHT || shape === LocShape.CENTREPIECE_DIAGONAL) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(10, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -814,7 +814,7 @@ export default class ClientBuild {
 
             if (model) {
                 let yaw: number = 0;
-                if (shape === LocShape.CENTREPIECE_DIAGONAL.id) {
+                if (shape === LocShape.CENTREPIECE_DIAGONAL) {
                     yaw += 256;
                 }
 
@@ -856,7 +856,7 @@ export default class ClientBuild {
             if (loc.blockwalk && collision) {
                 collision.addLoc(x, z, loc.width, loc.length, angle, loc.blockrange);
             }
-        } else if (shape >= LocShape.ROOF_STRAIGHT.id) {
+        } else if (shape >= LocShape.ROOF_STRAIGHT) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(shape, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -866,14 +866,14 @@ export default class ClientBuild {
 
             world?.addScenery(level, x, z, y, model, typecode, typecode2, 1, 1, 0);
 
-            if (shape >= LocShape.ROOF_STRAIGHT.id && shape <= LocShape.ROOF_FLAT.id && shape !== LocShape.ROOF_DIAGONAL_WITH_ROOFEDGE.id && level > 0) {
+            if (shape >= LocShape.ROOF_STRAIGHT && shape <= LocShape.ROOF_FLAT && shape !== LocShape.ROOF_DIAGONAL_WITH_ROOFEDGE && level > 0) {
                 this.mapo[level][x][z] |= 0x924;
             }
 
             if (loc.blockwalk && collision) {
                 collision.addLoc(x, z, loc.width, loc.length, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALL_STRAIGHT.id) {
+        } else if (shape === LocShape.WALL_STRAIGHT) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(0, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -928,7 +928,7 @@ export default class ClientBuild {
             if (loc.wallwidth !== 16) {
                 world?.setDecorOffset(level, x, z, loc.wallwidth);
             }
-        } else if (shape === LocShape.WALL_DIAGONAL_CORNER.id) {
+        } else if (shape === LocShape.WALL_DIAGONAL_CORNER) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(1, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -953,7 +953,7 @@ export default class ClientBuild {
             if (loc.blockwalk && collision) {
                 collision.addWall(x, z, shape, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALL_L.id) {
+        } else if (shape === LocShape.WALL_L) {
             const offset: number = (angle + 1) & 0x3;
 
             let model1: ModelSource | null;
@@ -1002,7 +1002,7 @@ export default class ClientBuild {
             if (loc.wallwidth !== 16) {
                 world?.setDecorOffset(level, x, z, loc.wallwidth);
             }
-        } else if (shape === LocShape.WALL_SQUARE_CORNER.id) {
+        } else if (shape === LocShape.WALL_SQUARE_CORNER) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(3, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1027,7 +1027,7 @@ export default class ClientBuild {
             if (loc.blockwalk && collision) {
                 collision.addWall(x, z, shape, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALL_DIAGONAL.id) {
+        } else if (shape === LocShape.WALL_DIAGONAL) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(shape, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1040,7 +1040,7 @@ export default class ClientBuild {
             if (loc.blockwalk && collision) {
                 collision.addLoc(x, z, loc.width, loc.length, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALLDECOR_STRAIGHT_NOOFFSET.id) {
+        } else if (shape === LocShape.WALLDECOR_STRAIGHT_NOOFFSET) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(4, 0, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1049,7 +1049,7 @@ export default class ClientBuild {
             }
 
             world?.setDecor(level, x, z, y, 0, 0, typecode, model, typecode2, angle * 512, ClientBuild.WSHAPE0[angle]);
-        } else if (shape === LocShape.WALLDECOR_STRAIGHT_OFFSET.id) {
+        } else if (shape === LocShape.WALLDECOR_STRAIGHT_OFFSET) {
             let wallwidth: number = 16;
             if (world) {
                 const typecode: number = world.wallType(level, x, z);
@@ -1078,7 +1078,7 @@ export default class ClientBuild {
                 angle * 512,
                 ClientBuild.WSHAPE0[angle]
             );
-        } else if (shape === LocShape.WALLDECOR_DIAGONAL_OFFSET.id) {
+        } else if (shape === LocShape.WALLDECOR_DIAGONAL_OFFSET) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(4, 0, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1087,7 +1087,7 @@ export default class ClientBuild {
             }
 
             world?.setDecor(level, x, z, y, 0, 0, typecode, model, typecode2, angle, 256);
-        } else if (shape === LocShape.WALLDECOR_DIAGONAL_NOOFFSET.id) {
+        } else if (shape === LocShape.WALLDECOR_DIAGONAL_NOOFFSET) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(4, 0, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1096,7 +1096,7 @@ export default class ClientBuild {
             }
 
             world?.setDecor(level, x, z, y, 0, 0, typecode, model, typecode2, angle, 512);
-        } else if (shape === LocShape.WALLDECOR_DIAGONAL_BOTH.id) {
+        } else if (shape === LocShape.WALLDECOR_DIAGONAL_BOTH) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(4, 0, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1160,7 +1160,7 @@ export default class ClientBuild {
 
         const typecode2: number = ((((angle << 6) + shape) | 0) << 24) >> 24;
 
-        if (shape === LocShape.GROUND_DECOR.id) {
+        if (shape === LocShape.GROUND_DECOR) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(22, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1173,7 +1173,7 @@ export default class ClientBuild {
             if (loc.blockwalk && loc.active && cmap) {
                 cmap.blockGround(x, z);
             }
-        } else if (shape === LocShape.CENTREPIECE_STRAIGHT.id || shape === LocShape.CENTREPIECE_DIAGONAL.id) {
+        } else if (shape === LocShape.CENTREPIECE_STRAIGHT || shape === LocShape.CENTREPIECE_DIAGONAL) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(10, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1183,7 +1183,7 @@ export default class ClientBuild {
 
             if (model) {
                 let yaw: number = 0;
-                if (shape === LocShape.CENTREPIECE_DIAGONAL.id) {
+                if (shape === LocShape.CENTREPIECE_DIAGONAL) {
                     yaw += 256;
                 }
 
@@ -1203,7 +1203,7 @@ export default class ClientBuild {
             if (loc.blockwalk && cmap) {
                 cmap.addLoc(x, z, loc.width, loc.length, angle, loc.blockrange);
             }
-        } else if (shape >= LocShape.ROOF_STRAIGHT.id) {
+        } else if (shape >= LocShape.ROOF_STRAIGHT) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(shape, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1216,7 +1216,7 @@ export default class ClientBuild {
             if (loc.blockwalk && cmap) {
                 cmap.addLoc(x, z, loc.width, loc.length, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALL_STRAIGHT.id) {
+        } else if (shape === LocShape.WALL_STRAIGHT) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(0, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1229,7 +1229,7 @@ export default class ClientBuild {
             if (loc.blockwalk && cmap) {
                 cmap.addWall(x, z, shape, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALL_DIAGONAL_CORNER.id) {
+        } else if (shape === LocShape.WALL_DIAGONAL_CORNER) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(1, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1242,7 +1242,7 @@ export default class ClientBuild {
             if (loc.blockwalk && cmap) {
                 cmap.addWall(x, z, shape, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALL_L.id) {
+        } else if (shape === LocShape.WALL_L) {
             const offset: number = (angle + 1) & 0x3;
 
             let model1: ModelSource | null;
@@ -1260,7 +1260,7 @@ export default class ClientBuild {
             if (loc.blockwalk && cmap) {
                 cmap.addWall(x, z, shape, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALL_SQUARE_CORNER.id) {
+        } else if (shape === LocShape.WALL_SQUARE_CORNER) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(3, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1273,7 +1273,7 @@ export default class ClientBuild {
             if (loc.blockwalk && cmap) {
                 cmap.addWall(x, z, shape, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALL_DIAGONAL.id) {
+        } else if (shape === LocShape.WALL_DIAGONAL) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(shape, angle, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1286,7 +1286,7 @@ export default class ClientBuild {
             if (loc.blockwalk && cmap) {
                 cmap.addLoc(x, z, loc.width, loc.length, angle, loc.blockrange);
             }
-        } else if (shape === LocShape.WALLDECOR_STRAIGHT_NOOFFSET.id) {
+        } else if (shape === LocShape.WALLDECOR_STRAIGHT_NOOFFSET) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(4, 0, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1295,7 +1295,7 @@ export default class ClientBuild {
             }
 
             world?.setDecor(level, x, z, y, 0, 0, typecode, model, typecode2, angle * 512, ClientBuild.WSHAPE0[angle]);
-        } else if (shape === LocShape.WALLDECOR_STRAIGHT_OFFSET.id) {
+        } else if (shape === LocShape.WALLDECOR_STRAIGHT_OFFSET) {
             let wallwidth: number = 16;
             if (world) {
                 const typecode: number = world.wallType(level, x, z);
@@ -1312,7 +1312,7 @@ export default class ClientBuild {
             }
 
             world?.setDecor(level, x, z, y, ClientBuild.DECORXOF[angle] * wallwidth, ClientBuild.DECORZOF[angle] * wallwidth, typecode, model, typecode2, angle * 512, ClientBuild.WSHAPE0[angle]);
-        } else if (shape === LocShape.WALLDECOR_DIAGONAL_OFFSET.id) {
+        } else if (shape === LocShape.WALLDECOR_DIAGONAL_OFFSET) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(4, 0, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1321,7 +1321,7 @@ export default class ClientBuild {
             }
 
             world?.setDecor(level, x, z, y, 0, 0, typecode, model, typecode2, angle, 256);
-        } else if (shape === LocShape.WALLDECOR_DIAGONAL_NOOFFSET.id) {
+        } else if (shape === LocShape.WALLDECOR_DIAGONAL_NOOFFSET) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(4, 0, heightSW, heightSE, heightNE, heightNW, -1);
@@ -1330,7 +1330,7 @@ export default class ClientBuild {
             }
 
             world?.setDecor(level, x, z, y, 0, 0, typecode, model, typecode2, angle, 512);
-        } else if (shape === LocShape.WALLDECOR_DIAGONAL_BOTH.id) {
+        } else if (shape === LocShape.WALLDECOR_DIAGONAL_BOTH) {
             let model: ModelSource | null;
             if (loc.anim === -1) {
                 model = loc.getModel(4, 0, heightSW, heightSE, heightNE, heightNW, -1);
