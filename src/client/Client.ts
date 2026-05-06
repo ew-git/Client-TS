@@ -15530,8 +15530,8 @@ export class Client extends GameShell {
         let closestFullType = -1;
         let s = this.world;
         if (!s) {return null;}
-        for (let x = 0; x < CollisionConstants.SIZE; x++) {
-            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+        for (let x = 0; x < BuildArea.SIZE; x++) {
+            for (let z = 0; z < BuildArea.SIZE; z++) {
                 let tile = s.sceneType(this.minusedlevel, x, z);
                 if (tile == 0) {
                     continue;
@@ -15618,7 +15618,7 @@ export class Client extends GameShell {
      * Pass the actual ids, not +1
     */
     depositAllSingleSlot(slot: number, itemId: number){
-        let action: number = MenuAction.INV_BUTTON4;
+        let action: number = MiniMenuAction.INV_BUTTON4;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 2006;
@@ -15690,7 +15690,7 @@ export class Client extends GameShell {
      * Pass the actual ids, not +1
     */
     withdrawAllSingleSlot(slot: number, itemId: number){
-        let action: number = MenuAction.INV_BUTTON4;
+        let action: number = MiniMenuAction.INV_BUTTON4;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 5382;
@@ -15731,7 +15731,7 @@ export class Client extends GameShell {
     }
 
     withdraw1SingleSlot(slot: number, itemId: number){
-        let action: number = MenuAction.INV_BUTTON1;
+        let action: number = MiniMenuAction.INV_BUTTON1;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 5382;
@@ -15763,7 +15763,7 @@ export class Client extends GameShell {
     }
 
     withdraw5SingleSlot(slot: number, itemId: number){
-        let action: number = MenuAction.INV_BUTTON2;
+        let action: number = MiniMenuAction.INV_BUTTON2;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 5382;
@@ -15787,8 +15787,8 @@ export class Client extends GameShell {
     }
 
     withdraw10SingleSlot(slot: number, itemId: number){
-        // Using menu item 4 with action=555, a=440, b=99, c=5382 // MenuAction.INV_BUTTON3
-        let action: number = MenuAction.INV_BUTTON3;
+        // Using menu item 4 with action=555, a=440, b=99, c=5382 // MiniMenuAction.INV_BUTTON3
+        let action: number = MiniMenuAction.INV_BUTTON3;
         const a: number = itemId;
         const b: number = slot;
         const c: number = 5382;
@@ -16007,7 +16007,7 @@ export class Client extends GameShell {
             const npc: ClientNpc | null = this.npc[a];
             if (npc && this.localPlayer) {
                 this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
-                let action = 542; // probably MenuAction.OPNPC2 now
+                let action = 542; // probably MiniMenuAction.OPNPC2 now
                 if (action === 542) {
                     this.out.pIsaac(ClientProt.OPNPC2);
                 }
@@ -16024,7 +16024,7 @@ export class Client extends GameShell {
             const npc: ClientNpc | null = this.npc[a];
             if (npc && this.localPlayer) {
                 this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
-                let action = 542; // probably MenuAction.OPNPC2 now
+                let action = 542; // probably MiniMenuAction.OPNPC2 now
                 if (action === 542) {
                     this.out.pIsaac(ClientProt.OPNPC2);
                 }
@@ -16067,7 +16067,7 @@ export class Client extends GameShell {
             const npc: ClientNpc | null = this.npc[a];
             if (npc && this.localPlayer) {
                 this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
-                let action = 542; // probably MenuAction.OPNPC2
+                let action = 542; // probably MiniMenuAction.OPNPC2
                 if (action === 542) {
                     this.out.pIsaac(ClientProt.OPNPC2);
                 }
@@ -16156,7 +16156,7 @@ export class Client extends GameShell {
     */
     setAttackRapid(weaponType = 'knife') {
         // action=225, a=361, b=0, c=4453
-        let action = MenuAction.IF_BUTTON_SELECT; // 225
+        let action = MiniMenuAction.SELECT_BUTTON; // 225
         let a = 361; // not used?
         let b = 0; // not used?
         let c = 4453;
@@ -16187,7 +16187,7 @@ export class Client extends GameShell {
     */
     setAttackStrength(weaponType = 'dragon_mace') {
         //  Using menu item 1 with action=225, a=2485, b=0, c=3805
-        let action = MenuAction.IF_BUTTON_SELECT; // 225
+        let action = MiniMenuAction.SELECT_BUTTON; // 225
         let a = 2485; // not used?
         let b = 0; // not used?
         let c = 3805;
@@ -16214,7 +16214,7 @@ export class Client extends GameShell {
     }
     setAttackDefence(weaponType = 'dragon_mace') {
         //  Using menu item 1 with action=225, a=2485, b=0, c=3805
-        let action = MenuAction.IF_BUTTON_SELECT; // 225
+        let action = MiniMenuAction.SELECT_BUTTON; // 225
         let a = 995; // not used?
         let b = 0; // not used?
         let c = 3803;
@@ -16242,7 +16242,7 @@ export class Client extends GameShell {
 
     useSpec(weaponType = 'magic_shortbow') {
         // Using menu item 1 with action=231, a=361, b=0, c=7537
-        let action = MenuAction.IF_BUTTON;
+        let action = MiniMenuAction.IF_BUTTON;
         let a = 361; // not used?
         let b = 0; // not used?
         let c = 7537;
@@ -16326,7 +16326,7 @@ export class Client extends GameShell {
     }
 
     eatFoodSingleSlot(slot: number, itemId: number) {
-        let action = MenuAction.OPHELD1;
+        let action = MiniMenuAction.OP_HELD1;
         let a = itemId;
         let b = slot;
         let c = 3214;
@@ -16467,8 +16467,8 @@ export class Client extends GameShell {
 
     filterGroundItemsIds(items: number[]): number[] {
         const foundIds = new Set<number>();
-        for (let x = 0; x < CollisionConstants.SIZE; x++) {
-            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+        for (let x = 0; x < BuildArea.SIZE; x++) {
+            for (let z = 0; z < BuildArea.SIZE; z++) {
                 let objs = this.groundObj[this.minusedlevel][x][z];
                 if (!objs) continue;
                 for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
@@ -16484,8 +16484,8 @@ export class Client extends GameShell {
         let localX = (this.localPlayer?.routeX[0] ?? 0);
         let localZ = (this.localPlayer?.routeZ[0] ?? 0);
         const foundIds = new Set<number>();
-        for (let x = 0; x < CollisionConstants.SIZE; x++) {
-            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+        for (let x = 0; x < BuildArea.SIZE; x++) {
+            for (let z = 0; z < BuildArea.SIZE; z++) {
                 if (Math.abs(x - localX) > maxDist || Math.abs(z - localZ) > maxDist) {
                     continue;
                 }
@@ -16510,8 +16510,8 @@ export class Client extends GameShell {
         let closestX = -1;
         let closestZ = -1;
         let closestObjIndex = -1;
-        for (let x = 0; x < CollisionConstants.SIZE; x++) {
-            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+        for (let x = 0; x < BuildArea.SIZE; x++) {
+            for (let z = 0; z < BuildArea.SIZE; z++) {
                 let objs = this.groundObj[this.minusedlevel][x][z];
                 if (!objs) continue;
                 for (let obj: ClientObj | null = objs.tail() as ClientObj | null; obj; obj = objs.prev() as ClientObj | null) {
@@ -16586,7 +16586,7 @@ export class Client extends GameShell {
 
     useLogoutButton() {
         // Using menu item 1 with action=231, a=205, b=16, c=2458
-        let action = MenuAction.IF_BUTTON; // 231
+        let action = MiniMenuAction.IF_BUTTON; // 231
         let a = 205; // not used?
         let b = 16; // not used?
         let c = 2458;
@@ -16636,7 +16636,7 @@ export class Client extends GameShell {
 
     selectInvSingleSlot(slot: number, itemId: number) {
         // Using menu item 3 with action=102, a=2351, b=1, c=3214
-        let action = MenuAction.OPHELDT_START; // 102
+        let action = MiniMenuAction.USEHELD_START; // 102
         let a = itemId;
         let b = slot;
         let c = 3214;
@@ -16650,7 +16650,7 @@ export class Client extends GameShell {
     }
 
     useOnInvSlot(slot: number, itemId: number) {
-        let action = MenuAction.OPHELDU;
+        let action = MiniMenuAction.USEHELD_ONHELD;
         let a = itemId;
         let b = slot;
         let c = 3214;
@@ -16712,8 +16712,8 @@ export class Client extends GameShell {
         let closestFullType = -1;
         let s = this.world;
         if (!s) {return null;}
-        for (let x = 0; x < CollisionConstants.SIZE; x++) {
-            for (let z = 0; z < CollisionConstants.SIZE; z++) {
+        for (let x = 0; x < BuildArea.SIZE; x++) {
+            for (let z = 0; z < BuildArea.SIZE; z++) {
                 let tile = s.sceneType(this.minusedlevel, x, z);
                 if (tile == 0) {
                     continue;
@@ -16953,7 +16953,7 @@ export class Client extends GameShell {
     }
 
     /**
-     * Does MenuAction.OPNPC3
+     * Does MiniMenuAction.OPNPC3
      * @param needle 
      * @param [maxWait=10] seconds to wait
      */
@@ -17035,7 +17035,7 @@ export class Client extends GameShell {
      */
     drinkPotSingleSlot(slot:number, itemId: number) {
         // Using menu item 4 with action=694, a=2434, b=0, c=3214
-        let action=MenuAction.OPHELD1; // 694
+        let action=MiniMenuAction.OP_HELD1; // 694
         let a=itemId; // 4doseprayerrestore 139,141,143,2434
         let b=slot;
         let c=3214;
@@ -17118,7 +17118,7 @@ export class Client extends GameShell {
     }
 
     closeBankWindow() {
-        // Using menu item 1 with action=737, a=562, b=7, c=5384 // MenuAction.CLOSE_MODAL
+        // Using menu item 1 with action=737, a=562, b=7, c=5384 // MiniMenuAction.CLOSE_MODAL
         this.closeModal();
         this.useMode = 0;
         this.targetMode = 0;
@@ -17133,11 +17133,11 @@ export class Client extends GameShell {
     sellX(itemId: number, nsell: number) {
         let maction = 0;
         if (nsell == 1) {
-            maction = MenuAction.INV_BUTTON2;
+            maction = MiniMenuAction.INV_BUTTON2;
         } else if (nsell == 5) {
-            maction = MenuAction.INV_BUTTON3;
+            maction = MiniMenuAction.INV_BUTTON3;
         } else if (nsell == 10) {
-            maction = MenuAction.INV_BUTTON4;
+            maction = MiniMenuAction.INV_BUTTON4;
         } else {
             console.error('Invalid number of items to sell');
             return false;
@@ -17167,15 +17167,15 @@ export class Client extends GameShell {
         let b = slotTarget;
         let c = 3823;
 
-        if (maction === MenuAction.INV_BUTTON2) {
+        if (maction === MiniMenuAction.INV_BUTTON2) {
             this.out.pIsaac(ClientProt.INV_BUTTON2);
         }
 
-        if (maction === MenuAction.INV_BUTTON3) {
+        if (maction === MiniMenuAction.INV_BUTTON3) {
             this.out.pIsaac(ClientProt.INV_BUTTON3);
         }
 
-        if (maction === MenuAction.INV_BUTTON4) {
+        if (maction === MiniMenuAction.INV_BUTTON4) {
             this.out.pIsaac(ClientProt.INV_BUTTON4);
         }
 
@@ -17206,11 +17206,11 @@ export class Client extends GameShell {
     buyX(itemId: number, nbuy: number, slot: number) {
         let maction = 0;
         if (nbuy == 1) {
-            maction = MenuAction.INV_BUTTON2;
+            maction = MiniMenuAction.INV_BUTTON2;
         } else if (nbuy == 5) {
-            maction = MenuAction.INV_BUTTON3;
+            maction = MiniMenuAction.INV_BUTTON3;
         } else if (nbuy == 10) {
-            maction = MenuAction.INV_BUTTON4;
+            maction = MiniMenuAction.INV_BUTTON4;
         } else {
             console.error('Invalid number of items to buy');
             return false;
@@ -17222,15 +17222,15 @@ export class Client extends GameShell {
         let b = slotTarget;
         let c = 3900;
 
-        if (maction === MenuAction.INV_BUTTON2) {
+        if (maction === MiniMenuAction.INV_BUTTON2) {
             this.out.pIsaac(ClientProt.INV_BUTTON2);
         }
 
-        if (maction === MenuAction.INV_BUTTON3) {
+        if (maction === MiniMenuAction.INV_BUTTON3) {
             this.out.pIsaac(ClientProt.INV_BUTTON3);
         }
 
-        if (maction === MenuAction.INV_BUTTON4) {
+        if (maction === MiniMenuAction.INV_BUTTON4) {
             this.out.pIsaac(ClientProt.INV_BUTTON4);
         }
 
