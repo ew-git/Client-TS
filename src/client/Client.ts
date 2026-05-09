@@ -605,6 +605,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Tan dragonhide. Update fn argument. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_tanDragonhide();}
+        },
+        {
             'description': 'Fish sharks in guild. Start near dock.',
             'fn': (obj: Client) => {obj.onF1Pressed_fishSharkGuild();}
         },
@@ -3894,12 +3898,7 @@ export class Client extends GameShell {
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
                 // console.log(this.getNearestNPC('Fishing spot'));
-                // this.doOPNPC3NearestById(313);
-                console.log(this.localPlayer?.primaryAnim);
-                console.log(this.localPlayer?.primaryAnimFrame);
-                console.log(this.localPlayer?.primaryAnimCycle);
-                console.log(this.localPlayer?.primaryAnimDelay);
-                console.log(this.localPlayer?.primaryAnimLoop);
+                this.resumePauseDialog(4886);
             }
         });
 
@@ -16611,7 +16610,9 @@ export class Client extends GameShell {
         // await this.logout();
         this.useLogoutButton();
         await sleep(10000);
-        console.log('Done waiting 10 seconds. Attempting to login.');
+        this.useLogoutButton();
+        await sleep(5000);
+        console.log('Done waiting 15 seconds. Attempting to login.');
         this.loginscreen = 2;
         await this.login('player', 'player', false);
         await sleep(10000);
@@ -16924,6 +16925,26 @@ export class Client extends GameShell {
                 this.crossMode = 2;
                 this.crossCycle = 0;
                 this.out.pIsaac(ClientProt.OPNPC3);
+                this.out.p2(a);
+                this.useMode = 0;
+                this.targetMode = 0;
+                this.redrawSidebar = true;
+            }
+        }
+    }
+
+    doOPNPC1Nearest(needle: string) {
+        let nearestNPC = this.getNearestNPC(needle);
+        if (nearestNPC && this.localPlayer) {
+            let a = nearestNPC.npcsIndex;
+            const npc: ClientNpc | null = this.npc[a];
+            if (npc && this.localPlayer) {
+                this.tryMove(this.localPlayer.routeX[0], this.localPlayer.routeZ[0], npc.routeX[0], npc.routeZ[0], false, 1, 1, 0, 0, 0, 2);
+                this.crossX = this.mouseClickX;
+                this.crossY = this.mouseClickY;
+                this.crossMode = 2;
+                this.crossCycle = 0;
+                this.out.pIsaac(ClientProt.OPNPC1);
                 this.out.p2(a);
                 this.useMode = 0;
                 this.targetMode = 0;
@@ -17264,6 +17285,34 @@ export class Client extends GameShell {
 
     playerIsIdle(): boolean {
         return this.localPlayer?.primaryAnim == -1
+    }
+
+    resumePauseDialog(c: number) {
+        if (!this.resumedPauseButton) {
+            this.out.pIsaac(ClientProt.RESUME_PAUSEBUTTON);
+            this.out.p2(c);
+            this.resumedPauseButton = true;
+        }
+        this.useMode = 0;
+        this.targetMode = 0;
+        this.redrawSidebar = true;
+    }
+
+    selectDialogOption(c: number) {
+        const com: IfType = IfType.list[c];
+        let notify: boolean = true;
+
+        if (com.clientCode > 0) {
+            notify = this.clientButton(com);
+        }
+
+        if (notify) {
+            this.out.pIsaac(ClientProt.IF_BUTTON);
+            this.out.p2(c);
+        }
+        this.useMode = 0;
+        this.targetMode = 0;
+        this.redrawSidebar = true;
     }
 
     async onF1Pressed_killLesserDemonWizTower() {
@@ -18453,6 +18502,44 @@ export class Client extends GameShell {
                 }
                 await sleep(700);
             }
+        }
+    }
+
+    async onF1Pressed_tanDragonhide(hideName = 'dragonhide_blue') {
+        this.stopLoop = false;
+        let hideId = this.itemIds[hideName];
+        let coinsId = 995;
+        let pathToTanner = [[3269,3167],[3276,3173],[3280,3184],[3277,3192]];
+        let pathToBank = pathToTanner.toReversed();
+        while (!this.stopLoop) {
+            await this.depositAllExceptNoMouse([coinsId]);
+            await sleep(700);
+            await this.withdrawAllNoMouse(hideId);
+            await sleep(700);
+            this.closeBankWindow();
+            if (this.countInvById(hideId) == 0) {
+                this.stopLoop = true;
+                this.useLogoutButton();
+            }
+            await this.walkToEndofPath(pathToTanner);
+            /*
+            Using menu item 3 with action=242, a=5732, b=0, c=0 client.js:29903:15
+            Using menu item 1 with action=997, a=1091578149, b=289, c=4886 client.js:29903:15
+            Using menu item 1 with action=997, a=1091578149, b=289, c=4892 client.js:29903:15
+            Using menu item 1 with action=231, a=1091578149, b=289, c=2461 client.js:29903:15
+            Using menu item 1 with action=231, a=1091578149, b=289, c=2484
+            */
+            this.doOPNPC1Nearest('Tanner');
+            await sleep(7000);
+            this.resumePauseDialog(4886);
+            await sleep(1300);
+            this.resumePauseDialog(4892);
+            await sleep(700);
+            this.selectDialogOption(2461);
+            await sleep(700);
+            this.selectDialogOption(2484);
+            await sleep(700);
+            await this.walkToEndofPath(pathToBank);
         }
     }
 }
