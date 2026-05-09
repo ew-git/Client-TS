@@ -18512,6 +18512,11 @@ export class Client extends GameShell {
         let pathToTanner = [[3269,3167],[3276,3173],[3280,3184],[3277,3192]];
         let pathToBank = pathToTanner.toReversed();
         while (!this.stopLoop) {
+            await sleep(700);
+            await this.logoutThenLoginThrottled(60);
+            await sleep(1000);
+            await this.handleRunEnergyThrottled(2);
+            await sleep(700);
             await this.depositAllExceptNoMouse([coinsId]);
             await sleep(700);
             await this.withdrawAllNoMouse(hideId);
@@ -18520,6 +18525,7 @@ export class Client extends GameShell {
             if (this.countInvById(hideId) == 0) {
                 this.stopLoop = true;
                 this.useLogoutButton();
+                break;
             }
             await this.walkToEndofPath(pathToTanner);
             /*
@@ -18540,6 +18546,32 @@ export class Client extends GameShell {
             this.selectDialogOption(2484);
             await sleep(700);
             await this.walkToEndofPath(pathToBank);
+        }
+    }
+
+    async onF1Pressed_craftDhideBodies(leatherName = 'dragon_leather_blue') {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.CRAFTING, 60_000, 'Crafting');
+        let needleId = this.itemIds['needle'];
+        let threadId = this.itemIds['thread'];
+        let leatherId = this.itemIds[leatherName];
+        while (!this.stopLoop) {
+            await this.depositAllExceptNoMouse([needleId, threadId]);
+            if (this.getBankCount(leatherId) < 30) {
+                break;
+            }
+            await this.withdrawAllNoMouse(leatherId);
+            await sleep(700);
+            this.closeBankWindow();
+            for (let slot = 1; slot < 28; slot++) {
+                // select chisel (slot 0) and use on gem (slots 1-27)
+                // TODO: Update this to always use last leather inv ??
+                this.selectInvSingleSlot(0, needleId);
+                this.useOnInvSlot(slot, leatherId);
+                await sleep(600*2 + 170);
+                // TODO: Update this to craft the body option, then wait n ticks.
+            }
+            await sleep(700);
         }
     }
 }
