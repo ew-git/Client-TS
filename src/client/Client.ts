@@ -605,8 +605,8 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
-            'description': 'Tan dragonhide. Update fn argument. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_tanDragonhide();}
+            'description': 'Craft blue dhide bodies.',
+            'fn': (obj: Client) => {obj.onF1Pressed_craftDhideBodies();}
         },
         {
             'description': 'Fish sharks in guild. Start near dock.',
@@ -628,14 +628,14 @@ export class Client extends GameShell {
         //     'description': 'Make mith bars in Al Kharid; start in bank.',
         //     'fn': (obj: Client) => {obj.onF1Pressed_makeMithAddyBarsAlKharid('mithril');}
         // },
-        // {
-        //     'description': 'Make steel bars in AlKharid; start in bank.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_makeSteelBarsAlKharid();}
-        // },
-        // {
-        //     'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_makeCannonballsAlKharid();}
-        // },
+        {
+            'description': 'Make steel bars in AlKharid; start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makeSteelBarsAlKharid();}
+        },
+        {
+            'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makeCannonballsAlKharid();}
+        },
         // {
         //     'description': 'Craft nature runes, start at store.',
         //     'fn': (obj: Client) => {obj.onF1Pressed_craftNatureRunes();}
@@ -18563,13 +18563,15 @@ export class Client extends GameShell {
             await this.withdrawAllNoMouse(leatherId);
             await sleep(700);
             this.closeBankWindow();
-            for (let slot = 1; slot < 28; slot++) {
-                // select chisel (slot 0) and use on gem (slots 1-27)
-                // TODO: Update this to always use last leather inv ??
+            await sleep(200);
+            for (let i = 0; i < 8; i++) {
+                // select needle and use on "last" leather.
                 this.selectInvSingleSlot(0, needleId);
-                this.useOnInvSlot(slot, leatherId);
+                this.useOnInvSlot(27, leatherId);
+                await sleep(700);
+                // Using menu item 1 with action=231, a=2505, b=27, c=2800
+                this.selectDialogOption(2800);
                 await sleep(600*2 + 170);
-                // TODO: Update this to craft the body option, then wait n ticks.
             }
             await sleep(700);
         }
