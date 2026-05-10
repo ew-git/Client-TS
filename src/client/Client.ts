@@ -605,6 +605,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Pick flax and make bowstrings. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_flaxBowstrings();}
+        },
+        {
             'description': 'Craft blue dhide bodies.',
             'fn': (obj: Client) => {obj.onF1Pressed_craftDhideBodies();}
         },
@@ -3897,8 +3901,9 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                // console.log(this.getNearestNPC('Fishing spot'));
-                this.resumePauseDialog(4886);
+                let doorX = 2716;
+                let doorZ = 3472;
+                this.openDoorXZ(doorX, doorZ);
             }
         });
 
@@ -18572,6 +18577,89 @@ export class Client extends GameShell {
                 // Using menu item 1 with action=231, a=2505, b=27, c=2800
                 this.selectDialogOption(2800);
                 await sleep(600*2 + 170);
+            }
+            await sleep(700);
+        }
+    }
+
+    async onF1Pressed_flaxBowstrings() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.CRAFTING, 60_000, 'Crafting');
+        let state = 'banking';
+        this.handleRunEnergyThrottled(5);
+
+        let flaxId = this.itemIds['flax'];
+        let flaxObjId = 2646;
+        let spinningWheelId = 2644;
+        let roomBounds = [2711, 2715, 3470, 3473]; // W, E, S, N
+        let doorX = 2716;
+        let doorZ = 3472;
+        let outsideDoorLoc = [2716, 3472];
+        let insideDoorLoc = [2715, 3472];
+        let pathRoomToBank = [[2722,3484],[2727,3493]];
+        let pathBankToField = [[2726,3484],[2728,3469],[2726,3461],[2730,3452],[2736,3444],[2738,3442]];
+        let pathFieldToDoor = [[2736,3443],[2727,3452],[2721,3460],[2716,3472]];
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                // Assume at spinning wheel
+                // go down ladder
+                this.doOPLOC1OnNearestObjFromArray([1746], 9);
+                await sleep(2700);
+                // try open door and walk to outside until actually outside
+                while (this.playerIsInBounds(roomBounds)) {
+                    this.openDoorXZ(doorX, doorZ);
+                    await sleep(1000);
+                    await this.walkToEndofPath([outsideDoorLoc]);
+                    await sleep(700);
+                }
+                // confirm outside
+                // walk to bank
+                await this.walkToEndofPath(pathRoomToBank);
+                await sleep(700);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(30);
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(700);
+                this.closeBankWindow();
+                await sleep(700);
+                // walk to flax field
+                await this.walkToEndofPath(pathBankToField);
+                state = 'picking';
+            } if (state == 'picking') {
+                // pick flax until full
+                while (!this.invFull()) {
+                    this.useNearestObjOPN(2, [flaxObjId], 10);
+                    await sleep(600*2 + 170);
+                }
+                // walk to outside of door
+                await this.walkToEndofPath(pathFieldToDoor);
+                // try open door and walk to inside until actually inside
+                while (!this.playerIsInBounds(roomBounds)) {
+                    this.openDoorXZ(doorX, doorZ);
+                    await sleep(1000);
+                    await this.walkToEndofPath([insideDoorLoc]);
+                    await sleep(700);
+                }
+                // go up ladder
+                this.doOPLOC1OnNearestObjFromArray([1747], 9);
+                await sleep(2700);
+                // walk to next to spinning wheel
+                await this.walkToEndofPath([[2712, 3471]]);
+                state = 'spinning';
+            } if (state == 'spinning') {
+                // while flax in inv, selectAndUseOnNearest, and wait
+                while (this.countInvById(flaxId) > 0) {
+                    this.selectAndUseOnNearest(flaxId, spinningWheelId);
+                    await sleep(600*3+170);
+                }
+                state = 'banking';
+                this.handleRunEnergyThrottled(3);
+            } else {
+                console.error('Invalid state', state);
+                this.stopLoop = true;
+                break;
             }
             await sleep(700);
         }
