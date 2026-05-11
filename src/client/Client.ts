@@ -605,6 +605,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Chop maple tree, have axe. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_chopMaplesSeers();}
+        },
+        {
             'description': 'Pick flax and make bowstrings. Start in bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_flaxBowstrings();}
         },
@@ -18660,6 +18664,51 @@ export class Client extends GameShell {
                 console.error('Invalid state', state);
                 this.stopLoop = true;
                 break;
+            }
+            await sleep(700);
+        }
+    }
+    
+    async onF1Pressed_chopMaplesSeers() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.WOODCUTTING, 60_000, 'WOODCUTTING');
+        let state = 'banking';
+
+        let pathBankToTrees = [[2724,3493],[2724,3486],[2718,3495],[2721,3500]];
+        let pathTreesToBank = [[2726,3486], [2724,3493]]; 
+        let mapleTreeIds = [1307];
+        this.handleRunEnergyThrottled(1);
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathTreesToBank);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                this.handleRunEnergyThrottled(1); // switch to run while at bank.
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(700);
+                this.closeBankWindow();
+                await sleep(700);
+                await this.walkToEndofPath(pathBankToTrees);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            this.handleRunEnergyThrottled(3);
+            if (this.invFull()) {
+                state = 'banking';
+                continue;
+            }
+            if (this.playerIsIdle()) {
+                let foundTree = this.doOPLOC1OnNearestObjFromArray(mapleTreeIds, 20);
+                if (!foundTree) {
+                    await sleep(700);
+                    continue;
+                }
+                await sleep(1000);
             }
             await sleep(700);
         }
