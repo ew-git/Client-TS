@@ -18713,4 +18713,31 @@ export class Client extends GameShell {
             await sleep(700);
         }
     }
+
+    async onF1Pressed_fletchLongbows(logName = 'maple_logs') {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.FLETCHING, 60_000, 'Fletching');
+        let knifeId = this.itemIds['knife'];
+        let logId = this.itemIds[logName];
+        while (!this.stopLoop) {
+            await this.depositAllExceptNoMouse([knifeId]);
+            if (this.getBankCount(logId) < 30) {
+                break;
+            }
+            await this.withdrawAllNoMouse(logId);
+            await sleep(700);
+            this.closeBankWindow();
+            await sleep(200);
+            for (let i = 0; i < 8; i++) {
+                this.selectInvSingleSlot(0, knifeId);
+                this.useOnInvSlot(27, logId);
+                await sleep(700);
+                // TODO: NOT WORKING, need to get the right c
+                // Using menu item 1 with action=231, a=2505, b=27, c=2800
+                this.selectDialogOption(2800);
+                await sleep(600*2 + 170);
+            }
+            await sleep(700);
+        }
+    }
 }
