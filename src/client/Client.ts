@@ -605,6 +605,14 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Chop oak tree, have axe. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_chopOaksSeers();}
+        },
+        {
+            'description': 'Burn logs default oak. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_burnLogsSeers();}
+        },
+        {
             'description': 'Chop maple tree, have axe. Start in bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_chopMaplesSeers();}
         },
@@ -18714,6 +18722,54 @@ export class Client extends GameShell {
         }
     }
 
+    async onF1Pressed_chopOaksSeers() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.WOODCUTTING, 60_000, 'WOODCUTTING');
+        let state = 'banking';
+
+        let pathBankToTrees = [[2724,3493],[2724,3486]];
+        let pathTreesToBank = [[2726,3486], [2724,3493]]; 
+        let treeIds = [1281];
+        this.handleRunEnergyThrottled(1);
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathTreesToBank);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                this.handleRunEnergyThrottled(1); // switch to run while at bank.
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(700);
+                this.closeBankWindow();
+                await sleep(700);
+                await this.walkToEndofPath(pathBankToTrees);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            this.handleRunEnergyThrottled(3);
+            if (this.invFull()) {
+                state = 'banking';
+                continue;
+            }
+            if (this.playerIsIdle()) {
+                let foundTree = this.doOPLOC1OnNearestObjFromArray(treeIds, 20);
+                if (!foundTree) {
+                    await sleep(700);
+                    continue;
+                }
+                await sleep(1000);
+            }
+            await sleep(700);
+        }
+    }
+
+    /*
+    BROKEN
+    */
     async onF1Pressed_fletchLongbows(logName = 'maple_logs') {
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.FLETCHING, 60_000, 'Fletching');
@@ -18738,6 +18794,44 @@ export class Client extends GameShell {
                 await sleep(600*2 + 170);
             }
             await sleep(700);
+        }
+    }
+
+    // NOT TESTED
+    async onF1Pressed_burnLogsSeers(logName = 'oak_logs') {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.FIREMAKING, 60_000, 'Firemaking');
+        let tinderboxId = this.itemIds['tinderbox'];
+        let logId = this.itemIds[logName];
+        let startingPositions = [[2733,3485], [2733,3484]];
+        let startingPosI = 0;
+        let pathToBank = [[2713,3484],[2724,3493]];
+
+        while (!this.stopLoop) {
+            console.log('Just got back to the bank. Checking logout login');
+            await this.logoutThenLoginThrottled(60); // do it every hour
+            await sleep(700);
+            this.handleRunEnergyThrottled(1); // switch to run while at bank.
+            await sleep(700);
+            await this.depositAllExceptNoMouse([tinderboxId]);
+            if (this.getBankCount(logId) < 30) {
+                this.stopLoop = true;
+                break;
+            }
+            await this.withdrawAllNoMouse(logId);
+            await sleep(700);
+            this.closeBankWindow();
+            await sleep(200);
+            await this.walkToEndofPath([startingPositions[startingPosI]]);
+            startingPosI = 1 - startingPosI;
+            for (let i = 1; i < 28; i++) {
+                this.selectInvSingleSlot(0, tinderboxId);
+                await sleep(50);
+                this.useOnInvSlot(i, logId);
+                await sleep(600*5 + 170);
+            }
+            await sleep(700);
+            await this.walkToEndofPath(pathToBank);
         }
     }
 }
