@@ -609,7 +609,7 @@ export class Client extends GameShell {
             'fn': (obj: Client) => {obj.onF1Pressed_chopOaksSeers();}
         },
         {
-            'description': 'Burn logs default oak. Start in bank.',
+            'description': 'Burn logs default maple. Start in bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_burnLogsSeers();}
         },
         {
@@ -18798,7 +18798,7 @@ export class Client extends GameShell {
     }
 
     // NOT TESTED
-    async onF1Pressed_burnLogsSeers(logName = 'oak_logs') {
+    async onF1Pressed_burnLogsSeers(logName = 'maple_logs') {
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.FIREMAKING, 60_000, 'Firemaking');
         let tinderboxId = this.itemIds['tinderbox'];
