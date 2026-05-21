@@ -605,16 +605,12 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
-            'description': 'Chop oak tree, have axe. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_chopOaksSeers();}
+            'description': 'Chop maple tree, have axe. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_chopMaplesSeers();}
         },
         {
             'description': 'Burn logs default maple. Start in bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_burnLogsSeers();}
-        },
-        {
-            'description': 'Chop maple tree, have axe. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_chopMaplesSeers();}
         },
         {
             'description': 'Pick flax and make bowstrings. Start in bank.',
@@ -18797,7 +18793,6 @@ export class Client extends GameShell {
         }
     }
 
-    // NOT TESTED
     async onF1Pressed_burnLogsSeers(logName = 'maple_logs') {
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.FIREMAKING, 60_000, 'Firemaking');
@@ -18810,9 +18805,9 @@ export class Client extends GameShell {
         while (!this.stopLoop) {
             console.log('Just got back to the bank. Checking logout login');
             await this.logoutThenLoginThrottled(60); // do it every hour
-            await sleep(700);
+            await sleep(1700);
             this.handleRunEnergyThrottled(1); // switch to run while at bank.
-            await sleep(700);
+            await sleep(1700);
             await this.depositAllExceptNoMouse([tinderboxId]);
             if (this.getBankCount(logId) < 30) {
                 this.stopLoop = true;
@@ -18832,6 +18827,7 @@ export class Client extends GameShell {
             }
             await sleep(700);
             await this.walkToEndofPath(pathToBank);
+            await sleep(1200);
         }
     }
 }
