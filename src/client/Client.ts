@@ -605,6 +605,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Fish sharks in guild. Start near dock.',
+            'fn': (obj: Client) => {obj.onF1Pressed_fishSharkGuild();}
+        },
+        {
             'description': 'Kill troll general; SET MAGIC SPELL.',
             'fn': (obj: Client) => {obj.onF1Pressed_killTrollGeneral();}
         },
@@ -623,10 +627,6 @@ export class Client extends GameShell {
         {
             'description': 'Craft blue dhide bodies.',
             'fn': (obj: Client) => {obj.onF1Pressed_craftDhideBodies();}
-        },
-        {
-            'description': 'Fish sharks in guild. Start near dock.',
-            'fn': (obj: Client) => {obj.onF1Pressed_fishSharkGuild();}
         },
         {
             'description': 'Cut gems. Get chisel and be near bank',
@@ -664,10 +664,10 @@ export class Client extends GameShell {
         //     'description': 'Clean herbs, then make prayer potions, then collect snape grass.',
         //     'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbsAndThen();}
         // },
-        // {
-        //     'description': 'Clean herbs.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbs();}
-        // },
+        {
+            'description': 'Clean herbs.',
+            'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbs();}
+        },
         // {
         //     'description': 'Get snape grass.',
         //     'fn': (obj: Client) => {obj.onF1Pressed_getSnapeGrass();}
@@ -17992,7 +17992,7 @@ export class Client extends GameShell {
         }
     }
 
-    async onF1Pressed_cleanHerbs(herbNames = ['unidentified_guam', 'unidentified_marentill', 'unidentified_tarromin', 'unidentified_harralander', 'unidentified_ranarr', 'unidentified_irit']) {
+    async onF1Pressed_cleanHerbs(herbNames = ['unidentified_guam', 'unidentified_marentill', 'unidentified_tarromin', 'unidentified_harralander', 'unidentified_ranarr', 'unidentified_irit', 'unidentified_avantoe', 'unidentified_kwuarm', 'unidentified_snapdragon']) {
         this.stopLoop = false;
         for (let h = 0; h < herbNames.length; h++) {
             const herbName = herbNames[h];
