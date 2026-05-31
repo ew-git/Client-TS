@@ -605,6 +605,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Kill troll general; SET MAGIC SPELL.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killTrollGeneral();}
+        },
+        {
             'description': 'Chop maple tree, have axe. Start in bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_chopMaplesSeers();}
         },
@@ -18827,6 +18831,113 @@ export class Client extends GameShell {
             }
             await sleep(700);
             await this.walkToEndofPath(pathToBank);
+            await sleep(1200);
+        }
+    }
+
+    async onF1Pressed_killTrollGeneral() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.MAGIC, 60_000, 'Magic');
+        let minHP = 80;
+        let foodId = 361; // Tuna == 361
+        let bonesId = this.itemIds['big_bones']; // Big Bones == 532
+        let state = 'safing';
+        let needle = 'Troll General';
+        let safeSpot = [2833, 10109];
+        let safeSpotBounds = [2833, 2833, 10109, 10109]; // W, E, S, N
+        let attackNPCBounds = [2833-10, 2833+10, 10097, 10110]; // W, E, S, N
+
+        let pickupItems = [
+            532, // big bones
+            995, // coins
+            this.itemIds['granite_shield'],
+            this.itemIds['rune_warhammer'],
+            this.itemIds['cert_coal'],
+            this.itemIds['cert_raw_tuna'],
+        ];
+        // pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+        // pickupItems = pickupItems.concat(this.rangedAmmoIds);
+        pickupItems = pickupItems.concat(this.magicRunesIds);
+
+        this.handleRunEnergyThrottled(1);
+        while (!this.stopLoop) {
+            if (state == 'safing') {
+                await this.walkToEndofPath([safeSpot]);
+                await sleep(6000);
+                this.handleRunEnergyThrottled(1);
+                await sleep(1200);
+                state = 'killing';
+                this.addChat(0, 'Finished safing state, now killing', '');
+            }
+            this.handleRunEnergyThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.statEffectiveLevel[3] < minHP) {
+                    let foundFood = this.eatFoodInv(foodId);
+                    if (!foundFood) {
+                        // out of food, need to log out
+                        console.log('Out of food. Trying to log out');
+                        await this.walkToEndofPath([safeSpot]);
+                        this.useLogoutButton();
+                        await sleep(10000);
+                        this.useLogoutButton();
+                        await sleep(5000);
+                        this.stopLoop = true;
+                        break;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                let items = this.filterGroundItemsIds(pickupItems);
+                while (items.length > 0) {
+                    const item = items.shift();
+                    if (item != null) {
+                        await this.pickupNearestIdValidated(item);
+                        if (this.countInvById(bonesId) > 0) {
+                            await this.buryBones([bonesId]);
+                            await sleep(700);
+                        }
+                    }
+                    if (this.invFull()) {
+                        break;
+                    }
+                    items = this.filterGroundItemsIds(pickupItems);
+                }
+                if (this.invFull()) {
+                    console.log('Inventory is full. Trying to log out');
+                    await this.walkToEndofPath([safeSpot]);
+                    this.useLogoutButton();
+                    await sleep(10000);
+                    this.useLogoutButton();
+                    await sleep(5000);
+                    this.stopLoop = true;
+                    break;
+                }
+                // Run to safe spot, THEN attack.
+                await this.walkToEndofPath([safeSpot]);
+                await sleep(700);
+                console.log('About to attack npc in bounds');
+                await this.attackNearestNPCInBounds(needle, attackNPCBounds[0], attackNPCBounds[1], attackNPCBounds[2], attackNPCBounds[3], 20);
+                // Wait until we're actually in combat.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 30) {
+                    iter++;
+                    await sleep(200);
+                }
+                // Run to safe spot
+                await this.walkToEndofPath([safeSpot]);
+                await sleep(3000);
+            } else {
+                // NPC is after me
+                if (!this.playerIsInBounds(safeSpotBounds)) {
+                    await this.walkToEndofPath([safeSpot]);
+                    await sleep(700);
+                }
+                await this.attackNearestNPCAfterMe(needle);
+            }
             await sleep(1200);
         }
     }
