@@ -605,32 +605,24 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Make prayer pots. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makePotion('ranarr', 'snape_grass');}
+        },
+        {
+            'description': 'Make super attack pots. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makePotion('irit', 'eye_of_newt');}
+        },
+        {
+            'description': 'Make regular attack pots. Start in bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_makePotion('guam', 'eye_of_newt');}
+        },
+        {
             'description': 'Fish sharks in guild. Start near dock.',
             'fn': (obj: Client) => {obj.onF1Pressed_fishSharkGuild();}
         },
         {
-            'description': 'Kill troll general; SET MAGIC SPELL.',
-            'fn': (obj: Client) => {obj.onF1Pressed_killTrollGeneral();}
-        },
-        {
-            'description': 'Chop maple tree, have axe. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_chopMaplesSeers();}
-        },
-        {
-            'description': 'Burn logs default maple. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_burnLogsSeers();}
-        },
-        {
-            'description': 'Pick flax and make bowstrings. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_flaxBowstrings();}
-        },
-        {
-            'description': 'Craft blue dhide bodies.',
-            'fn': (obj: Client) => {obj.onF1Pressed_craftDhideBodies();}
-        },
-        {
-            'description': 'Cut gems. Get chisel and be near bank',
-            'fn': (obj: Client) => {obj.onF1Pressed_cutGems();}
+            'description': 'Buy vials in Ardy. Start in north bank. HAVE COINS.',
+            'fn': (obj: Client) => {obj.onF1Pressed_buyVialsArdy();}
         },
         {
             'description': 'Cook fish in Catherby. Start in bank.',
@@ -640,58 +632,6 @@ export class Client extends GameShell {
             'description': 'Mine near Ardy. Start in bank. Get pickaxe.',
             'fn': (obj: Client) => {obj.onF1Pressed_mineIronCoalArdy();}
         },
-        // {
-        //     'description': 'Make mith bars in Al Kharid; start in bank.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_makeMithAddyBarsAlKharid('mithril');}
-        // },
-        {
-            'description': 'Make steel bars in AlKharid; start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makeSteelBarsAlKharid();}
-        },
-        {
-            'description': 'Make cannonballs in AlKharid; start in bank; GET MOULD.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makeCannonballsAlKharid();}
-        },
-        // {
-        //     'description': 'Craft nature runes, start at store.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_craftNatureRunes();}
-        // },
-        // {
-        //     'description': 'Kill shadow warriors in Legends Guild. Start at banker.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_killShadowWarriors();}
-        // },
-        // {
-        //     'description': 'Clean herbs, then make prayer potions, then collect snape grass.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbsAndThen();}
-        // },
-        {
-            'description': 'Clean herbs.',
-            'fn': (obj: Client) => {obj.onF1Pressed_cleanHerbs();}
-        },
-        // {
-        //     'description': 'Get snape grass.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_getSnapeGrass();}
-        // },
-        // {
-        //     'description': 'Buy arrows in Varrock. Need cash on hand.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_buyArrowsVarrock();}
-        // },
-        // {
-        //     'description': 'Smith iron knives in Varrock. GET HAMMER.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_smithIronKnivesVarrock();}
-        // },
-        // {
-        //     'description': 'Kill the Lesser demon in the wizard tower. Use mage or ranged.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_killLesserDemonWizTower();}
-        // },
-        // {
-        //     'description': 'Kill chaos druids with ranged. SET RAPID.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_killChaosDruidsArdyRange();}
-        // },
-        // {
-        //     'description': 'Kill moss giants with ranged. SET RAPID.',
-        //     'fn': (obj: Client) => {obj.onF1Pressed_killMossGiantsArdyRange();}
-        // },
     ];
 
     private itemIds: { [name: string]: number } = {
@@ -18939,6 +18879,117 @@ export class Client extends GameShell {
                 await this.attackNearestNPCAfterMe(needle);
             }
             await sleep(1200);
+        }
+    }
+
+    async onF1Pressed_buyVialsArdy() {
+        this.stopLoop = false;
+        let state = 'banking';
+
+        let pathBankToShop = [[2615,3332],[2612,3339],[2608,3333],[2608,3323],[2608,3311],[2609,3300],[2614,3296]];
+        let pathShopToBank = pathBankToShop.toReversed(); 
+        let storeNPCName = 'Aemad';
+        let targetItemId = this.itemIds['vial_empty']
+
+        this.handleRunEnergyThrottled(1);
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathShopToBank);
+                this.handleRunEnergyThrottled(2);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                this.handleRunEnergyThrottled(1); // switch to run while at bank.
+                await sleep(700);
+                await this.depositAllExceptNoMouse([995]); // Keep coins for buying stuff
+                await sleep(700);
+                this.closeBankWindow();
+                await sleep(700);
+                await this.walkToEndofPath(pathBankToShop);
+                await sleep(1200);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            // Should be at shop
+            await sleep(700);
+            let openedTrade = await this.tradeAndWaitForWindow(storeNPCName);
+            if (!openedTrade) {
+                await this.tradeAndWaitForWindow(storeNPCName, 30);
+            }
+            this.buyX(targetItemId, 10, 0);
+            await sleep(700);
+            this.buyX(targetItemId, 10, 0);
+            await sleep(700);
+            this.buyX(targetItemId, 10, 0);
+            await sleep(1700);
+            if (this.invFull()) {
+                this.closeBankWindow();
+                console.log('Full inventory, so banking.');
+                state = 'banking';
+            } else {
+                // Inv isn't full; shop must be out of stock
+                console.log('Shop probably out of stock');
+                await sleep(1000*60*10);
+            }
+        }
+    }
+
+    async onF1Pressed_buyVialsTaverly() {
+        this.stopLoop = false;
+        let state = 'banking';
+
+        let pathBankToRightSideGate = [[0,0]];
+        let pathRightSideGateToBank = pathBankToRightSideGate.toReversed(); 
+        let storeNPCName = 'Jatix';
+        let targetItemId = this.itemIds['vial_empty']
+
+        this.handleRunEnergyThrottled(1);
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                this.handleRunEnergyThrottled(2);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                this.handleRunEnergyThrottled(1); // switch to run while at bank.
+                await sleep(700);
+                await this.depositAllExceptNoMouse([995]); // Keep coins for buying stuff
+                await sleep(700);
+                this.closeBankWindow();
+                await sleep(700);
+                state = 'walk to shop';
+                this.addChat(0, 'Finished banking state', '');
+            } else if (state == 'walk to shop') {
+                // TODO
+            } else if (state == 'at shop') {
+                // Should be at shop
+                await sleep(700);
+                let openedTrade = await this.tradeAndWaitForWindow(storeNPCName);
+                if (!openedTrade) {
+                    await this.tradeAndWaitForWindow(storeNPCName, 30);
+                }
+                this.buyX(targetItemId, 10, 0);
+                await sleep(700);
+                this.buyX(targetItemId, 10, 0);
+                await sleep(700);
+                this.buyX(targetItemId, 10, 0);
+                await sleep(1700);
+                if (this.invFull()) {
+                    this.closeBankWindow();
+                    console.log('Full inventory, so banking.');
+                    state = 'walk to bank';
+                } else {
+                    // Inv isn't full; shop must be out of stock
+                    console.log('Shop probably out of stock');
+                    await sleep(1000*60*10);
+                }
+            } else if (state == 'walk to bank') {
+                // TODO
+            }
+            await sleep(700);
         }
     }
 }
