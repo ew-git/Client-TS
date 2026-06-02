@@ -625,6 +625,10 @@ export class Client extends GameShell {
             'fn': (obj: Client) => {obj.onF1Pressed_buyVialsArdy();}
         },
         {
+            'description': 'Fill vials from Fally bank.',
+            'fn': (obj: Client) => {obj.onF1Pressed_fillVialsFally();}
+        },
+        {
             'description': 'Cook fish in Catherby. Start in bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_cookCatherby('raw_shark');}
         },
@@ -3853,9 +3857,9 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                let doorX = 2716;
-                let doorZ = 3472;
-                this.openDoorXZ(doorX, doorZ);
+                let targetItemId = this.itemIds['vial_empty'];
+                let wellId = 879;
+                this.selectAndUseOnNearest(targetItemId, wellId);
             }
         });
 
@@ -18989,6 +18993,54 @@ export class Client extends GameShell {
             } else if (state == 'walk to bank') {
                 // TODO
             }
+            await sleep(700);
+        }
+    }
+
+    async onF1Pressed_fillVialsFally() {
+        this.stopLoop = false;
+        let state = 'banking';
+        let targetItemId = this.itemIds['vial_empty'];
+        let wellId = 879;
+
+        let pathBankToWater = [[2945,3368],[2945,3374],[2949,3380]];
+        let pathWaterToBank = pathBankToWater.toReversed();
+
+
+        this.handleRunEnergyThrottled(1);
+
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathWaterToBank);
+                await sleep(700);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(30);
+                await sleep(700);
+                await this.depositAllExceptNoMouse([0]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    if (this.getBankCount(targetItemId) < 30) {
+                        this.stopLoop = true;
+                        break;
+                    }
+                    // withdraw immediately
+                    await this.withdrawAllNoMouse(targetItemId);
+                }
+                await sleep(700);
+                this.closeBankWindow();
+                await sleep(700);
+                await this.walkToEndofPath(pathBankToWater);
+                await sleep(700);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            this.handleRunEnergyThrottled(1);
+            await sleep(200);
+            for (let _ = 0; _ < 28; _++) {
+                this.selectAndUseOnNearest(targetItemId, wellId);
+                await sleep(2*600+100);
+            }
+            state = 'banking';
             await sleep(700);
         }
     }
