@@ -625,6 +625,10 @@ export class Client extends GameShell {
             'fn': (obj: Client) => {obj.onF1Pressed_buyVialsArdy();}
         },
         {
+            'description': 'Buy vials in Taverly. Start in fally bank. HAVE COINS.',
+            'fn': (obj: Client) => {obj.onF1Pressed_buyVialsTaverly();}
+        },
+        {
             'description': 'Fill vials from Fally bank.',
             'fn': (obj: Client) => {obj.onF1Pressed_fillVialsFally();}
         },
@@ -3857,9 +3861,9 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                let targetItemId = this.itemIds['vial_empty'];
-                let wellId = 879;
-                this.selectAndUseOnNearest(targetItemId, wellId);
+                let doorX = 2935;
+                let doorZ = 3450;
+                this.openDoorXZ(doorX, doorZ);
             }
         });
 
@@ -18944,16 +18948,23 @@ export class Client extends GameShell {
         this.stopLoop = false;
         let state = 'banking';
 
-        let pathBankToRightSideGate = [[0,0]];
-        let pathRightSideGateToBank = pathBankToRightSideGate.toReversed(); 
+        let pathBankToRightSideGate = [[2945,3368],[2951,3377],[2962,3389],[2963,3402],[2957,3417],[2950,3429],[2946,3446],[2936,3450]];
+        let pathRightSideGateToBank = pathBankToRightSideGate.toReversed();
+        let doorX = 2935;
+        let doorZ = 3450;
+        let pathLeftSideGateToShop = [[2935,3450],[2928,3439],[2916,3432],[2905,3429],[2900,3428]];
+        let pathShopToLeftSideGate = pathLeftSideGateToShop.toReversed();
+        let taverlyBounds = [2935-10, 2935, 3450-5, 3450+5]; // W, E, S, N
         let storeNPCName = 'Jatix';
-        let targetItemId = this.itemIds['vial_empty']
+        let targetItemId = this.itemIds['vial_empty']; // in slot 0
+        let alternateItemId = this.itemIds['eye_of_newt']; // in slot 2
+        // gate id 1558 --- changes?
 
         this.handleRunEnergyThrottled(1);
 
         while (!this.stopLoop) {
             if (state == 'banking') {
-                this.handleRunEnergyThrottled(2);
+                this.handleRunEnergyThrottled(1);
                 await sleep(2000);
                 console.log('Just got back to the bank. Checking logout login');
                 await this.logoutThenLoginThrottled(60); // do it every hour
@@ -18967,7 +18978,17 @@ export class Client extends GameShell {
                 state = 'walk to shop';
                 this.addChat(0, 'Finished banking state', '');
             } else if (state == 'walk to shop') {
-                // TODO
+                await this.walkToEndofPath(pathBankToRightSideGate);
+                await sleep(700);
+                while (!this.playerIsInBounds(taverlyBounds)) {
+                    this.openDoorXZ(doorX, doorZ);
+                    await sleep(1000);
+                    await this.walkToEndofPath([[doorX - 1, doorZ]]);
+                    await sleep(700);
+                }
+                // Should be on left side of Taverly gate.
+                await this.walkToEndofPath(pathLeftSideGateToShop);
+                state = 'at shop';
             } else if (state == 'at shop') {
                 // Should be at shop
                 await sleep(700);
@@ -18986,12 +19007,36 @@ export class Client extends GameShell {
                     console.log('Full inventory, so banking.');
                     state = 'walk to bank';
                 } else {
-                    // Inv isn't full; shop must be out of stock
-                    console.log('Shop probably out of stock');
-                    await sleep(1000*60*10);
+                    // Try buying alternate item
+                    this.buyX(alternateItemId, 10, 2);
+                    await sleep(700);
+                    this.buyX(alternateItemId, 10, 2);
+                    await sleep(700);
+                    this.buyX(alternateItemId, 10, 2);
+                    await sleep(1700);
+                    if (this.invFull()) {
+                        this.closeBankWindow();
+                        console.log('Full inventory, so banking.');
+                        state = 'walk to bank';
+                    } else {
+                        // Inv still isn't full; shop must be out of stock
+                        console.log('Shop probably out of stock');
+                        await sleep(1000*60*10);
+                    }
                 }
             } else if (state == 'walk to bank') {
-                // TODO
+                await this.walkToEndofPath(pathShopToLeftSideGate);
+                await sleep(700);
+                while (this.playerIsInBounds(taverlyBounds)) {
+                    this.openDoorXZ(doorX, doorZ);
+                    await sleep(1000);
+                    await this.walkToEndofPath([[doorX + 1, doorZ]]);
+                    await sleep(700);
+                }
+                // Should be on fally side now
+                await this.walkToEndofPath(pathRightSideGateToBank);
+                await sleep(700);
+                state = 'banking';
             }
             await sleep(700);
         }
