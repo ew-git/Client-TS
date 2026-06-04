@@ -18010,7 +18010,7 @@ export class Client extends GameShell {
         let vialWaterId = this.itemIds['vial_water'];
         let herbPotionId = this.itemIds[herbName + 'vial'];
         while (!this.stopLoop) {
-            await this.logoutThenLoginThrottled(5);
+            await this.logoutThenLoginThrottled(30);
             await this.depositAllExceptNoMouse([0]);
             if (this.getBankCount(herbId) < 20 || this.getBankCount(secondaryId) < 20) {
                 this.stopLoop = true;
