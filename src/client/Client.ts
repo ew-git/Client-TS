@@ -18342,7 +18342,7 @@ export class Client extends GameShell {
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.COOKING, 60_000, 'Cooking');
         let state = 'banking';
-        let rawFishId = this.itemIds['raw_swordfish'];
+        let rawFishId = this.itemIds[fishname];
         let rangeId = 2728;
         let rangeLoc = [2817,3443];
         let doorX = 2816;
