@@ -605,28 +605,12 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
-            'description': 'Make prayer pots. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makePotion('ranarr', 'snape_grass');}
-        },
-        {
-            'description': 'Make super attack pots. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makePotion('irit', 'eye_of_newt');}
-        },
-        {
-            'description': 'Make regular attack pots. Start in bank.',
-            'fn': (obj: Client) => {obj.onF1Pressed_makePotion('guam', 'eye_of_newt');}
+            'description': 'Kill hill giants. Start at giants, HAVE KEY.',
+            'fn': (obj: Client) => {obj.onF1Pressed_killHillGiantsRange();}
         },
         {
             'description': 'Fish sharks in guild. Start near dock.',
             'fn': (obj: Client) => {obj.onF1Pressed_fishSharkGuild();}
-        },
-        {
-            'description': 'Buy vials in Ardy. Start in north bank. HAVE COINS.',
-            'fn': (obj: Client) => {obj.onF1Pressed_buyVialsArdy();}
-        },
-        {
-            'description': 'Buy vials in Taverly. Start in fally bank. HAVE COINS.',
-            'fn': (obj: Client) => {obj.onF1Pressed_buyVialsTaverly();}
         },
         {
             'description': 'Fill vials from Fally bank.',
@@ -3861,9 +3845,10 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                let doorX = 2935;
-                let doorZ = 3450;
-                this.openDoorXZ(doorX, doorZ);
+                let keyId = this.itemIds['edgevilledungeonkey'];
+                let doorId = 1804;
+                this.selectAndUseOnNearestWall(keyId, doorId);
+                // console.log(this.world?.wallType(this.minusedlevel, 51, 50));
             }
         });
 
@@ -15520,6 +15505,44 @@ export class Client extends GameShell {
         }
     }
 
+    getNearestObjectWallFromArray(targetids: number[], maxdist = 1000) {
+        if (this.localPlayer == null) {
+            return null;
+        }
+        let playerX = this.localPlayer.routeX[0];
+        let playerZ = this.localPlayer.routeZ[0];
+        let closestDist = Number.POSITIVE_INFINITY;
+        let closestX = -1;
+        let closestZ = -1;
+        let closestFullType = -1;
+        let s = this.world;
+        if (!s) {return null;}
+        for (let x = 0; x < BuildArea.SIZE; x++) {
+            for (let z = 0; z < BuildArea.SIZE; z++) {
+                let tile = s.wallType(this.minusedlevel, x, z);
+                if (tile == 0) {
+                    continue;
+                }
+                let type = (tile >> 14) & 32767;
+                if (targetids.includes(type)) {
+                    let dist = this.manhattanDist(playerX, playerZ, x, z);
+                    if (dist < closestDist && dist < maxdist) {
+                        closestDist = dist;
+                        closestX = x;
+                        closestZ = z;
+                        closestFullType = tile;
+                    }
+                    // console.log(`Found tile ${tile} at ${[this.currentLevel, x, z]} with type ${type}.`);
+                }
+            }
+        }
+        if (closestX == -1 || closestZ == -1 || !this.localPlayer) {
+            return null;
+        } else {
+            return {level: this.minusedlevel, x: closestX, z: closestZ, fullType: closestFullType};
+        }
+    }
+
     useNearestObjOPN(n: number, ids: number[], maxdist: number) {
         let nearestObj = this.getNearestObjectFromArray(ids, maxdist);
         if (!nearestObj) {
@@ -16722,9 +16745,32 @@ export class Client extends GameShell {
         this.redrawSidebar = true;
     }
 
+    useOnNearestWall(objId: number) {
+        let nearestObj = this.getNearestObjectWallFromArray([objId]);
+        if (!nearestObj) {
+            return false;
+        }
+        let a = nearestObj.fullType;
+        let b = nearestObj.x;
+        let c = nearestObj.z;
+        if (this.interactWithLoc(b, c, a, ClientProt.OPLOCU)) {
+            this.out.p2(this.objComId);
+            this.out.p2(this.objSelectedSlot);
+            this.out.p2(this.objSelectedComId);
+        }
+        this.useMode = 0;
+        this.targetMode = 0;
+        this.redrawSidebar = true;
+    }
+
     selectAndUseOnNearest(itemId: number, objId: number) {
         this.selectFirstInv(itemId);
         this.useOnNearestObj(objId);
+    }
+
+    selectAndUseOnNearestWall(itemId: number, objId: number) {
+        this.selectFirstInv(itemId);
+        this.useOnNearestWall(objId);
     }
 
     doOPLOC1OnNearestObjFromArray(objIds: number[], maxdist = 1000) {
@@ -19087,6 +19133,136 @@ export class Client extends GameShell {
             }
             state = 'banking';
             await sleep(700);
+        }
+    }
+
+    async onF1Pressed_killHillGiantsRange() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.RANGED, 60_000, 'Ranged');
+        let minHP = 55;
+        let foodId = this.itemIds['tuna'];
+        let bonesId = this.itemIds['big_bones'];
+        let rangeAmmoId = this.itemIds['iron_knife'];
+        let keyId = this.itemIds['edgevilledungeonkey'];
+        let doorId = 1804;
+        let topLadderId = 1754;
+        let bottomLadderId = 1755;
+        let bottomLadderLoc = [3116, 9851];
+        
+        let state = 'not banking';
+        let outsideRoomToBankPath = [[3115,3449],[3132,3445],[3142,3432],[3155,3426],[3172,3429],[3185,3436]];
+        let bankToOutsideRoomPath = outsideRoomToBankPath.toReversed();
+        let roomBounds = [3113, 3117, 3450, 3453]; // W, E, S, N
+        let needle = 'Giant';
+        let pickupItems = [
+            995, // coins
+            bonesId,
+            this.itemIds['limpwurt_root'],
+            this.itemIds['body_talisman'],
+        ];
+        pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+        pickupItems = pickupItems.concat(this.magicRunesIds);
+        pickupItems = pickupItems.concat(this.rangedAmmoIds);
+        
+        await this.handleRunEnergyThrottled(1);
+        this.setAttackRapid();
+        
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath([bottomLadderLoc]);
+                this.doOPLOC1OnNearestObjFromArray([bottomLadderId], 9);
+                await sleep(2700);
+                // should be in the locked room
+                this.selectAndUseOnNearestWall(keyId, doorId);
+                await sleep(4500);
+                await this.walkToEndofPath(outsideRoomToBankPath);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                // Reset attack method to "Rapid"
+                this.setAttackRapid();
+                await sleep(700);
+                await this.depositAllExceptNoMouse([keyId]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw1NoMouse(foodId);
+                    await this.withdraw1NoMouse(foodId);
+                    await this.withdraw1NoMouse(foodId);
+                }
+                await sleep(1200);
+                if (this.invCount() < 3) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(bankToOutsideRoomPath);
+                await sleep(1200);
+                this.selectAndUseOnNearestWall(keyId, doorId);
+                await sleep(3000);
+                this.doOPLOC1OnNearestObjFromArray([topLadderId], 9);
+                await sleep(2700);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            await this.handleRunEnergyThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.statEffectiveLevel[3] < minHP) {
+                    let foundFood = this.eatFoodInv(foodId);
+                    if (!foundFood) {
+                        // out of food, need to bank
+                        state = 'banking';
+                        this.addChat(0, 'Entering banking state', '');
+                        continue;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                let items = this.filterGroundItemsIds(pickupItems);
+                while (items.length > 0) {
+                    const item = items.shift();
+                    if (item != null) {
+                        await this.pickupNearestIdValidated(item);
+                        if (this.countInvById(bonesId) > 0) {
+                            await this.buryBones([bonesId]);
+                            await sleep(700);
+                        }
+                    }
+                    if (this.invFull()) {
+                        break;
+                    }
+                    items = this.filterGroundItemsIds(pickupItems);
+                }
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    this.equipItemInv(rangeAmmoId);
+                    await sleep(700);
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'banking';
+                        this.addChat(0, 'Entering banking state', '');
+                        continue;
+                    }
+                }
+                await this.attackNearestNPC(needle);
+                // Wait until we're actually in combat until trying to loop again.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 40) {
+                    iter++;
+                    await sleep(300);
+                }
+            } else {
+                await this.attackNearestNPCAfterMe(needle);
+            }
+            await sleep(1200);
         }
     }
 }
