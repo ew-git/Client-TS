@@ -19142,7 +19142,8 @@ export class Client extends GameShell {
         let minHP = 55;
         let foodId = this.itemIds['tuna'];
         let bonesId = this.itemIds['big_bones'];
-        let rangeAmmoId = this.itemIds['iron_knife'];
+        let rangeAmmoId = this.itemIds['bronze_arrow'];
+        let weaponType = 'shortbow';
         let keyId = this.itemIds['edgevilledungeonkey'];
         let doorId = 1804;
         let topLadderId = 1754;
@@ -19166,7 +19167,7 @@ export class Client extends GameShell {
         pickupItems = pickupItems.concat(this.rangedAmmoIds);
         
         await this.handleRunEnergyThrottled(1);
-        this.setAttackRapid();
+        this.setAttackRapid(weaponType);
         
         while (!this.stopLoop) {
             if (state == 'banking') {
@@ -19182,7 +19183,7 @@ export class Client extends GameShell {
                 await this.logoutThenLoginThrottled(60); // do it every hour
                 await sleep(700);
                 // Reset attack method to "Rapid"
-                this.setAttackRapid();
+                this.setAttackRapid(weaponType);
                 await sleep(700);
                 await this.depositAllExceptNoMouse([keyId]);
                 await sleep(600);
@@ -19251,6 +19252,9 @@ export class Client extends GameShell {
                         this.addChat(0, 'Entering banking state', '');
                         continue;
                     }
+                }
+                if (weaponType == 'shortbow' && this.getSpecEnergy() >= 55) {
+                    this.useSpec('magic_shortbow');
                 }
                 await this.attackNearestNPC(needle);
                 // Wait until we're actually in combat until trying to loop again.
