@@ -19142,7 +19142,7 @@ export class Client extends GameShell {
         let minHP = 55;
         let foodId = this.itemIds['tuna'];
         let bonesId = this.itemIds['big_bones'];
-        let rangeAmmoId = this.itemIds['bronze_arrow'];
+        let rangeAmmoId = this.itemIds['iron_arrow'];
         let weaponType = 'shortbow';
         let keyId = this.itemIds['edgevilledungeonkey'];
         let doorId = 1804;
@@ -19189,8 +19189,6 @@ export class Client extends GameShell {
                 await sleep(600);
                 if (this.checkBankOpen()) {
                     // withdraw immediately
-                    await this.withdraw1NoMouse(foodId);
-                    await this.withdraw1NoMouse(foodId);
                     await this.withdraw1NoMouse(foodId);
                 }
                 await sleep(1200);
