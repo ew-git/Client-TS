@@ -19192,7 +19192,7 @@ export class Client extends GameShell {
                     await this.withdraw1NoMouse(foodId);
                 }
                 await sleep(1200);
-                if (this.invCount() < 3) {
+                if (this.invCount() < 2) {
                     console.log('Not enough food. Logging out.');
                     this.stopLoop = true;
                     await this.logout();
