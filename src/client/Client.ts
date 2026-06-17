@@ -605,6 +605,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Buy arrows in varrock.',
+            'fn': (obj: Client) => {obj.onF1Pressed_buyArrowsVarrock();}
+        },
+        {
             'description': 'Kill hill giants. Start at giants, HAVE KEY.',
             'fn': (obj: Client) => {obj.onF1Pressed_killHillGiantsRange();}
         },
