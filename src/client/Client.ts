@@ -614,7 +614,7 @@ export class Client extends GameShell {
         },
         {
             'description': 'Kill hill giants. Start at giants, HAVE KEY.',
-            'fn': (obj: Client) => {obj.onF1Pressed_killHillGiantsRange();}
+            'fn': (obj: Client) => {obj.onF1Pressed_killHillGiantsMelee();}
         },
         {
             'description': 'Fish sharks in guild. Start near dock.',
@@ -19260,6 +19260,132 @@ export class Client extends GameShell {
                 }
                 if (weaponType == 'shortbow' && this.getSpecEnergy() >= 55) {
                     this.useSpec('magic_shortbow');
+                }
+                await this.attackNearestNPC(needle);
+                // Wait until we're actually in combat until trying to loop again.
+                let iter = 0;
+                while (!this.anyNPCafterMe() && iter < 40) {
+                    iter++;
+                    await sleep(300);
+                }
+            } else {
+                await this.attackNearestNPCAfterMe(needle);
+            }
+            await sleep(1200);
+        }
+    }
+
+    async onF1Pressed_killHillGiantsMelee() {
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.ATTACK, 60_000, 'ATTACK');
+        let minHP = 55;
+        let specWeaponName = 'dragon_mace';
+        let foodId = this.itemIds['tuna'];
+        let bonesId = this.itemIds['big_bones'];
+        let keyId = this.itemIds['edgevilledungeonkey'];
+        let doorId = 1804;
+        let topLadderId = 1754;
+        let bottomLadderId = 1755;
+        let bottomLadderLoc = [3116, 9851];
+        
+        let state = 'not banking';
+        let outsideRoomToBankPath = [[3115,3449],[3132,3445],[3142,3432],[3155,3426],[3172,3429],[3185,3436]];
+        let bankToOutsideRoomPath = outsideRoomToBankPath.toReversed();
+        let needle = 'Giant';
+        let pickupItems = [
+            995, // coins
+            bonesId,
+            this.itemIds['limpwurt_root'],
+            this.itemIds['body_talisman'],
+        ];
+        pickupItems = pickupItems.concat(this.uidHerbIds);
+        pickupItems = pickupItems.concat(this.rareTableIds);
+        pickupItems = pickupItems.concat(this.magicRunesIds);
+        pickupItems = pickupItems.concat(this.rangedAmmoIds);
+        
+        this.handleRunEnergyThrottled(1);
+        
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath([bottomLadderLoc]);
+                this.doOPLOC1OnNearestObjFromArray([bottomLadderId], 9);
+                await sleep(2700);
+                // should be in the locked room
+                this.selectAndUseOnNearestWall(keyId, doorId);
+                await sleep(4500);
+                await this.walkToEndofPath(outsideRoomToBankPath);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                await sleep(700);
+                await this.depositAllExceptNoMouse([keyId]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdraw1NoMouse(foodId);
+                }
+                await sleep(1200);
+                if (this.invCount() < 2) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+                await this.walkToEndofPath(bankToOutsideRoomPath);
+                await sleep(1200);
+                this.selectAndUseOnNearestWall(keyId, doorId);
+                await sleep(3000);
+                this.doOPLOC1OnNearestObjFromArray([topLadderId], 9);
+                await sleep(2700);
+                state = 'not banking';
+                this.addChat(0, 'Finished banking state', '');
+            }
+            this.handleRunEnergyThrottled(1);
+            if (!this.anyNPCafterMe()) {
+                // Eat if HP is low
+                if (this.statEffectiveLevel[3] < minHP) {
+                    let foundFood = this.eatFoodInv(foodId);
+                    if (!foundFood) {
+                        // out of food, need to bank
+                        state = 'banking';
+                        this.addChat(0, 'Entering banking state', '');
+                        continue;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                await sleep(1400); // wait for NPC death animation.
+                // Try to pick up any items on the ground.
+                let items = this.filterGroundItemsIds(pickupItems);
+                while (items.length > 0) {
+                    const item = items.shift();
+                    if (item != null) {
+                        await this.pickupNearestIdValidated(item);
+                        if (this.countInvById(bonesId) > 0) {
+                            await this.buryBones([bonesId]);
+                            await sleep(700);
+                        }
+                    }
+                    if (this.invFull()) {
+                        break;
+                    }
+                    items = this.filterGroundItemsIds(pickupItems);
+                }
+                if (this.invFull()) {
+                    // Handle full inventory, maybe bank.
+                    await sleep(700);
+                    if (this.countInvById(bonesId) > 0) {
+                        await this.buryBones([bonesId]);
+                        continue;
+                    } else {
+                        // No bones, so inv full of other stuff, need to bank.
+                        state = 'banking';
+                        this.addChat(0, 'Entering banking state', '');
+                        continue;
+                    }
+                }
+                if (this.getSpecEnergy() >= 25) {
+                    this.useSpec(specWeaponName);
                 }
                 await this.attackNearestNPC(needle);
                 // Wait until we're actually in combat until trying to loop again.
