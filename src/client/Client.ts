@@ -3853,10 +3853,9 @@ export class Client extends GameShell {
                 this.logArray.push([globalX, globalZ]);
                 console.log(JSON.stringify(this.logArray));
             } else if (event.key === 'F7') {
-                let keyId = this.itemIds['edgevilledungeonkey'];
-                let doorId = 1804;
-                this.selectAndUseOnNearestWall(keyId, doorId);
-                // console.log(this.world?.wallType(this.minusedlevel, 51, 50));
+                let pathBankToMarket = [[2655,3286],[2655,3289],[2663,3291],[2662,3300]];
+                let pathMarketToBank = pathBankToMarket.toReversed();
+                await this.walkToEndofPath(pathMarketToBank);
             }
         });
 
@@ -19293,6 +19292,8 @@ export class Client extends GameShell {
         this.handleRunEnergyThrottled(2);
         while (!this.stopLoop) {
             if (state == 'banking') {
+                console.log('Walk to bank; wait if stunned');
+                await sleep(600*7);
                 await this.walkToEndofPath(pathMarketToBank);
                 await sleep(2000);
                 console.log('Just got back to the bank. Checking logout login');
@@ -19306,17 +19307,18 @@ export class Client extends GameShell {
                 }
                 await sleep(1200);
                 this.closeBankWindow();
-                if (this.invCount() < 20) {
+                if (this.invCount() < 2) {
                     console.log('Not enough food. Logging out.');
                     this.stopLoop = true;
                     await this.logout();
+                    break;
                 }
 
                 await sleep(700);
                 await this.walkToEndofPath(pathBankToMarket);
                 await sleep(700);
                 state = 'thieving';
-                this.addChat(0, 'Finished banking state', '');
+                console.log('Finished banking state');
             } else if (state == 'thieving') {
                 // Eat if HP is low
                 if (this.statEffectiveLevel[3] < minHP) {
@@ -19324,7 +19326,7 @@ export class Client extends GameShell {
                     if (!foundFood) {
                         // out of food, need to bank
                         state = 'banking';
-                        this.addChat(0, 'Entering banking state', '');
+                        console.log('Entering banking state');
                         continue;
                     }
                     await sleep(1000);
