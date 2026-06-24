@@ -19279,7 +19279,7 @@ export class Client extends GameShell {
         this.stopLoop = false;
         this.reportXPOnInterval(PlayerStat.ATTACK, 60_000, 'ATTACK');
         let minHP = 55;
-        let specWeaponName = 'dragon_mace';
+        // let specWeaponName = 'dragon_mace'; // Rune scim is better
         let foodId = this.itemIds['tuna'];
         let bonesId = this.itemIds['big_bones'];
         let keyId = this.itemIds['edgevilledungeonkey'];
@@ -19384,9 +19384,9 @@ export class Client extends GameShell {
                         continue;
                     }
                 }
-                if (this.getSpecEnergy() >= 25) {
-                    this.useSpec(specWeaponName);
-                }
+                // if (this.getSpecEnergy() >= 25) {
+                //     this.useSpec(specWeaponName);
+                // }
                 await this.attackNearestNPC(needle);
                 // Wait until we're actually in combat until trying to loop again.
                 let iter = 0;
