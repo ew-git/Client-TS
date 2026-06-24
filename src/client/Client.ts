@@ -605,6 +605,10 @@ export class Client extends GameShell {
     private f1FunctionIndex: number = 0;
     private f1Functions = [
         {
+            'description': 'Thieve ardy knights. START IN BANK',
+            'fn': (obj: Client) => {obj.onF1Pressed_thieveArdyKnights();}
+        },
+        {
             'description': 'Buy arrows in varrock.',
             'fn': (obj: Client) => {obj.onF1Pressed_buyArrowsVarrock();}
         },
@@ -19170,7 +19174,7 @@ export class Client extends GameShell {
         pickupItems = pickupItems.concat(this.magicRunesIds);
         pickupItems = pickupItems.concat(this.rangedAmmoIds);
         
-        await this.handleRunEnergyThrottled(1);
+        this.handleRunEnergyThrottled(1);
         this.setAttackRapid(weaponType);
         
         while (!this.stopLoop) {
@@ -19269,6 +19273,71 @@ export class Client extends GameShell {
                 await this.attackNearestNPCAfterMe(needle);
             }
             await sleep(1200);
+        }
+    }
+
+    async onF1Pressed_thieveArdyKnights() {
+        this.addChat(0, 'Beginning onF1Pressed_thieveArdyKnights', '');
+        this.stopLoop = false;
+        this.reportXPOnInterval(PlayerStat.THIEVING, 60_000, 'THIEVING');
+        // this.setAttackDefence();
+        let minHP = 50;
+        let foodId = this.itemIds['tuna']; // Tuna == 361
+        let state = 'banking';
+
+        let pathBankToMarket = [[2655,3286],[2655,3289],[2663,3291],[2662,3300]];
+        let pathMarketToBank = pathBankToMarket.toReversed();
+
+        let needle = 'Knight of Ardougne';
+
+        this.handleRunEnergyThrottled(2);
+        while (!this.stopLoop) {
+            if (state == 'banking') {
+                await this.walkToEndofPath(pathMarketToBank);
+                await sleep(2000);
+                console.log('Just got back to the bank. Checking logout login');
+                await this.logoutThenLoginThrottled(60); // do it every hour
+                await sleep(700);
+                await this.depositAllExceptNoMouse([995]);
+                await sleep(600);
+                if (this.checkBankOpen()) {
+                    // withdraw immediately
+                    await this.withdrawAllNoMouse(foodId);
+                }
+                await sleep(1200);
+                this.closeBankWindow();
+                if (this.invCount() < 20) {
+                    console.log('Not enough food. Logging out.');
+                    this.stopLoop = true;
+                    await this.logout();
+                }
+
+                await sleep(700);
+                await this.walkToEndofPath(pathBankToMarket);
+                await sleep(700);
+                state = 'thieving';
+                this.addChat(0, 'Finished banking state', '');
+            } else if (state == 'thieving') {
+                // Eat if HP is low
+                if (this.statEffectiveLevel[3] < minHP) {
+                    let foundFood = this.eatFoodInv(foodId);
+                    if (!foundFood) {
+                        // out of food, need to bank
+                        state = 'banking';
+                        this.addChat(0, 'Entering banking state', '');
+                        continue;
+                    }
+                    await sleep(1000);
+                    continue; // Restart the outer while loop.
+                }
+                this.handleRunEnergyThrottled(2);
+                // Simply find and pickpocket the nearest knight.
+                this.doOPNPC3Nearest(needle);
+                await sleep(100);
+            } else {
+                console.error(`Invalid state ${state}`);
+            }
+            await sleep(600);
         }
     }
 }
