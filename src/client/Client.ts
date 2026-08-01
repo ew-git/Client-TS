@@ -19407,7 +19407,7 @@ export class Client extends GameShell {
         this.reportXPOnInterval(PlayerStat.THIEVING, 60_000, 'THIEVING');
         // this.setAttackDefence();
         let minHP = 50;
-        let foodId = this.itemIds['tuna']; // Tuna == 361
+        let foodId = this.itemIds['swordfish'];
         let state = 'banking';
 
         let pathBankToMarket = [[2655,3286],[2655,3289],[2663,3291],[2662,3300]];
